@@ -17,6 +17,7 @@ using System.Text.RegularExpressions;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
+using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
 {
@@ -125,7 +126,7 @@ namespace TS3AudioBot.ResourceFactories
 			return new PlayResource(url, new AudioResource(link, title, ResolverFor));
 		}
 
-		public R<Playlist, LocalStr> GetPlaylist(ResolveContext _, string url)
+		public R<Playlist, LocalStr> GetPlaylist(ResolveContext _, string url, Uid owner)
 		{
 			var uri = new Uri($"https://api.soundcloud.com/resolve.json?url={Uri.EscapeUriString(url)}&client_id={SoundcloudClientId}");
 			if (!WebWrapper.DownloadString(out string jsonResponse, uri))
@@ -138,7 +139,7 @@ namespace TS3AudioBot.ResourceFactories
 				return new LocalStr(strings.error_media_internal_missing + " (playlist)");
 			}
 
-			var plist = new Playlist().SetTitle(playlist.title);
+			var plist = new Playlist(playlist.title, owner);
 			plist.AddRange(
 				playlist.tracks.Select(track =>
 				{

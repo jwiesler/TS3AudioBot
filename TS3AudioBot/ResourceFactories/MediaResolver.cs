@@ -18,6 +18,7 @@ using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories.AudioTags;
+using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
 {
@@ -188,14 +189,14 @@ namespace TS3AudioBot.ResourceFactories
 			return null;
 		}
 
-		public R<Playlist, LocalStr> GetPlaylist(ResolveContext ctx, string url)
+		public R<Playlist, LocalStr> GetPlaylist(ResolveContext ctx, string url, Uid owner)
 		{
 			if (Directory.Exists(url)) // TODO rework for security
 			{
 				try
 				{
 					var di = new DirectoryInfo(url);
-					var plist = new Playlist().SetTitle(di.Name);
+					var plist = new Playlist(di.Name, owner);
 					var resources = from file in di.EnumerateFiles()
 									select ValidateFromString(ctx.Config, file.FullName) into result
 									where result.Ok
@@ -222,7 +223,7 @@ namespace TS3AudioBot.ResourceFactories
 						if (File.Exists(url))
 						{
 							using (var stream = File.OpenRead(uri.AbsolutePath))
-								return GetPlaylistContent(stream, url);
+								return GetPlaylistContent(stream, url, owner);
 						}
 					}
 					else if (uri.IsWeb())
@@ -234,7 +235,7 @@ namespace TS3AudioBot.ResourceFactories
 							string anyId = index >= 0 ? url.Substring(index) : url;
 
 							using (var stream = response.GetResponseStream())
-								return GetPlaylistContent(stream, url, contentType);
+								return GetPlaylistContent(stream, url, owner, contentType);
 						}).Flat();
 					}
 				}
@@ -247,7 +248,7 @@ namespace TS3AudioBot.ResourceFactories
 			}
 		}
 
-		private R<Playlist, LocalStr> GetPlaylistContent(Stream stream, string url, string mime = null)
+		private R<Playlist, LocalStr> GetPlaylistContent(Stream stream, string url, Uid owner, string mime = null)
 		{
 			string name = null;
 			List<PlaylistItem> items;
@@ -332,7 +333,7 @@ namespace TS3AudioBot.ResourceFactories
 				var index = url.LastIndexOfAny(new[] { '\\', '/' });
 				name = index >= 0 ? url.Substring(index) : url;
 			}
-			return new Playlist(items).SetTitle(name);
+			return new Playlist(name, owner, items);
 		}
 
 		private static R<Stream, LocalStr> GetStreamFromUriUnsafe(Uri uri)

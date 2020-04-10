@@ -13,6 +13,7 @@ using System.IO;
 using TS3AudioBot.Config;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
+using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
 {
@@ -29,8 +30,8 @@ namespace TS3AudioBot.ResourceFactories
 
 		public R<PlayResource, LocalStr> Load(AudioResource resource) => Resolver.Load(this, resource);
 		public R<PlayResource, LocalStr> Load(string message, string audioType = null) => Resolver.Load(this, message, audioType);
-		public R<Playlist, LocalStr> LoadPlaylistFrom(string message) => Resolver.LoadPlaylistFrom(this, message);
-		public R<Playlist, LocalStr> LoadPlaylistFrom(string message, string audioType = null) => Resolver.LoadPlaylistFrom(this, message, audioType);
+		public R<Playlist, LocalStr> LoadPlaylistFrom(string message, Uid owner) => Resolver.LoadPlaylistFrom(this, message, owner);
+		public R<Playlist, LocalStr> LoadPlaylistFrom(string message, Uid owner, string audioType = null) => Resolver.LoadPlaylistFrom(this, message, owner, audioType);
 		public R<string, LocalStr> RestoreLink(AudioResource res) => Resolver.RestoreLink(this, res);
 		public R<Stream, LocalStr> GetThumbnail(PlayResource playResource) => Resolver.GetThumbnail(this, playResource);
 		public R<IList<AudioResource>, LocalStr> Search(string resolverName, string query) => Resolver.Search(this, resolverName, query);

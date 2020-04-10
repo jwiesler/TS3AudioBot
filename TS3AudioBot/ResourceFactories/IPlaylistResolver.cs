@@ -10,6 +10,7 @@
 using System;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
+using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
 {
@@ -17,6 +18,6 @@ namespace TS3AudioBot.ResourceFactories
 	{
 		MatchCertainty MatchPlaylist(ResolveContext ctx, string uri);
 
-		R<Playlist, LocalStr> GetPlaylist(ResolveContext ctx, string url);
+		R<Playlist, LocalStr> GetPlaylist(ResolveContext ctx, string url, Uid owner);
 	}
 }

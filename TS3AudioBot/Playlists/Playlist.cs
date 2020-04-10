@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TS3AudioBot.Localization;
+using TSLib;
 
 namespace TS3AudioBot.Playlists
 {
@@ -19,25 +20,35 @@ namespace TS3AudioBot.Playlists
 		private const int MaxSongs = 1000;
 		private string title;
 		public string Title { get => title; set => SetTitle(value); }
+		public bool Modifiable { get; set; } = false;
+
+		public Uid Owner { get; }
+
 		private readonly List<PlaylistItem> items;
 		public IReadOnlyList<PlaylistItem> Items => items;
 
 		public PlaylistItem this[int i] => items[i];
 
-		public Playlist() :
-			this(new List<PlaylistItem>())
+		public Playlist(string title, Uid owner) :
+			this(title, owner, new List<PlaylistItem>())
 		{ }
 
-		public Playlist(List<PlaylistItem> items)
+		public Playlist(string title, Uid owner, List<PlaylistItem> items)
 		{
 			this.items = items ?? throw new ArgumentNullException(nameof(items));
-			title = string.Empty;
+			this.title = TransformTitleString(title);
+			Owner = owner;
+		}
+
+		public static string TransformTitleString(string title)
+		{
+			title = title.Replace("\r", "").Replace("\n", "");
+			return title.Substring(0, Math.Min(title.Length, 256));
 		}
 
 		public Playlist SetTitle(string newTitle)
 		{
-			newTitle = newTitle.Replace("\r", "").Replace("\n", "");
-			title = newTitle.Substring(0, Math.Min(newTitle.Length, 256));
+			title = TransformTitleString(newTitle);
 			return this;
 		}
 
@@ -89,6 +100,8 @@ namespace TS3AudioBot.Playlists
 	{
 		PlaylistItem this[int i] { get; }
 		string Title { get; }
+		Uid Owner { get; }
+		bool Modifiable { get; }
 		IReadOnlyList<PlaylistItem> Items { get; }
 	}
 }

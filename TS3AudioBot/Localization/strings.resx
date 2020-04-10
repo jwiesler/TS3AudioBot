@@ -498,6 +498,12 @@ with the id {1}?</value>
   <data name="cmd_list_show_header" xml:space="preserve">
     <value>Playlist: "{0}" with {1} songs.</value>
   </data>
+  <data name="cmd_list_protect" xml:space="preserve">
+    <value>The playlist "{0}" is now protected.</value>
+  </data>
+  <data name="cmd_list_unprotect" xml:space="preserve">
+    <value>The playlist "{0}" is now unprotected and modifiable by everybody.</value>
+  </data>
   <data name="cmd_pm_hi" xml:space="preserve">
     <value>Hi {0}</value>
   </data>

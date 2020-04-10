@@ -18,6 +18,7 @@ using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories.Youtube;
+using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
 {
@@ -148,7 +149,7 @@ namespace TS3AudioBot.ResourceFactories
 			return ToErrorString(errors);
 		}
 
-		public R<Playlist, LocalStr> LoadPlaylistFrom(ResolveContext ctx, string message, string audioType = null)
+		public R<Playlist, LocalStr> LoadPlaylistFrom(ResolveContext ctx, string message, Uid owner, string audioType = null)
 		{
 			if (string.IsNullOrWhiteSpace(message))
 				throw new ArgumentNullException(nameof(message));
@@ -161,7 +162,7 @@ namespace TS3AudioBot.ResourceFactories
 				if (resolver is null)
 					return CouldNotLoad(string.Format(strings.error_resfac_no_registered_factory, audioType));
 
-				var result = resolver.GetPlaylist(ctx, netlinkurl);
+				var result = resolver.GetPlaylist(ctx, netlinkurl, owner);
 				if (!result.Ok)
 					return CouldNotLoad(result.Error.Str);
 				return result;
@@ -171,7 +172,7 @@ namespace TS3AudioBot.ResourceFactories
 			List<(string, LocalStr)> errors = null;
 			foreach (var resolver in resolvers)
 			{
-				var result = resolver.GetPlaylist(ctx, netlinkurl);
+				var result = resolver.GetPlaylist(ctx, netlinkurl, owner);
 				Log.Trace("ListResolver {0} tried, result: {1}", resolver.ResolverFor, result.Ok ? "Ok" : result.Error.Str);
 				if (result)
 					return result;

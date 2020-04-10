@@ -14,6 +14,7 @@ using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists.Shuffle;
 using TS3AudioBot.Web.Model;
+using TSLib;
 using TSLib.Helper;
 
 namespace TS3AudioBot.Playlists
@@ -23,7 +24,7 @@ namespace TS3AudioBot.Playlists
 		private readonly ConfPlaylists config;
 		private readonly PlaylistIO playlistPool;
 		private const string mixName = ".mix";
-		private readonly Playlist mixList = new Playlist() { Title = "Now Playing" };
+		private readonly Playlist mixList = new Playlist("Now Playing", Uid.Null);
 		private readonly object listLock = new object();
 		public IReadOnlyPlaylist CurrentList => mixList;
 
@@ -144,14 +145,14 @@ namespace TS3AudioBot.Playlists
 			return res.Value;
 		}
 
-		public E<LocalStr> CreatePlaylist(string listId, string title = null)
+		public E<LocalStr> CreatePlaylist(string listId, Uid owner, string title = null)
 		{
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return checkName;
 			if (playlistPool.Exists(listId))
 				return new LocalStr("Already exists");
-			return playlistPool.Write(listId, new Playlist().SetTitle(title ?? listId));
+			return playlistPool.Write(listId, new Playlist(title ?? listId, owner));
 		}
 
 		public bool ExistsPlaylist(string listId)

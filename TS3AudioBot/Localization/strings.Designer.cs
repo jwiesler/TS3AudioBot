@@ -910,6 +910,15 @@ namespace TS3AudioBot.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The playlist &quot;{0}&quot; is now protected..
+        /// </summary>
+        internal static string cmd_list_protect {
+            get {
+                return ResourceManager.GetString("cmd_list_protect", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Appends your playlist to the freelist..
         /// </summary>
         internal static string cmd_list_queue_help {
@@ -942,6 +951,15 @@ namespace TS3AudioBot.Localization {
         internal static string cmd_list_show_help {
             get {
                 return ResourceManager.GetString("cmd_list_show_help", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The playlist &quot;{0}&quot; is now unprotected and modifiable by everybody..
+        /// </summary>
+        internal static string cmd_list_unprotect {
+            get {
+                return ResourceManager.GetString("cmd_list_unprotect", resourceCulture);
             }
         }
         

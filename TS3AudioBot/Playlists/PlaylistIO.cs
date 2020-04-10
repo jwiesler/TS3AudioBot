@@ -19,6 +19,7 @@ using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
 using TS3AudioBot.Web.Model;
+using TSLib;
 using TSLib.Helper;
 
 namespace TS3AudioBot.Playlists
@@ -109,10 +110,7 @@ namespace TS3AudioBot.Playlists
 
 				playlistInfo[listId] = meta;
 
-				var plist = new Playlist
-				{
-					Title = meta.Title
-				};
+				var plist = new Playlist(meta.Title, meta.OwnerId == null ? Uid.Null : new Uid(meta.OwnerId));
 
 				if (headOnly)
 					return plist;
@@ -240,6 +238,7 @@ namespace TS3AudioBot.Playlists
 				var meta = playlistInfo.GetOrNew(listId);
 				meta.Title = plist.Title;
 				meta.Count = plist.Items.Count;
+				meta.OwnerId = plist.Owner.Value;
 				meta.Version = FileVersion;
 
 				sw.WriteLine("version:" + FileVersion);
@@ -403,6 +402,8 @@ namespace TS3AudioBot.Playlists
 		public int Count { get; set; }
 		[JsonProperty(PropertyName = "title")]
 		public string Title { get; set; }
+		[JsonProperty(PropertyName = "owner")]
+		public string OwnerId { get; set; }
 		[JsonIgnore]
 		public int Version { get; set; }
 	}

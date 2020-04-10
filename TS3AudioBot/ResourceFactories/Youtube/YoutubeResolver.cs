@@ -17,6 +17,7 @@ using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
+using TSLib;
 using TSLib.Helper;
 
 namespace TS3AudioBot.ResourceFactories.Youtube
@@ -290,7 +291,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			}
 		}
 
-		public R<Playlist, LocalStr> GetPlaylist(ResolveContext _, string url)
+		public R<Playlist, LocalStr> GetPlaylist(ResolveContext _, string url, Uid owner)
 		{
 			Match matchYtId = ListMatch.Match(url);
 			if (!matchYtId.Success)
@@ -298,14 +299,14 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 
 			string id = matchYtId.Groups[2].Value;
 			if (string.IsNullOrEmpty(YoutubeProjectId))
-				return GetPlaylistYoutubeDl(id);
+				return GetPlaylistYoutubeDl(id, owner);
 			else
-				return GetPlaylistYoutubeApi(id);
+				return GetPlaylistYoutubeApi(id, owner);
 		}
 
-		private R<Playlist, LocalStr> GetPlaylistYoutubeApi(string id)
+		private R<Playlist, LocalStr> GetPlaylistYoutubeApi(string id, Uid owner)
 		{
-			var plist = new Playlist().SetTitle(id);
+			var plist = new Playlist(id, owner);
 
 			string nextToken = null;
 			do
@@ -341,14 +342,14 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			return plist;
 		}
 
-		private R<Playlist, LocalStr> GetPlaylistYoutubeDl(string id)
+		private R<Playlist, LocalStr> GetPlaylistYoutubeDl(string id, Uid owner)
 		{
 			var result = YoutubeDlHelper.GetPlaylist(id);
 			if (!result.Ok)
 				return result.Error;
 
 			var plistData = result.Value;
-			var plist = new Playlist().SetTitle(plistData.title);
+			var plist = new Playlist(plistData.title, owner);
 			plist.AddRange(plistData.entries.Select(entry =>
 				new PlaylistItem(
 					new AudioResource(
