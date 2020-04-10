@@ -371,7 +371,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				return result.Error;
 
 			var response = result.Value;
-			resource.ResourceTitle = response.track ?? response.title ?? $"Youtube-{resource.ResourceId}";
+			resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
 			var format = YoutubeDlHelper.FilterBest(response.formats);
 			string url = format?.url;
 
