@@ -37,6 +37,7 @@ using TS3AudioBot.Web.Api;
 using TS3AudioBot.Web.Model;
 using TSLib;
 using TSLib.Audio;
+using TSLib.Full;
 using TSLib.Full.Book;
 using TSLib.Helper;
 using TSLib.Messages;
@@ -929,20 +930,20 @@ namespace TS3AudioBot
 			=> playlistManager.DeletePlaylist(listId).UnwrapThrow();
 
 		[Command("list from", "_undocumented")]
-		public static JsonValue<PlaylistInfo> PropagiateLoad(PlaylistManager playlistManager, ResolveContext resolver, InvokerData invoker, string resolverName, string listId, string url)
+		public static JsonValue<PlaylistInfo> PropagiateLoad(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, InvokerData invoker, string resolverName, string listId, string url)
 		{
 			var getList = resolver.LoadPlaylistFrom(url, invoker.ClientUid, resolverName).UnwrapThrow();
-			return ImportMerge(playlistManager, resolver, getList, invoker.ClientUid, listId);
+			return ImportMerge(client, playlistManager, resolver, getList, invoker.ClientUid, listId);
 		}
 
 		[Command("list import", "cmd_list_get_help")] // TODO readjust help texts
-		public static JsonValue<PlaylistInfo> CommandListImport(PlaylistManager playlistManager, ResolveContext resolver, InvokerData invoker, string listId, string link)
+		public static JsonValue<PlaylistInfo> CommandListImport(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, InvokerData invoker, string listId, string link)
 		{
 			var getList = resolver.LoadPlaylistFrom(link, Uid.Null).UnwrapThrow();
-			return ImportMerge(playlistManager, resolver, getList, invoker.ClientUid, listId); ;
+			return ImportMerge(client, playlistManager, resolver, getList, invoker.ClientUid, listId); ;
 		}
 
-		private static JsonValue<PlaylistInfo> ImportMerge(PlaylistManager playlistManager, ResolveContext resolver, Playlist addList, Uid invoker, string listId)
+		private static JsonValue<PlaylistInfo> ImportMerge(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, Playlist addList, Uid invoker, string listId)
 		{
 			if (!playlistManager.ExistsPlaylist(listId))
 				playlistManager.CreatePlaylist(listId, invoker).UnwrapThrow();
@@ -953,7 +954,7 @@ namespace TS3AudioBot
 				playlist.AddRange(addList.Items).UnwrapThrow();
 			}).UnwrapThrow();
 
-			return CommandListShow(playlistManager, resolver, listId, null, null);
+			return CommandListShow(client, playlistManager, resolver, listId, null, null);
 		}
 
 		[Command("list insert", "_undocumented")]  // TODO Doc
@@ -1107,9 +1108,13 @@ namespace TS3AudioBot
 			playManager.Enqueue(invoker, plist.Items).UnwrapThrow();
 		}
 
+		public static string UidToClientName(TsFullClient ts3Client, Uid client) {
+			return ts3Client.GetClientNameFromUid(client).Unwrap().Name;
+		}
+
 		[Command("list show")]
 		[Usage("<name> <index>", "Lets you specify the starting index from which songs should be listed.")]
-		public static JsonValue<PlaylistInfo> CommandListShow(PlaylistManager playlistManager, ResolveContext resourceFactory, string listId, int? offset = null, int? count = null)
+		public static JsonValue<PlaylistInfo> CommandListShow(TsFullClient ts3Client, PlaylistManager playlistManager, ResolveContext resourceFactory, string listId, int? offset = null, int? count = null)
 		{
 			const int maxSongs = 20;
 			var plist = playlistManager.LoadPlaylist(listId).UnwrapThrow();
@@ -1120,6 +1125,7 @@ namespace TS3AudioBot
 			{
 				Id = listId,
 				Title = plist.Title,
+				Owner = plist.Owner == Uid.Null ? null : UidToClientName(ts3Client, plist.Owner),
 				SongCount = plist.Items.Count,
 				DisplayOffset = offsetV,
 				Items = items,
@@ -1129,7 +1135,7 @@ namespace TS3AudioBot
 			{
 				var tmb = new TextModBuilder();
 				
-				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString()).Append("\n");
+				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.Owner).Append("\n");
 				var index = x.DisplayOffset;
 				foreach (var plitem in x.Items)
 					tmb.Append((index++).ToString()).Append(": ").AppendLine(plitem.Title);

@@ -937,7 +937,7 @@ namespace TS3AudioBot.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs..
+        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs owned by {2}..
         /// </summary>
         internal static string cmd_list_show_header {
             get {

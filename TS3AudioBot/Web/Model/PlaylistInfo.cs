@@ -18,6 +18,8 @@ namespace TS3AudioBot.Web.Model
 		public string Id { get; set; }
 		[JsonProperty(PropertyName = "Title")]
 		public string Title { get; set; }
+		[JsonProperty(PropertyName = "Owner")]
+		public string Owner { get; set; }
 
 		/// <summary>How many songs are in the entire playlist</summary>
 		[JsonProperty(PropertyName = "SongCount")]
