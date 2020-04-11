@@ -898,18 +898,22 @@ namespace TS3AudioBot
 			CheckPlaylistManageable(playlist, info, action);
 		}
 
+		public static PlaylistItem ListAddItem(PlaylistManager playlistManager, ExecutionInformation info, string listId, AudioResource resource, MetaData meta = null) {
+			PlaylistItem item = null;
+			playlistManager.ModifyPlaylist(listId, plist => {
+				CheckPlaylistModifiable(plist, info, "modify");
+				item = new PlaylistItem(resource, meta);
+				plist.Add(item).UnwrapThrow();
+			}).UnwrapThrow();
+			return item;
+		}
+
 		[Command("list add")]
 		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(ResolveContext resourceFactory, PlaylistManager playlistManager, ExecutionInformation info, string listId, string link /* TODO param */)
 		{
-			PlaylistItemGetData getData = null;
-			playlistManager.ModifyPlaylist(listId, plist => {
-				CheckPlaylistModifiable(plist, info, "modify");
-				var playResource = resourceFactory.Load(link).UnwrapThrow();
-				var item = new PlaylistItem(playResource.BaseData);
-				plist.Add(item).UnwrapThrow();
-				getData = resourceFactory.ToApiFormat(item);
-				//getData.Index = plist.Items.Count - 1;
-			}).UnwrapThrow();
+			var playResource = resourceFactory.Load(link).UnwrapThrow();
+			var item = ListAddItem(playlistManager, info, listId, playResource.BaseData, playResource.Meta);
+			PlaylistItemGetData getData = resourceFactory.ToApiFormat(item);
 			return JsonValue.Create(getData, strings.info_ok);
 		}
 
@@ -1345,7 +1349,7 @@ namespace TS3AudioBot
 			playerConnection.Position = position;
 		}
 
-		private static AudioResource GetSearchResult(this UserSession session, int index)
+		public static AudioResource GetSearchResult(this UserSession session, int index)
 		{
 			if (!session.Get<IList<AudioResource>>(SessionConst.SearchResult, out var sessionList))
 				throw new CommandException(strings.error_select_empty, CommandExceptionReason.CommandError);
