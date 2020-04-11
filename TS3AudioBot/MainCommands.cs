@@ -52,7 +52,7 @@ namespace TS3AudioBot
 		internal class MainCommandsBag : ICommandBag
 		{
 			public IReadOnlyCollection<BotCommand> BagCommands { get; } = CommandManager.GetBotCommands(null, typeof(MainCommands)).ToArray();
-			public IReadOnlyCollection<string> AdditionalRights { get; } = new string[] { RightHighVolume, RightDeleteAllPlaylists };
+			public IReadOnlyCollection<string> AdditionalRights { get; } = new string[] { RightHighVolume, RightDeleteAllPlaylists, RightBypassManageCheck };
 		}
 
 		public const string RightHighVolume = "ts3ab.admin.volume";
@@ -878,23 +878,32 @@ namespace TS3AudioBot
 				throw new CommandException(strings.cmd_kickme_missing_permission, CommandExceptionReason.CommandError);
 		}
 
-		public static void CheckPlaylistModifiable(IReadOnlyPlaylist playlist, Uid by, string action) {
-			if(!(playlist.Modifiable || playlist.Owner == by))
-				throw new CommandException("You can't " + action + " the playlist \"" + playlist.Title + "\"", CommandExceptionReason.Unauthorized);
+		private const string RightBypassManageCheck = "list.manage.unowned";
+
+		public static void CheckPlaylistManageable(IReadOnlyPlaylist playlist, ExecutionInformation info, string action)
+		{
+			if (info.TryGet<CallerInfo>(out var caller) && caller.SkipRightsChecks)
+				return;
+
+			if (info.TryGet<InvokerData>(out var invoker) && (playlist.Owner == invoker.ClientUid || info.HasRights(RightBypassManageCheck)))
+				return;
+
+			throw new CommandException("You can't " + action + " the playlist \"" + playlist.Title + "\"", CommandExceptionReason.Unauthorized);
 		}
 
-		public static void CheckPlaylistOwnedBy(IReadOnlyPlaylist playlist, Uid by, string action)
-		{
-			if (playlist.Owner != by)
-				throw new CommandException("You can't " + action + " the playlist \"" + playlist.Title + "\"", CommandExceptionReason.Unauthorized);
+		public static void CheckPlaylistModifiable(IReadOnlyPlaylist playlist, ExecutionInformation info, string action) {
+			if (playlist.Modifiable)
+				return;
+
+			CheckPlaylistManageable(playlist, info, action);
 		}
 
 		[Command("list add")]
-		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(ResolveContext resourceFactory, PlaylistManager playlistManager, InvokerData invoker, string listId, string link /* TODO param */)
+		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(ResolveContext resourceFactory, PlaylistManager playlistManager, ExecutionInformation info, string listId, string link /* TODO param */)
 		{
 			PlaylistItemGetData getData = null;
 			playlistManager.ModifyPlaylist(listId, plist => {
-				CheckPlaylistModifiable(plist, invoker.ClientUid, "modify");
+				CheckPlaylistModifiable(plist, info, "modify");
 				var playResource = resourceFactory.Load(link).UnwrapThrow();
 				var item = new PlaylistItem(playResource.BaseData);
 				plist.Add(item).UnwrapThrow();
@@ -909,9 +918,9 @@ namespace TS3AudioBot
 			=> playlistManager.CreatePlaylist(listId, invoker.ClientUid, title ?? listId).UnwrapThrow();
 
 		[Command("list delete")]
-		public static JsonEmpty CommandListDelete(PlaylistManager playlistManager, UserSession session, InvokerData invoker, string listId)
+		public static JsonEmpty CommandListDelete(PlaylistManager playlistManager, UserSession session, ExecutionInformation info, string listId)
 		{
-			CheckPlaylistModifiable(playlistManager.LoadPlaylist(listId).UnwrapThrow(), invoker.ClientUid, "delete");
+			CheckPlaylistManageable(playlistManager.LoadPlaylist(listId).UnwrapThrow(), info, "delete");
 			string ResponseListDelete(string message)
 			{
 				if (TextUtil.GetAnswer(message) == Answer.Yes)
@@ -930,27 +939,27 @@ namespace TS3AudioBot
 			=> playlistManager.DeletePlaylist(listId).UnwrapThrow();
 
 		[Command("list from", "_undocumented")]
-		public static JsonValue<PlaylistInfo> PropagiateLoad(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, InvokerData invoker, string resolverName, string listId, string url)
+		public static JsonValue<PlaylistInfo> PropagiateLoad(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, ExecutionInformation info, InvokerData invoker, string resolverName, string listId, string url)
 		{
 			var getList = resolver.LoadPlaylistFrom(url, invoker.ClientUid, resolverName).UnwrapThrow();
-			return ImportMerge(client, playlistManager, resolver, getList, invoker.ClientUid, listId);
+			return ImportMerge(client, playlistManager, resolver, getList, info, invoker.ClientUid, listId);
 		}
 
 		[Command("list import", "cmd_list_get_help")] // TODO readjust help texts
-		public static JsonValue<PlaylistInfo> CommandListImport(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, InvokerData invoker, string listId, string link)
+		public static JsonValue<PlaylistInfo> CommandListImport(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, ExecutionInformation info, InvokerData invoker, string listId, string link)
 		{
 			var getList = resolver.LoadPlaylistFrom(link, Uid.Null).UnwrapThrow();
-			return ImportMerge(client, playlistManager, resolver, getList, invoker.ClientUid, listId); ;
+			return ImportMerge(client, playlistManager, resolver, getList, info, invoker.ClientUid, listId); ;
 		}
 
-		private static JsonValue<PlaylistInfo> ImportMerge(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, Playlist addList, Uid invoker, string listId)
+		private static JsonValue<PlaylistInfo> ImportMerge(TsFullClient client, PlaylistManager playlistManager, ResolveContext resolver, Playlist addList, ExecutionInformation info, Uid invoker, string listId)
 		{
 			if (!playlistManager.ExistsPlaylist(listId))
 				playlistManager.CreatePlaylist(listId, invoker).UnwrapThrow();
 
 			playlistManager.ModifyPlaylist(listId, playlist =>
 			{
-				CheckPlaylistModifiable(playlist, invoker, "modify");
+				CheckPlaylistModifiable(playlist, info, "modify");
 				playlist.AddRange(addList.Items).UnwrapThrow();
 			}).UnwrapThrow();
 
@@ -958,12 +967,12 @@ namespace TS3AudioBot
 		}
 
 		[Command("list insert", "_undocumented")]  // TODO Doc
-		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(PlaylistManager playlistManager, ResolveContext resourceFactory, InvokerData invoker, string listId, int index, string link /* TODO param */)
+		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(PlaylistManager playlistManager, ResolveContext resourceFactory, ExecutionInformation info, string listId, int index, string link /* TODO param */)
 		{
 			PlaylistItemGetData getData = null;
 			playlistManager.ModifyPlaylist(listId, plist =>
 			{
-				CheckPlaylistModifiable(plist, invoker.ClientUid, "modify");
+				CheckPlaylistModifiable(plist, info, "modify");
 				if (index < 0 || index >= plist.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
 
@@ -987,11 +996,11 @@ namespace TS3AudioBot
 		}
 
 		[Command("list item move")] // TODO return modified elements
-		public static void CommandListItemMove(PlaylistManager playlistManager, InvokerData invoker, string listId, int from, int to)
+		public static void CommandListItemMove(PlaylistManager playlistManager, ExecutionInformation info, string listId, int from, int to)
 		{
 			playlistManager.ModifyPlaylist(listId, playlist =>
 			{
-				CheckPlaylistModifiable(playlist, invoker.ClientUid, "modify");
+				CheckPlaylistModifiable(playlist, info, "modify");
 				if (from < 0 || from >= playlist.Items.Count
 					|| to < 0 || to >= playlist.Items.Count)
 				{
@@ -1008,12 +1017,12 @@ namespace TS3AudioBot
 		}
 
 		[Command("list item delete")] // TODO return modified elements
-		public static JsonEmpty CommandListItemDelete(PlaylistManager playlistManager, InvokerData invoker, string listId, int index /* TODO param */)
+		public static JsonEmpty CommandListItemDelete(PlaylistManager playlistManager, ExecutionInformation info, string listId, int index /* TODO param */)
 		{
 			PlaylistItem deletedItem = null;
 			playlistManager.ModifyPlaylist(listId, plist =>
 			{
-				CheckPlaylistModifiable(plist, invoker.ClientUid, "modify");
+				CheckPlaylistModifiable(plist, info, "modify");
 				if (index < 0 || index >= plist.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
 					
@@ -1024,11 +1033,11 @@ namespace TS3AudioBot
 		}
 
 		[Command("list item name")] // TODO return modified elements
-		public static void CommandListItemName(PlaylistManager playlistManager, InvokerData invoker, string listId, int index, string title)
+		public static void CommandListItemName(PlaylistManager playlistManager, ExecutionInformation info, string listId, int index, string title)
 		{
 			playlistManager.ModifyPlaylist(listId, plist =>
 			{
-				CheckPlaylistModifiable(plist, invoker.ClientUid, "modify");
+				CheckPlaylistModifiable(plist, info, "modify");
 				if (index < 0 || index >= plist.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
 
@@ -1048,28 +1057,28 @@ namespace TS3AudioBot
 		}
 
 		[Command("list merge")]
-		public static void CommandListMerge(PlaylistManager playlistManager, InvokerData invoker, string baseListId, string mergeListId) // future overload?: (IROP, IROP) -> IROP
+		public static void CommandListMerge(PlaylistManager playlistManager, ExecutionInformation info, string baseListId, string mergeListId) // future overload?: (IROP, IROP) -> IROP
 		{
 			var otherList = playlistManager.LoadPlaylist(mergeListId).UnwrapThrow();
 			playlistManager.ModifyPlaylist(baseListId, playlist =>
 			{
-				CheckPlaylistModifiable(playlist, invoker.ClientUid, "modify");
+				CheckPlaylistModifiable(playlist, info, "modify");
 				playlist.AddRange(otherList.Items).UnwrapThrow();
 			}).UnwrapThrow();
 		}
 
 		[Command("list name")]
-		public static void CommandListName(PlaylistManager playlistManager, InvokerData invoker, string listId, string title)
+		public static void CommandListName(PlaylistManager playlistManager, ExecutionInformation info, string listId, string title)
 			=> playlistManager.ModifyPlaylist(listId, plist => {
-				CheckPlaylistModifiable(plist, invoker.ClientUid, "modify");
+				CheckPlaylistManageable(plist, info, "modify");
 				plist.SetTitle(title);
 			}).UnwrapThrow();
 
 		[Command("list protect")]
-		public static string CommandProtect(PlaylistManager playlistManager, InvokerData invoker, string listId)
+		public static string CommandProtect(PlaylistManager playlistManager, ExecutionInformation info, string listId)
 		{
 			playlistManager.ModifyPlaylist(listId, plist => {
-				CheckPlaylistOwnedBy(plist, invoker.ClientUid, "protect");
+				CheckPlaylistManageable(plist, info, "protect");
 				plist.Modifiable = false;
 			}).UnwrapThrow();
 
@@ -1077,10 +1086,10 @@ namespace TS3AudioBot
 		}
 
 		[Command("list unprotect")]
-		public static string CommandUnprotect(PlaylistManager playlistManager, InvokerData invoker, string listId)
+		public static string CommandUnprotect(PlaylistManager playlistManager, ExecutionInformation info, string listId)
 		{
 			playlistManager.ModifyPlaylist(listId, plist => {
-				CheckPlaylistOwnedBy(plist, invoker.ClientUid, "protect");
+				CheckPlaylistManageable(plist, info, "protect");
 				plist.Modifiable = true;
 			}).UnwrapThrow();
 
