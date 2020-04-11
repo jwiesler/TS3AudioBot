@@ -730,6 +730,15 @@ namespace TS3AudioBot.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs..
+        /// </summary>
+        internal static string cmd_info_header {
+            get {
+                return ResourceManager.GetString("cmd_info_header", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Show&apos;s a small summary of the current playlist and queue status..
         /// </summary>
         internal static string cmd_info_help {
@@ -937,7 +946,7 @@ namespace TS3AudioBot.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs owned by {2}.{3}.
+        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs owned by {2}..
         /// </summary>
         internal static string cmd_list_show_header {
             get {

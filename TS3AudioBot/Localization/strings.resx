@@ -495,8 +495,11 @@ with the id {1}?</value>
   <data name="cmd_list_load_response" xml:space="preserve">
     <value>Loaded "{0}" with {1} songs.</value>
   </data>
+  <data name="cmd_info_header" xml:space="preserve">
+    <value>Playlist: "{0}" with {1} songs.</value>
+  </data>
   <data name="cmd_list_show_header" xml:space="preserve">
-    <value>Playlist: "{0}" with {1} songs owned by {2}.{3}</value>
+    <value>Playlist: "{0}" with {1} songs owned by {2}.</value>
   </data>
   <data name="cmd_list_show_header_modifiable" xml:space="preserve">
     <value> Currently modifiable by everybody.</value>
