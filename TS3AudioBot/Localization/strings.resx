@@ -496,7 +496,10 @@ with the id {1}?</value>
     <value>Loaded "{0}" with {1} songs.</value>
   </data>
   <data name="cmd_list_show_header" xml:space="preserve">
-    <value>Playlist: "{0}" with {1} songs owned by {2}.</value>
+    <value>Playlist: "{0}" with {1} songs owned by {2}.{3}</value>
+  </data>
+  <data name="cmd_list_show_header_modifiable" xml:space="preserve">
+    <value> Currently modifiable by everybody.</value>
   </data>
   <data name="cmd_list_protect" xml:space="preserve">
     <value>The playlist "{0}" is now protected.</value>

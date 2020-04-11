@@ -1016,7 +1016,7 @@ namespace TS3AudioBot
 				CheckPlaylistModifiable(plist, invoker.ClientUid, "modify");
 				if (index < 0 || index >= plist.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
-
+					
 				deletedItem = plist[index];
 				plist.RemoveAt(index);
 			}).UnwrapThrow();
@@ -1126,6 +1126,7 @@ namespace TS3AudioBot
 				Id = listId,
 				Title = plist.Title,
 				Owner = plist.Owner == Uid.Null ? null : UidToClientName(ts3Client, plist.Owner),
+				Modifiable = plist.Modifiable,
 				SongCount = plist.Items.Count,
 				DisplayOffset = offsetV,
 				Items = items,
@@ -1135,7 +1136,7 @@ namespace TS3AudioBot
 			{
 				var tmb = new TextModBuilder();
 				
-				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.Owner).Append("\n");
+				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.Owner, x.Modifiable ? strings.cmd_list_show_header_modifiable : "").Append("\n");
 				var index = x.DisplayOffset;
 				foreach (var plitem in x.Items)
 					tmb.Append((index++).ToString()).Append(": ").AppendLine(plitem.Title);

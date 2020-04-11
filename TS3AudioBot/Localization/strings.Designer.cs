@@ -937,11 +937,20 @@ namespace TS3AudioBot.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs owned by {2}..
+        ///   Looks up a localized string similar to Playlist: &quot;{0}&quot; with {1} songs owned by {2}.{3}.
         /// </summary>
         internal static string cmd_list_show_header {
             get {
                 return ResourceManager.GetString("cmd_list_show_header", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to  Currently modifiable by everybody..
+        /// </summary>
+        internal static string cmd_list_show_header_modifiable {
+            get {
+                return ResourceManager.GetString("cmd_list_show_header_modifiable", resourceCulture);
             }
         }
         
