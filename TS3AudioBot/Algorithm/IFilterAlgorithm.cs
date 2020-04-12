@@ -7,6 +7,7 @@
 // You should have received a copy of the Open Software License along with this
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -29,6 +30,7 @@ namespace TS3AudioBot.Algorithm
 			case "substring": return SubstringFilter.Instance;
 			case "ic3": return Ic3Filter.Instance;
 			case "hamming": return HammingFilter.Instance;
+			case "levenshtein": return LevenshteinFilter.Instance;
 			default: return null;
 			}
 		}
@@ -64,6 +66,62 @@ namespace TS3AudioBot.Algorithm
 			int minLength = cmds.Min(c => c.Name.Length);
 
 			return cmds.Where(c => c.Name.Length == minLength).Select(fi => new KeyValuePair<string, T>(fi.Name, fi.Value));
+		}
+	}
+
+	internal class LevenshteinFilter : IFilter {
+		private LevenshteinFilter() { }
+
+		public static IFilter Instance { get; } = new LevenshteinFilter();
+
+		private static int CalcLevenshteinDistance(string a, string b) {
+			if (string.IsNullOrEmpty(a) && string.IsNullOrEmpty(b)) {
+				return 0;
+			}
+
+			if (string.IsNullOrEmpty(a)) {
+				return b.Length;
+			}
+
+			if (string.IsNullOrEmpty(b)) {
+				return a.Length;
+			}
+
+			int lengthA = a.Length;
+			int lengthB = b.Length;
+			var distances = new int[lengthA + 1, lengthB + 1];
+			for (int i = 0; i <= lengthA; distances[i, 0] = i++) ;
+			for (int j = 0; j <= lengthB; distances[0, j] = j++) ;
+
+			for (int i = 1; i <= lengthA; i++)
+			for (int j = 1; j <= lengthB; j++) {
+				int cost = b[j - 1] == a[i - 1] ? 0 : 1;
+				distances[i, j] = Math.Min
+				(
+					Math.Min(distances[i - 1, j] + 1, distances[i, j - 1] + 1),
+					distances[i - 1, j - 1] + cost
+				);
+			}
+
+			return distances[lengthA, lengthB];
+		}
+
+		IEnumerable<KeyValuePair<string, T>> IFilter.Filter<T>(IEnumerable<KeyValuePair<string, T>> list, string filter)
+		{
+			int min = Int32.MaxValue;
+			List<KeyValuePair<string, T>> mins = new List<KeyValuePair<string, T>>();
+			foreach(var pair in list) {
+				int value = CalcLevenshteinDistance(filter, pair.Key);
+				if (min < value)
+					continue;
+				if (value < min) {
+					min = value;
+					mins.Clear();
+				}
+				mins.Add(pair);
+			}
+
+			return mins;
 		}
 	}
 
