@@ -120,8 +120,7 @@ namespace TS3AudioBot.Algorithm
 				}
 				mins.Add(pair);
 			}
-
-			return mins;
+			return 3 < min ? Enumerable.Empty<KeyValuePair<string, T>>() : mins;
 		}
 	}
 
