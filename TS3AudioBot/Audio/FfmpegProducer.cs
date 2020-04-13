@@ -34,7 +34,7 @@ namespace TS3AudioBot.Audio
 		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
 
 		private readonly ConfToolsFfmpeg config;
-		private int retries = 0;
+		private static int retries = 0;
 
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
@@ -153,7 +153,7 @@ namespace TS3AudioBot.Audio
 				}
 				else if (retries <= 5)
 				{
-					Log.Trace("Process exited and didn't print a song length ({0} retries left)", retries);
+					Log.Trace("Process exited and didn't print a song length ({0} retries left)", (5 - retries));
 					return DoRetry(instance, TimeSpan.Zero);
 				}
 				else
