@@ -21,7 +21,7 @@ namespace TSLib.Commands
 		public const int MaxSizeReasonMessage = 80;
 
 		//limited length, measured in bytes (utf8 encoded)
-		public const int MaxSizeTextMessage = 1024;
+		public const int MaxSizeTextMessage = 8192;
 		public const int MaxSizeChannelTopic = 255;
 		public const int MaxSizeChannelDescription = 8192;
 		public const int MaxSizeVirtualserverWelcomeMessage = 1024;
