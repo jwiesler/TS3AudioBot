@@ -1029,7 +1029,7 @@ namespace TS3AudioBot
 				CheckPlaylistModifiable(plist, info, "modify");
 				if (index < 0 || index >= plist.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
-					
+
 				deletedItem = plist[index];
 				plist.RemoveAt(index);
 			}).UnwrapThrow();
@@ -1129,7 +1129,7 @@ namespace TS3AudioBot
 		[Usage("<name> <index>", "Lets you specify the starting index from which songs should be listed.")]
 		public static JsonValue<PlaylistInfo> CommandListShow(TsFullClient ts3Client, PlaylistManager playlistManager, ResolveContext resourceFactory, string listId, int? offset = null, int? count = null)
 		{
-			const int maxSongs = 20;
+			const int maxSongs = 200;
 			var plist = playlistManager.LoadPlaylist(listId).UnwrapThrow();
 			int offsetV = Tools.Clamp(offset ?? 0, 0, plist.Items.Count);
 			int countV = Tools.Clamp(count ?? maxSongs, 0, Math.Min(maxSongs, plist.Items.Count - offsetV));
@@ -1148,7 +1148,7 @@ namespace TS3AudioBot
 			return JsonValue.Create(plInfo, x =>
 			{
 				var tmb = new TextModBuilder();
-				
+
 				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.Owner).Append(x.Modifiable ? strings.cmd_list_show_header_modifiable : "").Append("\n");
 				var index = x.DisplayOffset;
 				foreach (var plitem in x.Items)
