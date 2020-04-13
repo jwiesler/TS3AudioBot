@@ -17,6 +17,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
+using TS3AudioBot.ResourceFactories;
 using TSLib.Audio;
 using TSLib.Helper;
 
@@ -35,6 +36,8 @@ namespace TS3AudioBot.Audio
 
 		private readonly ConfToolsFfmpeg config;
 
+		private string resourceId;
+
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
 
@@ -50,7 +53,11 @@ namespace TS3AudioBot.Audio
 			this.id = id;
 		}
 
-		public E<string> AudioStart(string url, TimeSpan? startOff = null) => StartFfmpegProcess(url, startOff ?? TimeSpan.Zero);
+		public E<string> AudioStart(string url, string resId, TimeSpan? startOff = null)
+		{
+			resourceId = resId;
+			return StartFfmpegProcess(url, startOff ?? TimeSpan.Zero);
+		}
 
 		public E<string> AudioStartIcy(string url) => StartFfmpegProcessIcy(url);
 
@@ -149,6 +156,22 @@ namespace TS3AudioBot.Audio
 					}
 				} else {
 					Log.Trace("Process exited and didn't print a song length");
+
+					// Change the ReconnectUrl and DoRetry
+					var result = YoutubeDlHelper.GetSingleVideo(resourceId);
+					if (!result.Ok)
+						return (false, false);
+
+					var response = result.Value;
+					var format = YoutubeDlHelper.FilterBest(response.formats);
+					string url = format?.url;
+
+					if (string.IsNullOrEmpty(url))
+						return (false, false);
+
+					instance.ReconnectUrl = url;
+					Log.Debug("Successfully got new ReconnectURL!");
+
 					return DoRetry(instance, TimeSpan.Zero);
 				}
 			}
