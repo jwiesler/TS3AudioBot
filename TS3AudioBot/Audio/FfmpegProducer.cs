@@ -169,8 +169,9 @@ namespace TS3AudioBot.Audio
 					if (string.IsNullOrEmpty(url))
 						return (false, false);
 
+					string previousUrl = instance.ReconnectUrl;
 					instance.ReconnectUrl = url;
-					Log.Debug("Successfully got new ReconnectURL!");
+					Log.Debug("Successfully got new ReconnectURL!\nPrevious: {0}\nNew: {1}", previousUrl, instance.ReconnectUrl);
 
 					return DoRetry(instance, TimeSpan.Zero);
 				}
@@ -356,7 +357,7 @@ namespace TS3AudioBot.Audio
 		{
 			public Process FfmpegProcess { get; set; }
 			public bool HasTriedToReconnect { get; set; }
-			public string ReconnectUrl { get; }
+			public string ReconnectUrl { get; set; }
 			public bool IsIcyStream { get; }
 
 			public PreciseAudioTimer AudioTimer { get; }
