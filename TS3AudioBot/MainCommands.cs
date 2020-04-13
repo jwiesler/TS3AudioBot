@@ -1129,7 +1129,7 @@ namespace TS3AudioBot
 		[Usage("<name> <index>", "Lets you specify the starting index from which songs should be listed.")]
 		public static JsonValue<PlaylistInfo> CommandListShow(TsFullClient ts3Client, PlaylistManager playlistManager, ResolveContext resourceFactory, string listId, int? offset = null, int? count = null)
 		{
-			const int maxSongs = 200;
+			const int maxSongs = 50;
 			var plist = playlistManager.LoadPlaylist(listId).UnwrapThrow();
 			int offsetV = Tools.Clamp(offset ?? 0, 0, plist.Items.Count);
 			int countV = Tools.Clamp(count ?? maxSongs, 0, Math.Min(maxSongs, plist.Items.Count - offsetV));

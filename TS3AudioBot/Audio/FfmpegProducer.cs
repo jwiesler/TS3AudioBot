@@ -34,6 +34,7 @@ namespace TS3AudioBot.Audio
 		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
 
 		private readonly ConfToolsFfmpeg config;
+		private int retries = 0;
 
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
@@ -117,21 +118,23 @@ namespace TS3AudioBot.Audio
 			return read;
 		}
 
-		private (bool ret, bool trigger) DoRetry(FfmpegInstance instance, TimeSpan position) {
+		private (bool ret, bool trigger) DoRetry(FfmpegInstance instance, TimeSpan position)
+		{
+			retries++;
 			Log.Debug("Connection to song lost, retrying at {0}", position);
-						instance.HasTriedToReconnect = true;
+			instance.HasTriedToReconnect = true;
 			var newInstance = SetPosition(position);
-						if (newInstance.Ok)
-						{
+			if (newInstance.Ok)
+			{
 				newInstance.Value.HasTriedToReconnect = false;
-							return (true, false);
-						}
-						else
-						{
-							Log.Debug("Retry failed {0}", newInstance.Error);
-							return (false, true);
-						}
-					}
+				return (true, false);
+			}
+			else
+			{
+				Log.Debug("Retry failed {0}", newInstance.Error);
+				return (false, true);
+			}
+		}
 
 		private (bool ret, bool trigger) OnReadEmpty(FfmpegInstance instance)
 		{
@@ -146,11 +149,17 @@ namespace TS3AudioBot.Audio
 					Log.Trace("Actual song position {0}", actualStopPosition);
 					if (actualStopPosition + retryOnDropBeforeEnd < expectedStopLength) {
 						return DoRetry(instance, actualStopPosition);
+					}
 				}
-				} else {
+				else if (retries <= 5)
+				{
 					Log.Trace("Process exited and didn't print a song length");
 					return DoRetry(instance, TimeSpan.Zero);
-			}
+				}
+				else
+				{
+					Log.Trace("Maximum number of retries exceeded.");
+				}
 			}
 			return (false, false);
 		}
@@ -195,6 +204,7 @@ namespace TS3AudioBot.Audio
 		{
 			StopFfmpegProcess();
 			Log.Trace("Start request {0}", url);
+			retries = 0;
 
 			string arguments;
 			var offset = offsetOpt ?? TimeSpan.Zero;
