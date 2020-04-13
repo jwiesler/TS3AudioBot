@@ -153,7 +153,7 @@ namespace TS3AudioBot.Audio
 				}
 				else if (retries <= 5)
 				{
-					Log.Trace("Process exited and didn't print a song length");
+					Log.Trace("Process exited and didn't print a song length ({0} retries left)", retries);
 					return DoRetry(instance, TimeSpan.Zero);
 				}
 				else
