@@ -60,7 +60,7 @@ namespace TS3AudioBot.Audio
 			return R.Ok;
 		}
 
-		public TimeSpan Length => GetCurrentSongLength();
+		public TimeSpan Length => GetCurrentSongLength() ?? TimeSpan.Zero;
 
 		public TimeSpan Position
 		{
@@ -117,24 +117,13 @@ namespace TS3AudioBot.Audio
 			return read;
 		}
 
-		private (bool ret, bool trigger) OnReadEmpty(FfmpegInstance instance)
-		{
-			if (instance.FfmpegProcess.HasExitedSafe() && !instance.HasTriedToReconnect)
-			{
-				var expectedStopLength = GetCurrentSongLength();
-				Log.Trace("Expected song length {0}", expectedStopLength);
-				if (expectedStopLength != TimeSpan.Zero)
-				{
-					var actualStopPosition = instance.AudioTimer.SongPosition;
-					Log.Trace("Actual song position {0}", actualStopPosition);
-					if (actualStopPosition + retryOnDropBeforeEnd < expectedStopLength)
-					{
-						Log.Debug("Connection to song lost, retrying at {0}", actualStopPosition);
+		private (bool ret, bool trigger) DoRetry(FfmpegInstance instance, TimeSpan position) {
+			Log.Debug("Connection to song lost, retrying at {0}", position);
 						instance.HasTriedToReconnect = true;
-						var newInstance = SetPosition(actualStopPosition);
+			var newInstance = SetPosition(position);
 						if (newInstance.Ok)
 						{
-							newInstance.Value.HasTriedToReconnect = true;
+				newInstance.Value.HasTriedToReconnect = false;
 							return (true, false);
 						}
 						else
@@ -143,7 +132,25 @@ namespace TS3AudioBot.Audio
 							return (false, true);
 						}
 					}
+
+		private (bool ret, bool trigger) OnReadEmpty(FfmpegInstance instance)
+		{
+			Log.Trace("Read empty");
+			if (instance.FfmpegProcess.HasExitedSafe() && !instance.HasTriedToReconnect)
+			{
+				var expectedStopLength = GetCurrentSongLength();
+				Log.Trace("Expected song length {0}", expectedStopLength);
+				if (expectedStopLength.HasValue)
+				{
+					var actualStopPosition = instance.AudioTimer.SongPosition;
+					Log.Trace("Actual song position {0}", actualStopPosition);
+					if (actualStopPosition + retryOnDropBeforeEnd < expectedStopLength) {
+						return DoRetry(instance, actualStopPosition);
 				}
+				} else {
+					Log.Trace("Process exited and didn't print a song length");
+					return DoRetry(instance, TimeSpan.Zero);
+			}
 			}
 			return (false, false);
 		}
@@ -308,13 +315,13 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		private TimeSpan GetCurrentSongLength()
+		private TimeSpan? GetCurrentSongLength()
 		{
 			var instance = ffmpegInstance;
 			if (instance is null)
 				return TimeSpan.Zero;
 
-			return instance.ParsedSongLength ?? TimeSpan.Zero;
+			return instance.ParsedSongLength;
 		}
 
 		public void Dispose()
