@@ -34,7 +34,7 @@ namespace TS3AudioBot.Audio
 		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
 
 		private readonly ConfToolsFfmpeg config;
-		private static int retries = 0;
+		private int retries = 0;
 
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
@@ -150,6 +150,11 @@ namespace TS3AudioBot.Audio
 					if (actualStopPosition + retryOnDropBeforeEnd < expectedStopLength) {
 						return DoRetry(instance, actualStopPosition);
 					}
+					else
+					{
+						// Song ended normally
+						retries = 0;
+					}
 				}
 				else if (retries <= 5)
 				{
@@ -204,7 +209,6 @@ namespace TS3AudioBot.Audio
 		{
 			StopFfmpegProcess();
 			Log.Trace("Start request {0}", url);
-			retries = 0;
 
 			string arguments;
 			var offset = offsetOpt ?? TimeSpan.Zero;
