@@ -63,6 +63,10 @@ namespace TSLib.Helper
 		public static float Clamp(float value, float min, float max) => Math.Min(Math.Max(value, min), max);
 		public static int Clamp(int value, int min, int max) => Math.Min(Math.Max(value, min), max);
 
+		public static bool IsBetween(int value, int min, int max) { return min <= value && value <= max; }
+
+		public static bool IsBetweenExcludingUpper(int value, int min, int max) { return min <= value && value < max; }
+
 		// Generic
 
 		public static void SetLogId(Id id) => SetLogId(id.ToString());

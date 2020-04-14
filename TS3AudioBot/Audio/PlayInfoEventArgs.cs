@@ -9,18 +9,19 @@
 
 using System;
 using TS3AudioBot.ResourceFactories;
+using TSLib;
 
 namespace TS3AudioBot.Audio
 {
 	public sealed class PlayInfoEventArgs : EventArgs
 	{
-		public InvokerData Invoker { get; }
+		public Uid? Invoker { get; }
 		public PlayResource PlayResource { get; }
 		public AudioResource ResourceData => PlayResource.BaseData;
 		public MetaData MetaData => PlayResource.Meta;
 		public string SourceLink { get; }
 
-		public PlayInfoEventArgs(InvokerData invoker, PlayResource playResource, string sourceLink)
+		public PlayInfoEventArgs(Uid? invoker, PlayResource playResource, string sourceLink)
 		{
 			Invoker = invoker;
 			PlayResource = playResource;

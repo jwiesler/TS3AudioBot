@@ -125,7 +125,7 @@ namespace TS3AudioBot
 			sessionManager = Injector.GetModule<SessionManager>();
 			stats = Injector.GetModule<Stats>();
 
-			player.OnSongEnd += playManager.SongStoppedEvent;
+			player.OnSongEnd += playManager.SongEndedEvent;
 			player.OnSongUpdated += (s, e) => playManager.Update(e);
 			// Update idle status events
 			playManager.BeforeResourceStarted += (s, e) => DisableIdleTickWorker();
@@ -138,7 +138,7 @@ namespace TS3AudioBot
 			playManager.OnResourceUpdated += LoggedUpdateBotStatus;
 			// Log our resource in the history
 			if (Injector.TryGet<HistoryManager>(out var historyManager))
-				playManager.AfterResourceStarted += (s, e) => historyManager.LogAudioResource(new HistorySaveData(e.PlayResource.BaseData, e.MetaData.ResourceOwnerUid));
+				playManager.AfterResourceStarted += (s, e) => historyManager.LogAudioResource(new HistorySaveData(e.PlayResource.BaseData, e.MetaData.ResourceOwnerUid ?? Uid.Null));
 			// Update our thumbnail
 			playManager.AfterResourceStarted += GenerateStatusImage;
 			playManager.PlaybackStopped += GenerateStatusImage;
@@ -452,7 +452,7 @@ namespace TS3AudioBot
 				return;
 			}
 
-			var info = CreateExecInfo(e.Invoker);
+			var info = CreateExecInfo(new InvokerData(e.Invoker ?? Uid.Null));
 			CallScript(info, script, false, true);
 		}
 

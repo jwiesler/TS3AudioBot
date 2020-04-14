@@ -15,12 +15,14 @@ namespace TS3AudioBot.Audio
 	public sealed class MetaData
 	{
 		/// <summary>Defaults to: invoker.Uid - Can be set if the owner of a song differs from the invoker.</summary>
-		public Uid ResourceOwnerUid { get; set; }
+		public Uid? ResourceOwnerUid { get; }
+		public string ContainingPlaylistId { get; }
 		/// <summary></summary>
-		public TimeSpan? StartOffset { get; set; }
+		public TimeSpan? StartOffset { get; }
 
-		public MetaData(TimeSpan? startOffset = null)
-		{
+		public MetaData(Uid? resourceOwnerUid, string containingPlaylistId = null, TimeSpan? startOffset = null) {
+			ResourceOwnerUid = resourceOwnerUid;
+			ContainingPlaylistId = containingPlaylistId;
 			StartOffset = startOffset;
 		}
 	}

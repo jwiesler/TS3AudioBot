@@ -13,7 +13,7 @@ namespace TS3AudioBot.Audio
 {
 	public class SongEndEventArgs : EventArgs
 	{
-		public bool SongEndedByCallback { get; }
-		public SongEndEventArgs(bool songEndedByCallback) { SongEndedByCallback = songEndedByCallback; }
+		public bool Stopped { get; }
+		public SongEndEventArgs(bool stopped) { Stopped = stopped; }
 	}
 }
