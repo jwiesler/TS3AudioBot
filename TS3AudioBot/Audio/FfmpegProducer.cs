@@ -29,7 +29,7 @@ namespace TS3AudioBot.Audio
 		private readonly Id id;
 		private static readonly Regex FindDurationMatch = new Regex(@"^\s*Duration: (\d+):(\d\d):(\d\d).(\d\d)", Util.DefaultRegexConfig);
 		private static readonly Regex IcyMetadataMacher = new Regex("((\\w+)='(.*?)';\\s*)+", Util.DefaultRegexConfig);
-		private const string PreLinkConf = "-hide_banner -nostats -threads 1 -i \"";
+		private const string PreLinkConf = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -hide_banner -nostats -threads 1 -i \"";
 		private const string PostLinkConf = "\" -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private const string LinkConfIcy = "-hide_banner -nostats -threads 1 -i pipe:0 -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
@@ -142,7 +142,6 @@ namespace TS3AudioBot.Audio
 
 		private (bool ret, bool trigger) OnReadEmpty(FfmpegInstance instance)
 		{
-			Log.Trace("Read empty");
 			if (instance.FfmpegProcess.HasExitedSafe() && !instance.HasTriedToReconnect)
 			{
 				var expectedStopLength = GetCurrentSongLength();
@@ -175,6 +174,8 @@ namespace TS3AudioBot.Audio
 
 					return DoRetry(instance, TimeSpan.Zero);
 				}
+			} else {
+				Log.Trace("Read empty, continuing to read from same process");
 			}
 			return (false, false);
 		}
@@ -403,6 +404,8 @@ namespace TS3AudioBot.Audio
 
 				if (sender != FfmpegProcess)
 					throw new InvalidOperationException("Wrong process associated to event");
+
+				Log.Trace("Ffmpeg output: " + e.Data);
 
 				if (!ParsedSongLength.HasValue)
 				{
