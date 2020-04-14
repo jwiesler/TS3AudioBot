@@ -140,6 +140,29 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
+		private (bool ret, bool trigger) GetNewReconnectURL(FfmpegInstance instance)
+		{
+			Log.Trace("Process exited and didn't print a song length");
+
+			// Change the ReconnectUrl and DoRetry
+			var result = YoutubeDlHelper.GetSingleVideo(resourceId);
+			if (!result.Ok)
+				return (false, false);
+
+			var response = result.Value;
+			var format = YoutubeDlHelper.FilterBest(response.formats);
+			string url = format?.url;
+
+			if (string.IsNullOrEmpty(url))
+				return (false, false);
+
+			string previousUrl = instance.ReconnectUrl;
+			instance.ReconnectUrl = url;
+			Log.Debug("Successfully got new ReconnectURL!\nPrevious: {0}\nNew: {1}", previousUrl, instance.ReconnectUrl);
+
+			return DoRetry(instance, TimeSpan.Zero);
+		}
+
 		private (bool ret, bool trigger) OnReadEmpty(FfmpegInstance instance)
 		{
 			if (instance.FfmpegProcess.HasExitedSafe() && !instance.HasTriedToReconnect)
@@ -153,28 +176,18 @@ namespace TS3AudioBot.Audio
 					if (actualStopPosition + retryOnDropBeforeEnd < expectedStopLength) {
 						return DoRetry(instance, actualStopPosition);
 					}
-				} else {
-					Log.Trace("Process exited and didn't print a song length");
-
-					// Change the ReconnectUrl and DoRetry
-					var result = YoutubeDlHelper.GetSingleVideo(resourceId);
-					if (!result.Ok)
-						return (false, false);
-
-					var response = result.Value;
-					var format = YoutubeDlHelper.FilterBest(response.formats);
-					string url = format?.url;
-
-					if (string.IsNullOrEmpty(url))
-						return (false, false);
-
-					string previousUrl = instance.ReconnectUrl;
-					instance.ReconnectUrl = url;
-					Log.Debug("Successfully got new ReconnectURL!\nPrevious: {0}\nNew: {1}", previousUrl, instance.ReconnectUrl);
-
-					return DoRetry(instance, TimeSpan.Zero);
 				}
-			} else {
+				else
+				{
+					return GetNewReconnectURL(instance);
+				}
+			}
+			else if (instance.FfmpegProcess.HasExitedSafe() && !GetCurrentSongLength().HasValue)
+			{
+				return GetNewReconnectURL(instance);
+			}
+			else
+			{
 				Log.Trace("Read empty, continuing to read from same process");
 			}
 			return (false, false);

@@ -880,14 +880,14 @@ namespace TS3AudioBot
 			return item;
 		}
 
-		[Command("list add")]
-		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(ResolveContext resourceFactory, PlaylistManager playlistManager, ExecutionInformation info, string listId, string link /* TODO param */)
-		{
-			var playResource = resourceFactory.Load(link).UnwrapThrow();
-			var item = ListAddItem(playlistManager, info, listId, playResource.BaseData);
-			PlaylistItemGetData getData = resourceFactory.ToApiFormat(item.AudioResource);
-			return JsonValue.Create(getData, strings.info_ok);
-		}
+		// [Command("list add")]
+		// public static JsonValue<PlaylistItemGetData> CommandListAddInternal(ResolveContext resourceFactory, PlaylistManager playlistManager, ExecutionInformation info, string listId, string link /* TODO param */)
+		// {
+		// 	var playResource = resourceFactory.Load(link).UnwrapThrow();
+		// 	var item = ListAddItem(playlistManager, info, listId, playResource.BaseData);
+		// 	PlaylistItemGetData getData = resourceFactory.ToApiFormat(item.AudioResource);
+		// 	return JsonValue.Create(getData, strings.info_ok);
+		// }
 
 		[Command("list create", "_undocumented")]
 		public static void CommandListCreate(PlaylistManager playlistManager, InvokerData invoker, string listId, string title = null)

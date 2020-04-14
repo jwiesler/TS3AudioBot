@@ -189,8 +189,8 @@ namespace TS3AudioBot.Audio
 			if (CurrentPlayData != null) {
 				Log.Info("Stopping current song");
 				playerConnection.Stop();
-				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
 				CurrentPlayData = null;
+				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
 			}
 		}
 
@@ -227,6 +227,16 @@ namespace TS3AudioBot.Audio
 			var resource = resourceResolver.Load(item.AudioResource);
 			if (!resource.Ok)
 				return resource.Error;
+
+			if (item.AudioResource.ResourceTitle != resource.Value.BaseData.ResourceTitle)
+			{
+				// Title changed, Log that name change
+				Log.Info("Title of song {0} changed from '{1}' to '{2}'.",
+					item.MetaData.ContainingPlaylistId != null ? "in playlist '" + item.MetaData.ContainingPlaylistId + "'" : "",
+					item.AudioResource.ResourceTitle,
+					resource.Value.BaseData.ResourceTitle);
+			}
+
 			return Start(resource.Value, item.MetaData);
 		}
 
@@ -272,7 +282,7 @@ namespace TS3AudioBot.Audio
 
 				if (stopped) {
 					playerConnection.Stop();
-					
+
 					TryStopCurrentSong();
 				} else {
 					var result = Next();
