@@ -26,7 +26,7 @@ namespace TS3AudioBot.Helper
 	{
 		public const RegexOptions DefaultRegexConfig = RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ECMAScript;
 
-		private static readonly Regex SafeFileNameMatcher = new Regex(@"^[\w-_]+$", DefaultRegexConfig);
+		private static readonly Regex SafeFileNameMatcher = new Regex(@"^[^1-9][\w-_]*$", DefaultRegexConfig);
 
 		private static readonly string[] byteSuffix = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
 
@@ -159,8 +159,12 @@ namespace TS3AudioBot.Helper
 
 		public static bool HasExitedSafe(this Process process)
 		{
-			try { return process.HasExited; }
-			catch { return true; }
+			try {
+				return process.HasExited;
+			} catch (Exception e) {
+				Console.WriteLine("Exception occured: " + e.Message);
+				return true;
+			}
 		}
 
 		public static V GetOrNew<K, V>(this IDictionary<K, V> dict, K key) where V : new()
