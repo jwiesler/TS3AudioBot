@@ -658,7 +658,13 @@ namespace TS3AudioBot
 		private bool AloneRecheckRequired(ClientId clientId, ChannelId channelId)
 			=> ownChannelClients.Contains(clientId) || channelId == ts3FullClient.Book.Self()?.Channel;
 
-		public void IsAloneRecheck()
+		public bool IsDefinitelyAlone()
+		{
+			IsAloneRecheck();
+			return alone;
+		}
+
+		private void IsAloneRecheck()
 		{
 			var self = ts3FullClient.Book.Self();
 			if (self == null)
