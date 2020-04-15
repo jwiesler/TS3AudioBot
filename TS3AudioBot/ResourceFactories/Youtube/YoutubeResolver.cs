@@ -392,7 +392,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			{
 				if (f.acodec != "none")
 				{
-					Log.Trace("Result: abr={0} acodec={1} vcodec={2}", f.abr, f.acodec, f.vcodec);
+					Log.Trace("Result: abr={0} acodec={1} vcodec={2} url={3}", f.abr, f.acodec, f.vcodec, f.url);
 				}
 			}
 
@@ -413,6 +413,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 						resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
 						break;
 					}
+					Log.Trace("Got response code " + resp.StatusCode);
 				}
 
 				// Get new URL
@@ -421,6 +422,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 					return resourceInfo.Error;
 				var format = YoutubeDlHelper.FilterBest( resourceInfo.Value.formats);
 				url = format?.url;
+				Log.Trace("Failed to get working URL, starting retry number " + i);
 			}
 
 			// Was not successful in finding a working URL
@@ -441,6 +443,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 						resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
 						break;
 					}
+					Log.Trace("Got response code " + resp.StatusCode);
 				}
 			}
 
