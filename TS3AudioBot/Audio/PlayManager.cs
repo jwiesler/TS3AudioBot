@@ -19,11 +19,9 @@ using TS3AudioBot.ResourceFactories;
 using TSLib;
 using TSLib.Helper;
 
-namespace TS3AudioBot.Audio
-{
+namespace TS3AudioBot.Audio {
 	/// <summary>Provides a convenient inferface for enqueing, playing and registering song events.</summary>
-	public class PlayManager
-	{
+	public class PlayManager {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 
 		private readonly ConfBot confBot;
@@ -44,24 +42,12 @@ namespace TS3AudioBot.Audio
 		public event EventHandler<SongEndEventArgs> ResourceStopped;
 		public event EventHandler PlaybackStopped;
 
-		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats)
-		{
+		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats) {
 			confBot = config;
 			this.playerConnection = playerConnection;
 			this.resourceResolver = resourceResolver;
 			this.stats = stats;
 		}
-
-//		public E<LocalStr> Enqueue(Uid invoker, string message, string audioType = null, MetaData meta = null)
-//		{
-//			var result = resourceResolver.Load(message, audioType);
-//			if (!result)
-//			{
-//				stats.TrackSongLoad(audioType, false, true);
-//				return result.Error;
-//			}
-//			return Enqueue(invoker, new PlaylistItem(result.Value.BaseData, meta));
-//		}
 
 		public void Clear() {
 			lock (Lock) {
@@ -73,17 +59,6 @@ namespace TS3AudioBot.Audio
 
 		public E<LocalStr> Play() {
 			lock (Lock) {
-				return TryPlay();
-			}
-		}
-
-		public E<LocalStr> Skip(int count) {
-			if (count <= 0)
-				return R.Ok;
-			lock (Lock) {
-				Log.Info("Skip {0} songs requested", count);
-				TryStopCurrentSong();
-				Queue.Skip(count);
 				return TryPlay();
 			}
 		}
@@ -112,6 +87,7 @@ namespace TS3AudioBot.Audio
 				stats.TrackSongLoad(audioType, false, true);
 				return result.Error;
 			}
+
 			return Enqueue(result.Value.BaseData, meta);
 		}
 
@@ -135,6 +111,17 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
+		public E<LocalStr> Next(int count = 1) {
+			if (count <= 0)
+				return R.Ok;
+			lock (Lock) {
+				Log.Info("Skip {0} songs requested", count);
+				TryStopCurrentSong();
+				Queue.Skip(count);
+				return TryPlay();
+			}
+		}
+
 		public E<LocalStr> Next() {
 			lock (Lock) {
 				Log.Info("Next song requested");
@@ -148,17 +135,14 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		public E<LocalStr> Previous()
-		{
-			lock (Lock)
-			{
+		public E<LocalStr> Previous() {
+			lock (Lock) {
 				Log.Info("Previous song requested");
 				return TryPrevious();
 			}
 		}
 
-		private E<LocalStr> TryPrevious()
-		{
+		private E<LocalStr> TryPrevious() {
 			TryStopCurrentSong();
 			if (!Queue.TryPrevious())
 				return new LocalStr("No song to play");
@@ -180,7 +164,7 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		private void OnPlaybackEnded() {
+		public void OnPlaybackEnded() {
 			Log.Info("Playback ended for some reason");
 			PlaybackStopped?.Invoke(this, EventArgs.Empty);
 		}
@@ -267,13 +251,9 @@ namespace TS3AudioBot.Audio
 			return R.Ok;
 		}
 
-		public void SongEndedEvent(object sender, EventArgs e) {
-			StopSong(false);
-		}
+		public void SongEndedEvent(object sender, EventArgs e) { StopSong(false); }
 
-		public void Stop() {
-			StopSong(true);
-		}
+		public void Stop() { StopSong(true); }
 
 		private void StopSong(bool stopped /* true if stopped manually, false if ended normally */) {
 			lock (Lock) {
@@ -306,8 +286,7 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		public static TimeSpan? ParseStartTime(string[] attrs)
-		{
+		public static TimeSpan? ParseStartTime(string[] attrs) {
 			TimeSpan? res = null;
 			if (attrs != null && attrs.Length != 0) {
 				foreach (var attr in attrs) {
