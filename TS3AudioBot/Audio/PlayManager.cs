@@ -65,7 +65,7 @@ namespace TS3AudioBot.Audio {
 
 		public void EnqueueAsNextSong(QueueItem item) {
 			lock (Lock) {
-				Queue.InsertAfter(item, Queue.Index + 1);
+				Queue.InsertAfter(item, Queue.Index);
 			}
 		}
 

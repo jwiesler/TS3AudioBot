@@ -129,7 +129,7 @@ namespace TS3AudioBot.Audio {
 		public void Enqueue(IEnumerable<QueueItem> list) { items.AddRange(list); }
 
 		public void InsertAfter(QueueItem item, int index) {
-			if(Tools.IsBetweenExcludingUpper(index, 0, items.Capacity))
+			if(!Tools.IsBetweenExcludingUpper(index, 0, items.Count))
 				throw new ArgumentException();
 			items.Insert(index + 1, item);
 		}
