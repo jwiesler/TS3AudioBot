@@ -422,7 +422,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 					return resourceInfo.Error;
 				var format = YoutubeDlHelper.FilterBest( resourceInfo.Value.formats);
 				url = format?.url;
-				Log.Trace("Failed to get working URL, starting retry number " + i);
+				Log.Trace("Failed to get working URL, starting retry number " + (i + 1));
 			}
 
 			// Was not successful in finding a working URL
@@ -432,7 +432,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				foreach (var format in formats)
 				{
 					url = format?.url;
-					if (string.IsNullOrEmpty(url))
+					if (string.IsNullOrEmpty(url) || format.acodec == "none")
 						continue;
 
 					var resp = new HttpClient().GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
