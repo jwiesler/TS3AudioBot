@@ -387,10 +387,13 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			if (formats.Count == 0)
 				return new LocalStr(strings.error_ytdl_empty_response);
 			string url = formats[0]?.url;
-			Log.Trace("After sort....");
+			Log.Trace("Found the following audio codec possibilities:");
 			foreach (var f in formats)
 			{
-				Log.Trace("Result: abr={0} acodec={1} vcodec={2}", f.abr, f.acodec, f.vcodec);
+				if (f.acodec != "none")
+				{
+					Log.Trace("Result: abr={0} acodec={1} vcodec={2}", f.abr, f.acodec, f.vcodec);
+				}
 			}
 
 			// Resource is broken
@@ -406,7 +409,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 					if (resp.IsSuccessStatusCode)
 					{
 						workingUrl = url;
-						Log.Debug("Found working URL with best possible codec {0}.", formats[0]?.abr);
+						Log.Debug("Found working URL with best possible codec {0}kbit/s with {1} retries.", formats[0]?.abr, i);
 						resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
 						break;
 					}
@@ -434,7 +437,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 					if (resp.IsSuccessStatusCode)
 					{
 						workingUrl = url;
-						Log.Debug("Using fallback URL with reduced codec {0} compared to best possible codec {1}.", format.abr, formats[0]?.abr);
+						Log.Debug("Using fallback URL with reduced codec {0}kbit/s compared to best possible codec {1}kbit/s.", format.abr, formats[0]?.abr);
 						resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
 						break;
 					}
