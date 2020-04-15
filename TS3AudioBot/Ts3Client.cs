@@ -670,7 +670,7 @@ namespace TS3AudioBot
 			if (self == null)
 				return;
 			var ownChannel = self.Channel;
-			ownChannelClients = ts3FullClient.Book.Clients.Values.Where(c => c.Channel == ownChannel && c != self).Select(c => c.Id).ToArray();
+			ownChannelClients = ts3FullClient.Book.Clients.Values.Where(c => c.Channel == ownChannel && c != self && c.ClientType != ClientType.Query).Select(c => c.Id).ToArray();
 			var newAlone = ownChannelClients.Length == 0;
 			if (newAlone != alone)
 			{
