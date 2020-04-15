@@ -194,6 +194,22 @@ namespace TS3AudioBot.ResourceFactories
 			}
 			return best;
 		}
+
+		public static IList<JsonYtdlFormat> SortBest(IEnumerable<JsonYtdlFormat> formats)
+		{
+			List<JsonYtdlFormat> sorted = new List<JsonYtdlFormat>(formats);
+			sorted.Sort((a, b) =>
+			{
+				int diff = Convert.ToInt32(b.abr) - Convert.ToInt32(a.abr);
+				if (diff == 0 && a.vcodec == "none")
+				{
+					return -1;
+				}
+
+				return diff;
+			});
+			return sorted;
+		}
 	}
 
 #pragma warning disable CS0649, CS0169, IDE1006

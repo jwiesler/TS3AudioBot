@@ -9,6 +9,7 @@
 
 using Newtonsoft.Json;
 using System;
+using System.Net.Http;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -364,19 +365,87 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 
 		private static R<PlayResource, LocalStr> YoutubeDlWrapped(AudioResource resource)
 		{
+			R<JsonYtdlDump, LocalStr> GetResourceInfo(AudioResource audioResource)
+			{
+				var result = YoutubeDlHelper.GetSingleVideo(audioResource.ResourceId);
+				if (!result.Ok)
+					return result.Error;
+
+				return result.Value;
+			}
+
 			Log.Debug("Falling back to youtube-dl!");
+			string workingUrl = null;
 
-			var result = YoutubeDlHelper.GetSingleVideo(resource.ResourceId);
-			if (!result.Ok)
-				return result.Error;
+			// Get first try information
+			var resourceInfo = GetResourceInfo(resource);
+			if (!resourceInfo.Ok)
+				return resourceInfo.Error;
+			var response = resourceInfo.Value;
 
-			var response = result.Value;
-			resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
-			var format = YoutubeDlHelper.FilterBest(response.formats);
-			string url = format?.url;
+			var formats = YoutubeDlHelper.SortBest(response.formats);
+			if (formats.Count == 0)
+				return new LocalStr(strings.error_ytdl_empty_response);
+			string url = formats[0]?.url;
+			Log.Trace("After sort....");
+			foreach (var f in formats)
+			{
+				Log.Trace("Result: abr={0} acodec={1} vcodec={2}", f.abr, f.acodec, f.vcodec);
+			}
 
+			// Resource is broken
 			if (string.IsNullOrEmpty(url))
 				return new LocalStr(strings.error_ytdl_empty_response);
+
+			// Check if URL actually works. Try again (getting a new url) up to 5 times if not
+			for (int i = 0; i < 5; i++)
+			{
+				if (!string.IsNullOrEmpty(url))
+				{
+					var resp = new HttpClient().GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
+					if (resp.IsSuccessStatusCode)
+					{
+						workingUrl = url;
+						Log.Debug("Found working URL with best possible codec {0}.", formats[0]?.abr);
+						resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
+						break;
+					}
+				}
+
+				// Get new URL
+				resourceInfo = GetResourceInfo(resource);
+				if (!resourceInfo.Ok)
+					return resourceInfo.Error;
+				var format = YoutubeDlHelper.FilterBest( resourceInfo.Value.formats);
+				url = format?.url;
+			}
+
+			// Was not successful in finding a working URL
+			if (workingUrl == null)
+			{
+				// Take the first value with a working URL from the sorted list
+				foreach (var format in formats)
+				{
+					url = format?.url;
+					if (string.IsNullOrEmpty(url))
+						continue;
+
+					var resp = new HttpClient().GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
+					if (resp.IsSuccessStatusCode)
+					{
+						workingUrl = url;
+						Log.Debug("Using fallback URL with reduced codec {0} compared to best possible codec {1}.", format.abr, formats[0]?.abr);
+						resource.ResourceTitle = response.title ?? response.title ?? $"Youtube-{resource.ResourceId}";
+						break;
+					}
+				}
+			}
+
+			// Was still not successful, fuck this shit
+			if (workingUrl == null)
+			{
+				return new LocalStr(strings.error_ytdl_song_failed_to_load);
+			}
 
 			Log.Debug("youtube-dl succeeded!");
 			return new PlayResource(url, resource);
