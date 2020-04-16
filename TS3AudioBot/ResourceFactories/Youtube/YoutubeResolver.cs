@@ -417,12 +417,13 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				}
 
 				// Get new URL
+				Log.Trace("Failed to get working URL, starting retry number " + (i + 1));
 				resourceInfo = GetResourceInfo(resource);
 				if (!resourceInfo.Ok)
 					return resourceInfo.Error;
-				var format = YoutubeDlHelper.FilterBest( resourceInfo.Value.formats);
+				var format = YoutubeDlHelper.FilterBest(resourceInfo.Value.formats);
 				url = format?.url;
-				Log.Trace("Failed to get working URL, starting retry number " + (i + 1));
+				Log.Trace("New URL: {0}", url);
 			}
 
 			// Was not successful in finding a working URL
