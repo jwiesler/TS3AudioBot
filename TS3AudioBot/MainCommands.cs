@@ -1029,10 +1029,6 @@ namespace TS3AudioBot
 			if (files.Length <= 0)
 				return new JsonArray<PlaylistInfo>(files, strings.error_playlist_not_found);
 
-			var result = "";
-			foreach (var fi in files) {
-				result +=
-			}
 			return new JsonArray<PlaylistInfo>(files, fi => string.Join(", ", fi.Select(x => x.Id + " <" + x.Owner + ">")));
 		}
 
