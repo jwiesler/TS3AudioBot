@@ -333,7 +333,8 @@ namespace TS3AudioBot.Playlists
 				{
 					Id = kvp.Key,
 					Title = kvp.Value.Title,
-					SongCount = kvp.Value.Count
+					SongCount = kvp.Value.Count,
+					OwnerId = kvp.Value.OwnerId
 				}).ToArray();
 			}
 			finally

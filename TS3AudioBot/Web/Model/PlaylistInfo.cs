@@ -19,7 +19,7 @@ namespace TS3AudioBot.Web.Model
 		[JsonProperty(PropertyName = "Title")]
 		public string Title { get; set; }
 		[JsonProperty(PropertyName = "Owner")]
-		public string Owner { get; set; }
+		public string OwnerId { get; set; }
 		[JsonProperty(PropertyName = "Modifiable")]
 		public bool Modifiable { get; set; }
 

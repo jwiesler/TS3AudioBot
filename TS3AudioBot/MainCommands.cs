@@ -1023,13 +1023,18 @@ namespace TS3AudioBot
 
 		[Command("list list")]
 		[Usage("<pattern>", "Filters all lists cantaining the given pattern.")]
-		public static JsonArray<PlaylistInfo> CommandListList(PlaylistManager playlistManager, string pattern = null)
+		public static JsonArray<PlaylistInfo> CommandListList(PlaylistManager playlistManager, TsFullClient tsFullClient, string pattern = null)
 		{
 			var files = playlistManager.GetAvailablePlaylists(pattern).UnwrapThrow();
 			if (files.Length <= 0)
 				return new JsonArray<PlaylistInfo>(files, strings.error_playlist_not_found);
 
-			return new JsonArray<PlaylistInfo>(files, fi => string.Join(", ", fi.Select(x => x.Id + " <" + x.Owner + ">")));
+			return new JsonArray<PlaylistInfo>(files, fi =>
+				string.Join("\n", fi.Select(x =>
+					"Name: " + x.Id +
+					", Owner: " + tsFullClient.GetClientNameFromUid(Uid.To(x.OwnerId)).Unwrap().Name
+				))
+			);
 		}
 
 		[Command("list merge")]
@@ -1096,7 +1101,7 @@ namespace TS3AudioBot
 			{
 				Id = listId,
 				Title = plist.Title,
-				Owner = plist.Owner == Uid.Null ? null : UidToClientName(ts3Client, plist.Owner),
+				OwnerId = plist.Owner == Uid.Null ? null : UidToClientName(ts3Client, plist.Owner),
 				Modifiable = plist.Modifiable,
 				SongCount = plist.Items.Count,
 				DisplayOffset = offsetV,
@@ -1107,7 +1112,7 @@ namespace TS3AudioBot
 			{
 				var tmb = new TextModBuilder();
 
-				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.Owner).Append(x.Modifiable ? strings.cmd_list_show_header_modifiable : "").Append("\n");
+				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.OwnerId).Append(x.Modifiable ? strings.cmd_list_show_header_modifiable : "").Append("\n");
 				var index = x.DisplayOffset;
 				foreach (var plitem in x.Items)
 					tmb.Append((index++).ToString()).Append(": ").AppendLine(plitem.Title);
