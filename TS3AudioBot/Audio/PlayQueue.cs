@@ -161,7 +161,7 @@ namespace TS3AudioBot.Audio {
 				throw new ArgumentException("count too small");
 
 			int targetIndex = Index + count;
-			if (!Tools.IsBetweenExcludingUpper(targetIndex, 0, items.Capacity))
+			if (!Tools.IsBetween(targetIndex, 0, items.Capacity))
 				throw new ArgumentException("count too large");
 
 			Index = targetIndex;
