@@ -215,7 +215,7 @@ namespace TS3AudioBot.Audio {
 			if (item.AudioResource.ResourceTitle != resource.Value.BaseData.ResourceTitle)
 			{
 				// Title changed, Log that name change
-				Log.Info("Title of song {0} changed from '{1}' to '{2}'.",
+				Log.Info("Title of song '{0}' changed from '{1}' to '{2}'.",
 					item.MetaData.ContainingPlaylistId != null ? "in playlist '" + item.MetaData.ContainingPlaylistId + "'" : "",
 					item.AudioResource.ResourceTitle,
 					resource.Value.BaseData.ResourceTitle);
