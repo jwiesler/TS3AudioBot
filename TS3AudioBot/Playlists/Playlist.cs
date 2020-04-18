@@ -22,6 +22,8 @@ namespace TS3AudioBot.Playlists
 		public string Title { get => title; set => SetTitle(value); }
 		public bool Modifiable { get; set; } = false;
 
+		private readonly HashSet<Uid> additionalEditors = new HashSet<Uid>();
+		public IReadOnlyCollection<Uid> AdditionalEditors => additionalEditors;
 		public Uid Owner { get; }
 
 		private readonly List<PlaylistItem> items;
@@ -30,14 +32,19 @@ namespace TS3AudioBot.Playlists
 		public PlaylistItem this[int i] => items[i];
 
 		public Playlist(string title, Uid owner) :
-			this(title, owner, new List<PlaylistItem>())
+			this(title, owner, Enumerable.Empty<Uid>())
 		{ }
 
-		public Playlist(string title, Uid owner, List<PlaylistItem> items)
+		public Playlist(string title, Uid owner, IEnumerable<Uid> editors) :
+			this(title, owner, editors, new List<PlaylistItem>())
+		{ }
+
+		public Playlist(string title, Uid owner, IEnumerable<Uid> editors, List<PlaylistItem> items)
 		{
 			this.items = items ?? throw new ArgumentNullException(nameof(items));
 			this.title = TransformTitleString(title);
 			Owner = owner;
+			additionalEditors = new HashSet<Uid>(editors);
 		}
 
 		public static string TransformTitleString(string title)
@@ -57,6 +64,18 @@ namespace TS3AudioBot.Playlists
 			int remainingSlots = Math.Max(MaxSongs - items.Count, 0);
 			return Math.Min(amount, remainingSlots);
 		}
+
+		// Returns true if the specified editor is now an additional editor
+		public bool ToggleAdditionalEditor(Uid editor) {
+			if(editor == Owner)
+				throw new ArgumentException("Owner can't be an additional editor");
+			if (additionalEditors.Add(editor))
+				return true;
+			additionalEditors.Remove(editor);
+			return false;
+		}
+
+		public bool HasAdditionalEditor(Uid editor) { return additionalEditors.Contains(editor); }
 
 		public E<LocalStr> Add(PlaylistItem song)
 		{
@@ -102,6 +121,7 @@ namespace TS3AudioBot.Playlists
 		string Title { get; }
 		Uid Owner { get; }
 		bool Modifiable { get; }
+		IReadOnlyCollection<Uid> AdditionalEditors { get; }
 		IReadOnlyList<PlaylistItem> Items { get; }
 	}
 }

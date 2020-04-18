@@ -333,7 +333,7 @@ namespace TS3AudioBot.ResourceFactories
 				var index = url.LastIndexOfAny(new[] { '\\', '/' });
 				name = index >= 0 ? url.Substring(index) : url;
 			}
-			return new Playlist(name, owner, items);
+			return new Playlist(name, owner, Enumerable.Empty<Uid>(), items);
 		}
 
 		private static R<Stream, LocalStr> GetStreamFromUriUnsafe(Uri uri)

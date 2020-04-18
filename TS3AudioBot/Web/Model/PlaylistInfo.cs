@@ -7,6 +7,7 @@
 // You should have received a copy of the Open Software License along with this
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace TS3AudioBot.Web.Model
@@ -22,6 +23,8 @@ namespace TS3AudioBot.Web.Model
 		public string OwnerId { get; set; }
 		[JsonProperty(PropertyName = "Modifiable")]
 		public bool Modifiable { get; set; }
+		[JsonProperty(PropertyName = "AdditionalEditors")]
+		public List<string> AdditionalEditors { get; set; }
 
 		/// <summary>How many songs are in the entire playlist</summary>
 		[JsonProperty(PropertyName = "SongCount")]
