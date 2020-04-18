@@ -110,7 +110,10 @@ namespace TS3AudioBot.Playlists
 
 				playlistInfo[listId] = meta;
 
-				var plist = new Playlist(meta.Title, meta.OwnerId == null ? Uid.Null : new Uid(meta.OwnerId));
+				var plist = new Playlist(
+					meta.Title,
+					meta.OwnerId == null ? Uid.Null : new Uid(meta.OwnerId),
+					meta.AdditionalEditors == null ? Enumerable.Empty<Uid>() : meta.AdditionalEditors.Select(e => new Uid(e)));
 
 				if (headOnly)
 					return plist;
@@ -240,6 +243,7 @@ namespace TS3AudioBot.Playlists
 				meta.Count = plist.Items.Count;
 				meta.OwnerId = plist.Owner.Value;
 				meta.Version = FileVersion;
+				meta.AdditionalEditors = new List<string>(plist.AdditionalEditors.Select(uid => uid.Value));
 
 				sw.WriteLine("version:" + FileVersion);
 				sw.Write("meta:");
@@ -334,7 +338,8 @@ namespace TS3AudioBot.Playlists
 					Id = kvp.Key,
 					Title = kvp.Value.Title,
 					SongCount = kvp.Value.Count,
-					OwnerId = kvp.Value.OwnerId
+					OwnerId = kvp.Value.OwnerId,
+					AdditionalEditors = kvp.Value.AdditionalEditors
 				}).ToArray();
 			}
 			finally
@@ -405,6 +410,8 @@ namespace TS3AudioBot.Playlists
 		public string Title { get; set; }
 		[JsonProperty(PropertyName = "owner")]
 		public string OwnerId { get; set; }
+		[JsonProperty(PropertyName = "additional-editors")]
+		public List<string> AdditionalEditors { get; set; }
 		[JsonIgnore]
 		public int Version { get; set; }
 	}
