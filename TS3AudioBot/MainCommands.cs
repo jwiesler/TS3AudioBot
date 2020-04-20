@@ -964,7 +964,7 @@ namespace TS3AudioBot
 		public static string CommandListEditorAdd(Ts3Client cli, PlaylistManager playlistManager, ExecutionInformation info, string listId, string clientName) {
 			bool? newStatus = null;
 			ManagePlaylist(playlistManager, listId, info, list => {
-				var client = cli.GetClientByName(clientName).UnwrapThrow();
+				var client = cli.GetClientByNameExact(clientName).UnwrapThrow();
 				var uid = client.Uid;
 				if(uid == list.Owner)
 					throw new CommandException("The editor status of the owner of this list can't be toggled.", CommandExceptionReason.CommandError);

@@ -280,6 +280,19 @@ namespace TS3AudioBot
 			return clients[0].Value;
 		}
 
+		public R<ClientList, LocalStr> GetClientByNameExact(string name)
+		{
+			var refreshResult = RefreshClientBuffer(false);
+			if (!refreshResult)
+				return refreshResult.Error;
+			var clients = clientbuffer.Where(client => client.Name == name).ToList();
+			if (clients.Count <= 0)
+				return new LocalStr(strings.error_ts_no_client_found);
+			if (clients.Count > 1)
+				return new LocalStr("The client name is not unique");
+			return clients[0];
+		}
+
 		private R<ClientList, LocalStr> ClientBufferRequest(Predicate<ClientList> pred)
 		{
 			var refreshResult = RefreshClientBuffer(false);
