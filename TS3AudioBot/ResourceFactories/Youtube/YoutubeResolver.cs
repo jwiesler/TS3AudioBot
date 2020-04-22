@@ -398,8 +398,9 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			Log.Trace("Using version with {0}kbit/s", formats[0]?.abr);
 
 			// Resource is broken
-			if (string.IsNullOrEmpty(url))
+			if (string.IsNullOrEmpty(url)) {
 				return new LocalStr(strings.error_ytdl_empty_response);
+			}
 
 			// Check if URL actually works. If not, return an error.
 			var resp = new HttpClient().GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
