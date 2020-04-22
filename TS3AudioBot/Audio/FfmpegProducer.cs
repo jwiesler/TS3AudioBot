@@ -65,7 +65,7 @@ namespace TS3AudioBot.Audio
 				StartInfo = new ProcessStartInfo
 				{
 					FileName = config.Path.Value,
-					Arguments = string.Concat(PreLinkConfDetect, url, PostLinkConfDetect),
+					Arguments = string.Concat(PreLinkConfDetect, url, "\" ", PostLinkConfDetect),
 					RedirectStandardError = true,
 					UseShellExecute = false,
 					CreateNoWindow = true,
