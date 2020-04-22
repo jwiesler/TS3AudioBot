@@ -27,11 +27,14 @@ namespace TS3AudioBot.Audio
 	{
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		private readonly Id id;
-		private static readonly Regex FindDurationMatch = new Regex(@"^\s*Duration: (\d+):(\d\d):(\d\d).(\d\d)", Util.DefaultRegexConfig);
-		private static readonly Regex IcyMetadataMacher = new Regex("((\\w+)='(.*?)';\\s*)+", Util.DefaultRegexConfig);
+		private static readonly Regex FindDurationMatcher = new Regex(@"^\s*Duration: (\d+):(\d\d):(\d\d).(\d\d)", Util.DefaultRegexConfig);
+		private static readonly Regex IcyMetadataMatcher = new Regex("((\\w+)='(.*?)';\\s*)+", Util.DefaultRegexConfig);
 		private const string PreLinkConf = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -hide_banner -nostats -threads 1 -i \"";
-		private const string PostLinkConf = "\" -af loudnorm=I=-5:TP=0 -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
+		private const string PostLinkConf = "-ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private const string LinkConfIcy = "-hide_banner -nostats -threads 1 -i pipe:0 -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
+		private static readonly Regex FindMaxVolumeMatcher = new Regex("^.*max_volume: (-?\\d+\\.\\d+) dB$", Util.DefaultRegexConfig);
+		private const string PreLinkConfDetect = "-hide_banner -nostats -threads 1 -t 180 -i \"";
+		private const string PostLinkConfDetect = "-af volumedetect -f null /dev/null";
 		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
 
 		private readonly ConfToolsFfmpeg config;
@@ -53,10 +56,49 @@ namespace TS3AudioBot.Audio
 			this.id = id;
 		}
 
+		private int VolumeDetect(string url) {
+			int gain = 0;
+			float fgain = 0f;
+
+			var ffmpegProcess = new Process
+			{
+				StartInfo = new ProcessStartInfo
+				{
+					FileName = config.Path.Value,
+					Arguments = string.Concat(PreLinkConfDetect, url, PostLinkConfDetect),
+					RedirectStandardError = true,
+					UseShellExecute = false,
+					CreateNoWindow = true,
+				},
+				EnableRaisingEvents = true,
+			};
+
+			ffmpegProcess.Start();
+			ffmpegProcess.WaitForExit();
+			StreamReader errorReader = ffmpegProcess.StandardError;
+			string line;
+			while ((line = errorReader.ReadLine()) != null) {
+				var match = FindMaxVolumeMatcher.Match(line);
+				if (match.Success) {
+					if (float.TryParse(match.Groups[1].Value, out var rawGain)) {
+						fgain = rawGain;
+						if (rawGain < 0) {
+							gain = (int) Math.Abs(rawGain);
+						}
+					}
+
+					break;
+				}
+			}
+
+			Log.Trace("Detected gain needed: {0}dB (maximum volume {1})", gain, fgain);
+			return gain;
+		}
+
 		public E<string> AudioStart(string url, string resId, TimeSpan? startOff = null)
 		{
 			resourceId = resId;
-			return StartFfmpegProcess(url, startOff ?? TimeSpan.Zero);
+			return StartFfmpegProcess(url, VolumeDetect(url), startOff ?? TimeSpan.Zero);
 		}
 
 		public E<string> AudioStartIcy(string url) => StartFfmpegProcessIcy(url);
@@ -195,24 +237,22 @@ namespace TS3AudioBot.Audio
 			var lastLink = instance.ReconnectUrl;
 			if (lastLink is null)
 				return "No current url active";
-			return StartFfmpegProcess(lastLink, value);
+			return StartFfmpegProcess(lastLink, VolumeDetect(lastLink), value);
 		}
 
-		private R<FfmpegInstance, string> StartFfmpegProcess(string url, TimeSpan? offsetOpt)
+		private R<FfmpegInstance, string> StartFfmpegProcess(string url, int gain, TimeSpan? offsetOpt)
 		{
 			StopFfmpegProcess();
 			Log.Trace("Start request {0}", url);
 
 			string arguments;
 			var offset = offsetOpt ?? TimeSpan.Zero;
-			if (offset > TimeSpan.Zero)
-			{
+			if (offset > TimeSpan.Zero) {
 				var seek = string.Format(CultureInfo.InvariantCulture, @"-ss {0:hh\:mm\:ss\.fff}", offset);
-				arguments = string.Concat(seek, " ", PreLinkConf, url, PostLinkConf, " ", seek);
+				arguments = string.Concat(seek, " ", PreLinkConf, url, gain > 0 ? "\" -af volume=" + gain + "dB " : "\" ", PostLinkConf, " ", seek);
 			}
-			else
-			{
-				arguments = string.Concat(PreLinkConf, url, PostLinkConf);
+			else {
+				arguments = string.Concat(PreLinkConf, url, gain > 0 ? "\" -af volume=" + gain + "dB " : "\" ", PostLinkConf);
 			}
 
 			var newInstance = new FfmpegInstance(
@@ -391,7 +431,7 @@ namespace TS3AudioBot.Audio
 
 				if (!ParsedSongLength.HasValue)
 				{
-					var match = FindDurationMatch.Match(e.Data);
+					var match = FindDurationMatcher.Match(e.Data);
 					if (!match.Success)
 						return;
 
@@ -489,7 +529,7 @@ namespace TS3AudioBot.Audio
 			private static SongInfoChanged ParseIcyMeta(string metaString)
 			{
 				var songInfo = new SongInfoChanged();
-				var match = IcyMetadataMacher.Match(metaString);
+				var match = IcyMetadataMatcher.Match(metaString);
 				if (match.Success)
 				{
 					for (int i = 0; i < match.Groups[1].Captures.Count; i++)
