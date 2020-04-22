@@ -245,6 +245,10 @@ namespace TS3AudioBot.Audio
 			StopFfmpegProcess();
 			Log.Trace("Start request {0}", url);
 
+			if (gain > 0) {
+				Log.Info("Starting stream with {0}dB gain.", gain);
+			}
+
 			string arguments;
 			var offset = offsetOpt ?? TimeSpan.Zero;
 			if (offset > TimeSpan.Zero) {
