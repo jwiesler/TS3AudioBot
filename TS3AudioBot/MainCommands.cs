@@ -1091,7 +1091,7 @@ namespace TS3AudioBot
 				string.Join("\n", fi.Select(x =>
 					"Name: " + x.Id +
 					", Owner: " + tsFullClient.GetClientNameFromUid(Uid.To(x.OwnerId)).Unwrap().Name +
-					", Songs: " + x.Items.Length
+					", Songs: " + x.SongCount
 				))
 			);
 		}
