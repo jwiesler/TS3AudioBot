@@ -48,7 +48,7 @@ namespace TS3AudioBot.Web.Model
 				throw new ArgumentException("Can't compare to a non-PlaylistInfo object.");
 			}
 
-			return string.CompareOrdinal(Id, info.Id);
+			return StringComparer.OrdinalIgnoreCase.Compare(Id, info.Id);
 		}
 	}
 }
