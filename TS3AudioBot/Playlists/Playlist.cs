@@ -77,8 +77,16 @@ namespace TS3AudioBot.Playlists
 
 		public bool HasAdditionalEditor(Uid editor) { return additionalEditors.Contains(editor); }
 
+		public bool SongExists(PlaylistItem song) {
+			return items.Any(item => song.AudioResource.Equals(item.AudioResource));
+		}
+
 		public E<LocalStr> Add(PlaylistItem song)
 		{
+			if (SongExists(song)) {
+				return new LocalStr("The song " + song.AudioResource.ResourceTitle + " already exists in this playlist.");
+			}
+
 			if (GetMaxAdd(1) > 0)
 			{
 				items.Add(song);

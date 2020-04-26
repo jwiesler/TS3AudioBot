@@ -126,8 +126,8 @@ namespace TS3AudioBot
 		{
 			Exception ex = (Exception) e.ExceptionObject;
 			Log.Fatal(ex, "Critical program failure!");
-			Log.Trace("Exception message:" + ex.Message);
-			Log.Trace("STACK TRACE\n---------------------------\n" + ex.StackTrace);
+			Log.Trace("Exception message: " + ex.Message);
+			Log.Trace("STACK TRACE\n" + ex.StackTrace);
 			Dispose();
 			System.Environment.Exit(-1);
 		}

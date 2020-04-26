@@ -375,7 +375,6 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			}
 
 			Log.Debug("Falling back to youtube-dl!");
-			string workingUrl = null;
 
 			// Get first try information
 			var resourceInfo = GetResourceInfo(resource);
