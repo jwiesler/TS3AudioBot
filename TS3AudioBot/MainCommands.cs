@@ -956,7 +956,7 @@ namespace TS3AudioBot
 					result.AppendLine().Append("- ").Append(name);
 				}
 			}
-			
+
 			return result.ToString();
 		}
 
@@ -1087,6 +1087,7 @@ namespace TS3AudioBot
 			if (files.Length <= 0)
 				return new JsonArray<PlaylistInfo>(files, strings.error_playlist_not_found);
 
+			Array.Sort(files);
 			return new JsonArray<PlaylistInfo>(files, fi =>
 				string.Join("\n", fi.Select(x =>
 					"Name: " + x.Id +

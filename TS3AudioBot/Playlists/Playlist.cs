@@ -84,7 +84,7 @@ namespace TS3AudioBot.Playlists
 		public E<LocalStr> Add(PlaylistItem song)
 		{
 			if (SongExists(song)) {
-				return new LocalStr("The song " + song.AudioResource.ResourceTitle + " already exists in this playlist.");
+				return new LocalStr("The song '" + song.AudioResource.ResourceTitle + "' already exists in this playlist.");
 			}
 
 			if (GetMaxAdd(1) > 0)
