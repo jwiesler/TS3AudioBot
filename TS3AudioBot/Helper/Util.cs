@@ -120,10 +120,6 @@ namespace TS3AudioBot.Helper
 
 		public static Stream GetEmbeddedFile(string name)
 		{
-			foreach (var res in Assembly.GetExecutingAssembly().GetManifestResourceNames()) {
-				Console.WriteLine(res);
-			}
-
 			var assembly = Assembly.GetExecutingAssembly();
 			return assembly.GetManifestResourceStream(name);
 		}
