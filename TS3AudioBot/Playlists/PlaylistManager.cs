@@ -9,13 +9,10 @@
 
 using System;
 using System.Collections.Generic;
-using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
-using TS3AudioBot.Playlists.Shuffle;
 using TS3AudioBot.Web.Model;
 using TSLib;
-using TSLib.Helper;
 
 namespace TS3AudioBot.Playlists
 {
@@ -23,11 +20,6 @@ namespace TS3AudioBot.Playlists
 	{
 		private readonly PlaylistIO playlistPool;
 		private readonly object listLock = new object();
-
-		private IShuffleAlgorithm shuffle;
-
-		private readonly IShuffleAlgorithm NormalOrder = new NormalOrder();
-		private readonly IShuffleAlgorithm RandomOrder = new LinearFeedbackShiftRegister();
 
 		public bool Random
 		{
@@ -43,11 +35,6 @@ namespace TS3AudioBot.Playlists
 		public PlaylistManager(PlaylistIO playlistPool)
 		{
 			this.playlistPool = playlistPool;
-		}
-
-		private void SetRandomSeed()
-		{
-			shuffle.Seed = Tools.Random.Next();
 		}
 
 		public R<IReadOnlyPlaylist, LocalStr> LoadPlaylist(string listId)
