@@ -17,7 +17,7 @@ namespace TS3AudioBot.Playlists
 {
 	public class Playlist : IReadOnlyPlaylist
 	{
-		private const int MaxSongs = 1000;
+		private const int MaxSongs = 2500;
 		private string title;
 		public string Title { get => title; set => SetTitle(value); }
 		public bool Modifiable { get; set; } = false;
