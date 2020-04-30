@@ -74,6 +74,9 @@ namespace TS3AudioBot.Playlists
 			if (!checkName.Ok)
 				return checkName.Error;
 			var res = playlistPool.ReadFull(listId);
+			if (!res.Ok) {
+				return res.Error;
+			}
 
 			var plist = res.Value;
 			lock (listLock)
