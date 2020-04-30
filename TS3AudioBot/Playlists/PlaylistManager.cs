@@ -42,7 +42,8 @@ namespace TS3AudioBot.Playlists
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return checkName.Error;
-			var res = playlistPool.Read(listId);
+
+			var res = playlistPool.ReadFull(listId);
 
 			if (!res.Ok)
 				return res.Error;
@@ -72,9 +73,8 @@ namespace TS3AudioBot.Playlists
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return checkName.Error;
-			var res = playlistPool.Read(listId);
-			if (!res.Ok)
-				return res.Error;
+			var res = playlistPool.ReadFull(listId);
+
 			var plist = res.Value;
 			lock (listLock)
 			{
@@ -93,5 +93,15 @@ namespace TS3AudioBot.Playlists
 		}
 
 		public R<PlaylistInfo[], LocalStr> GetAvailablePlaylists(string pattern = null) => playlistPool.ListPlaylists(pattern);
+
+		public bool TryGetPlaylistId(string listId, out string id) {
+			var checkName = Util.IsSafeFileName(listId);
+			if (!checkName.Ok) {
+				id = null;
+				return false;
+			}
+
+			return playlistPool.TryGetPlaylistId(listId, out id);
+		}
 	}
 }
