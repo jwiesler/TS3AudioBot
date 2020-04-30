@@ -209,7 +209,7 @@ namespace TS3AudioBot.Playlists
 			lock (ioLock) {
 				var id = ToRealId(listId);
 
-				var meta = playlistInfo[id];
+				var meta = playlistInfo.GetOrNew(id);
 				UpdateMeta(meta, list);
 				return WriteToFile(IdToFile(id), meta, list.Items);
 			}
