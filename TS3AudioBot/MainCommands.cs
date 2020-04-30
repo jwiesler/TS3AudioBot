@@ -1090,9 +1090,9 @@ namespace TS3AudioBot
 			Array.Sort(files);
 			return new JsonArray<PlaylistInfo>(files, fi =>
 				string.Join("\n", fi.Select(x =>
-					"Name: " + x.Id +
-					", Owner: " + tsFullClient.GetClientNameFromUid(Uid.To(x.OwnerId)).Unwrap().Name +
-					", Songs: " + x.SongCount
+					x.Id +
+					" (Owner: " + tsFullClient.GetClientNameFromUid(Uid.To(x.OwnerId)).Unwrap().Name +
+					", Songs: " + x.SongCount + ')'
 				))
 			);
 		}
