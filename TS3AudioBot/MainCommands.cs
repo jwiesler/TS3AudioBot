@@ -957,7 +957,7 @@ namespace TS3AudioBot
 		public static string CommandListEditorList(TsFullClient client, PlaylistManager playlistManager, string listId) {
 			var list = playlistManager.LoadPlaylist(listId).UnwrapThrow();
 			StringBuilder result = new StringBuilder();
-			resugetuserlt.Append("The playlist \"").Append(list.Title).Append("\"");
+			result.Append("The playlist \"").Append(list.Title).Append("\"");
 			if (list.AdditionalEditors.Count == 0) {
 				result.Append(" has no additional editors.");
 			} else {
