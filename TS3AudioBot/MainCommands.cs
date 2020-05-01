@@ -407,6 +407,17 @@ namespace TS3AudioBot
 		public static string CommandGetUidById(Ts3Client ts3Client, ushort id) => ts3Client.GetFallbackedClientById((ClientId)id).UnwrapThrow().Uid.Value;
 		[Command("getuser name byid")]
 		public static string CommandGetNameById(Ts3Client ts3Client, ushort id) => ts3Client.GetFallbackedClientById((ClientId)id).UnwrapThrow().Name;
+
+		[Command("getuser name byuid")]
+		public static string CommandGetNameByUId(TsFullClient fullClient, string uid) {
+			var res = fullClient.GetClientNameFromUid(Uid.To(uid));
+			if (!res.Ok) {
+				throw new CommandException(res.Error.Message, CommandExceptionReason.CommandError);
+			}
+
+			return res.Value.Name;
+		}
+
 		[Command("getuser dbid byid")]
 		public static ulong CommandGetDbIdById(Ts3Client ts3Client, ushort id) => ts3Client.GetFallbackedClientById((ClientId)id).UnwrapThrow().DatabaseId.Value;
 		[Command("getuser channel byid")]
@@ -946,7 +957,7 @@ namespace TS3AudioBot
 		public static string CommandListEditorList(TsFullClient client, PlaylistManager playlistManager, string listId) {
 			var list = playlistManager.LoadPlaylist(listId).UnwrapThrow();
 			StringBuilder result = new StringBuilder();
-			result.Append("The playlist \"").Append(list.Title).Append("\"");
+			resugetuserlt.Append("The playlist \"").Append(list.Title).Append("\"");
 			if (list.AdditionalEditors.Count == 0) {
 				result.Append(" has no additional editors.");
 			} else {
