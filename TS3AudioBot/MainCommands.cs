@@ -1112,7 +1112,7 @@ namespace TS3AudioBot
 		public static void CommandListMerge(PlaylistManager playlistManager, ExecutionInformation info, string baseListId, string mergeListId) // future overload?: (IROP, IROP) -> IROP
 		{
 			var otherList = playlistManager.LoadPlaylist(mergeListId).UnwrapThrow();
-			ModifyPlaylist(playlistManager, mergeListId, info, playlist =>
+			ModifyPlaylist(playlistManager, baseListId, info, playlist =>
 			{
 				playlist.AddRange(otherList.Items).UnwrapThrow();
 			}).UnwrapThrow();
