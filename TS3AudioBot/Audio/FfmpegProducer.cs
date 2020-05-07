@@ -476,8 +476,6 @@ namespace TS3AudioBot.Audio
 				if (sender != FfmpegProcess)
 					throw new InvalidOperationException("Wrong process associated to event");
 
-				Log.Trace("Ffmpeg output: " + e.Data);
-
 				if (!ParsedSongLength.HasValue)
 				{
 					var match = FindDurationMatcher.Match(e.Data);

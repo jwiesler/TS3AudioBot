@@ -44,7 +44,6 @@ namespace TS3AudioBot.Playlists
 			this.items = items ?? throw new ArgumentNullException(nameof(items));
 			this.title = TransformTitleString(title);
 			Owner = owner;
-			additionalEditors = new HashSet<Uid>(editors);
 		}
 
 		public static string TransformTitleString(string title)

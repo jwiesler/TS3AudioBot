@@ -161,8 +161,7 @@ namespace TS3AudioBot.Helper
 		{
 			try {
 				return process.HasExited;
-			} catch (Exception e) {
-				Console.WriteLine("Exception occured: " + e.Message);
+			} catch {
 				return true;
 			}
 		}
