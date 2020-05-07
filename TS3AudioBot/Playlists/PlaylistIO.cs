@@ -99,6 +99,61 @@ namespace TS3AudioBot.Playlists
 			}
 		}
 
+		private static List<PlaylistItem> ReadListItems(StreamReader reader) {
+			List<PlaylistItem> items = new List<PlaylistItem>();
+
+			string line;
+			while ((line = reader.ReadLine()) != null)
+			{
+				var kvp = line.Split(new[] { ':' }, 2);
+				if (kvp.Length < 2) continue;
+
+				string key = kvp[0];
+				string value = kvp[1];
+
+				switch (key)
+				{
+				// Legacy entry
+				case "rs":
+				{
+					var rskvp = value.Split(new[] { ':' }, 2);
+					if (kvp.Length < 2)
+					{
+						Log.Warn("Erroneus playlist split count: {0}", line);
+						continue;
+					}
+					string optOwner = rskvp[0];
+					string content = rskvp[1];
+
+					var rsSplit = content.Split(new[] { ',' }, 3);
+					if (rsSplit.Length < 3)
+						goto default;
+					if (!string.IsNullOrWhiteSpace(rsSplit[0]))
+						items.Add(new PlaylistItem(new AudioResource(Uri.UnescapeDataString(rsSplit[1]), Uri.UnescapeDataString(rsSplit[2]), rsSplit[0])));
+					else
+						goto default;
+					break;
+				}
+
+				case "rsj":
+					var res = JsonConvert.DeserializeObject<AudioResource>(value);
+					items.Add(new PlaylistItem(res));
+					break;
+
+				case "id":
+				case "ln":
+					Log.Warn("Deprecated playlist data block: {0}", line);
+					break;
+
+				default:
+					Log.Warn("Erroneus playlist data block: {0}", line);
+					break;
+				}
+			}
+
+			return items;
+		}
+
 		private static R<(Playlist list, PlaylistMeta meta), LocalStr> ReadFullFromFile(FileInfo fi) {
 			if (!fi.Exists)
 				return new LocalStr(strings.error_playlist_not_found);
@@ -108,64 +163,18 @@ namespace TS3AudioBot.Playlists
 				var metaRes = ReadHeadStream(sr);
 				if (!metaRes.Ok)
 					return metaRes.Error;
-				var meta = metaRes.Value;
 
+				var items = ReadListItems(sr);
+
+				var meta = metaRes.Value;
+				meta.Count = items.Count;
 				var plist = new Playlist(
 					meta.Title,
 					meta.OwnerId == null ? Uid.Null : new Uid(meta.OwnerId),
-					meta.AdditionalEditors == null ? Enumerable.Empty<Uid>() : meta.AdditionalEditors.Select(e => new Uid(e)));
-
-				// read content
-				string line;
-				while ((line = sr.ReadLine()) != null)
-				{
-					var kvp = line.Split(new[] { ':' }, 2);
-					if (kvp.Length < 2) continue;
-
-					string key = kvp[0];
-					string value = kvp[1];
-
-					switch (key)
-					{
-					// Legacy entry
-					case "rs":
-						{
-							var rskvp = value.Split(new[] { ':' }, 2);
-							if (kvp.Length < 2)
-							{
-								Log.Warn("Erroneus playlist split count: {0}", line);
-								continue;
-							}
-							string optOwner = rskvp[0];
-							string content = rskvp[1];
-
-							var rsSplit = content.Split(new[] { ',' }, 3);
-							if (rsSplit.Length < 3)
-								goto default;
-							if (!string.IsNullOrWhiteSpace(rsSplit[0]))
-								plist.Add(new PlaylistItem(new AudioResource(Uri.UnescapeDataString(rsSplit[1]), Uri.UnescapeDataString(rsSplit[2]), rsSplit[0])));
-							else
-								goto default;
-							break;
-						}
-
-					case "rsj":
-						var res = JsonConvert.DeserializeObject<AudioResource>(value);
-						plist.Add(new PlaylistItem(res));
-						break;
-
-					case "id":
-					case "ln":
-						Log.Warn("Deprecated playlist data block: {0}", line);
-						break;
-
-					default:
-						Log.Warn("Erroneus playlist data block: {0}", line);
-						break;
-					}
-				}
-
-				meta.Count = plist.Items.Count;
+					meta.AdditionalEditors == null
+						? Enumerable.Empty<Uid>()
+						: meta.AdditionalEditors.Select(e => new Uid(e)),
+					items);
 				return (plist, meta);
 			}
 		}
