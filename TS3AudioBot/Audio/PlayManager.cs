@@ -9,14 +9,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using TS3AudioBot.Config;
 using TS3AudioBot.Environment;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
-using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories;
-using TSLib;
 using TSLib.Helper;
 
 namespace TS3AudioBot.Audio {
@@ -42,11 +41,25 @@ namespace TS3AudioBot.Audio {
 		public event EventHandler<SongEndEventArgs> ResourceStopped;
 		public event EventHandler PlaybackStopped;
 
+		private readonly SongAnalyzer songAnalyzer;
+
 		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats) {
 			confBot = config;
 			this.playerConnection = playerConnection;
 			this.resourceResolver = resourceResolver;
 			this.stats = stats;
+			songAnalyzer = new SongAnalyzer(resourceResolver, playerConnection.FfmpegProducer);
+
+			playerConnection.FfmpegProducer.OnSongLengthParsed += (sender, args) => {
+				lock (Lock) {
+					if(songAnalyzer.Instance != null)
+						songAnalyzer.Prepare(GetAnalyzeTaskStartTime());
+				}
+			};
+		}
+
+		private int GetAnalyzeTaskStartTime() {
+			return SongAnalyzer.GetTaskStartTime(playerConnection.Length - playerConnection.Position);
 		}
 
 		public void Clear() {
@@ -54,6 +67,7 @@ namespace TS3AudioBot.Audio {
 				Queue.Clear();
 				TryStopCurrentSong();
 				OnPlaybackEnded();
+				songAnalyzer.Clear();
 			}
 		}
 
@@ -66,18 +80,21 @@ namespace TS3AudioBot.Audio {
 		public void EnqueueAsNextSong(QueueItem item) {
 			lock (Lock) {
 				Queue.InsertAfter(item, Queue.Index);
+				UpdateNextSong();
 			}
 		}
 
 		public void RemoveAt(int index) {
 			lock (Lock) {
 				Queue.Remove(index);
+				UpdateNextSong();
 			}
 		}
 
 		public void RemoveRange(int from, int to) {
 			lock (Lock) {
 				Queue.RemoveRange(from, to);
+				UpdateNextSong();
 			}
 		}
 
@@ -100,14 +117,20 @@ namespace TS3AudioBot.Audio {
 		public E<LocalStr> Enqueue(QueueItem item) {
 			lock (Lock) {
 				Queue.Enqueue(item);
-				return TryInitialStart();
+				var res = TryInitialStart();
+				if(res.Ok)
+					UpdateNextSong();
+				return res;
 			}
 		}
 
 		public E<LocalStr> Enqueue(IEnumerable<QueueItem> items) {
 			lock (Lock) {
 				Queue.Enqueue(items);
-				return TryInitialStart();
+				var res = TryInitialStart();
+				if(res.Ok)
+					UpdateNextSong();
+				return res;
 			}
 		}
 
@@ -124,7 +147,7 @@ namespace TS3AudioBot.Audio {
 
 		public E<LocalStr> Next() {
 			lock (Lock) {
-				Log.Info("Next song requested");
+				Log.Debug("Next song requested");
 				TryStopCurrentSong();
 				if (!Queue.TryNext()) {
 					OnPlaybackEnded();
@@ -171,7 +194,7 @@ namespace TS3AudioBot.Audio {
 
 		private void TryStopCurrentSong() {
 			if (CurrentPlayData != null) {
-				Log.Info("Stopping current song");
+				Log.Debug("Stopping current song");
 				playerConnection.Stop();
 				CurrentPlayData = null;
 				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
@@ -207,25 +230,32 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private E<LocalStr> Start(QueueItem item) {
-			Log.Info("Starting song...");
-			var resource = resourceResolver.Load(item.AudioResource);
-			if (!resource.Ok)
-				return resource.Error;
+			Log.Info("Starting song {0}...", item.AudioResource.ResourceTitle);
 
-			if (item.AudioResource.ResourceTitle != resource.Value.BaseData.ResourceTitle)
+			Stopwatch timer = new Stopwatch();
+			timer.Start();
+			var res = songAnalyzer.TryGetResult(item);
+			if (!res.Ok)
+				return res.Error;
+
+			var (resource, gain) = res.Value;
+			
+			if (item.AudioResource.ResourceTitle != resource.BaseData.ResourceTitle)
 			{
 				// Title changed, Log that name change
 				Log.Info("Title of song '{0}' changed from '{1}' to '{2}'.",
 					item.MetaData.ContainingPlaylistId != null ? "in playlist '" + item.MetaData.ContainingPlaylistId + "'" : "",
 					item.AudioResource.ResourceTitle,
-					resource.Value.BaseData.ResourceTitle);
+					resource.BaseData.ResourceTitle);
 			}
 
-			return Start(resource.Value, item.MetaData);
+			var r = Start(resource, item.MetaData, gain);
+			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
+			return r;
 		}
 
-		private E<LocalStr> Start(PlayResource resource, MetaData meta) {
-			Log.Info("Starting resource...");
+		private E<LocalStr> Start(PlayResource resource, MetaData meta, int gain) {
+			Log.Trace("Starting resource...");
 			resource.Meta = meta;
 			var sourceLink = resourceResolver.RestoreLink(resource.BaseData).OkOr(null);
 			var playInfo = new PlayInfoEventArgs(meta.ResourceOwnerUid, resource, sourceLink);
@@ -234,9 +264,9 @@ namespace TS3AudioBot.Audio {
 				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
 				return new LocalStr(strings.error_playmgr_internal_error);
 			}
-
-			Log.Debug("AudioResource start: {0}", resource);
-			var result = playerConnection.Play(resource);
+			
+			Log.Debug("AudioResource start: {0} with gain {1}", resource, gain);
+			var result = playerConnection.Play(resource, gain);
 
 			if (!result) {
 				Log.Error("Error return from player: {0}", result.Error);
@@ -247,17 +277,39 @@ namespace TS3AudioBot.Audio {
 				Tools.Clamp(playerConnection.Volume, confBot.Audio.Volume.Min, confBot.Audio.Volume.Max);
 			CurrentPlayData = playInfo; // TODO meta as readonly
 			AfterResourceStarted?.Invoke(this, playInfo);
+			UpdateNextSong();
 
 			return R.Ok;
 		}
 
+		private void UpdateNextSong() {
+			var next = Queue.Next;
+			if (next != null)
+				PrepareNextSong(next);
+		}
+
+		public void PrepareNextSong(QueueItem item) {
+			lock (Lock) {
+				if (songAnalyzer.IsPreparing(item))
+					return;
+
+				songAnalyzer.SetNextSong(item);
+
+				if (playerConnection.FfmpegProducer.Length != TimeSpan.Zero)
+					songAnalyzer.Prepare(GetAnalyzeTaskStartTime());
+			}
+		}
+
 		public void SongEndedEvent(object sender, EventArgs e) { StopSong(false); }
 
-		public void Stop() { StopSong(true); }
+		public void Stop() {
+			StopSong(true);
+			songAnalyzer.Clear();
+		}
 
 		private void StopSong(bool stopped /* true if stopped manually, false if ended normally */) {
 			lock (Lock) {
-				Log.Info("Song stopped");
+				Log.Debug("Song stopped");
 				ResourceStopped?.Invoke(this, new SongEndEventArgs(stopped));
 
 				if (stopped) {
@@ -268,7 +320,7 @@ namespace TS3AudioBot.Audio {
 					var result = Next();
 					if (result.Ok)
 						return;
-					Log.Info("Song items ended with error: {0}", result.Error);
+					Log.Info("Automatically playing next song ended with error: {0}", result.Error);
 				}
 			}
 		}

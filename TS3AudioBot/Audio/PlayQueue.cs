@@ -120,13 +120,19 @@ namespace TS3AudioBot.Audio {
 
 		public QueueItem Current => Index == items.Count ? null : items[Index];
 
+		public QueueItem Next => Index + 1 == items.Count ? null : items[Index + 1];
+
 		public IReadOnlyList<QueueItem> Items => items;
 
 		public PlayQueue() { items = new List<QueueItem>(); }
 
-		public void Enqueue(QueueItem item) { items.Add(item); }
+		public void Enqueue(QueueItem item) {
+			items.Add(item);
+		}
 
-		public void Enqueue(IEnumerable<QueueItem> list) { items.AddRange(list); }
+		public void Enqueue(IEnumerable<QueueItem> list) {
+			items.AddRange(list);
+		}
 
 		public void InsertAfter(QueueItem item, int index) {
 			if(!Tools.IsBetweenExcludingUpper(index, 0, items.Count))
@@ -135,6 +141,8 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void Remove(int at) {
+			if (!Tools.IsBetweenExcludingUpper(at, 0, items.Capacity))
+				throw new ArgumentException();
 			if (Index == at)
 				throw new InvalidOperationException("Can't remove the current item");
 

@@ -60,22 +60,20 @@ namespace TS3AudioBot.Audio
 		private void TriggerSongEnd(object o, EventArgs e) => OnSongEnd?.Invoke(this, EventArgs.Empty);
 		private void TriggerSongUpdated(object o, SongInfoChanged e) => OnSongUpdated?.Invoke(this, e);
 
-		public E<string> Play(PlayResource res)
+		public E<string> Play(PlayResource res, int gain)
 		{
 			E<string> result;
 			if (res is MediaPlayResource mres && mres.IsIcyStream)
 				result = FfmpegProducer.AudioStartIcy(res.PlayUri);
 			else
-			{
-				result = FfmpegProducer.AudioStart(res.PlayUri, res.BaseData.ResourceId, res.Meta?.StartOffset);
-			}
+				result = FfmpegProducer.AudioStart(res.PlayUri, res.BaseData.ResourceId, gain, res.Meta?.StartOffset);
 
 			if (result)
 				Play(FfmpegProducer);
 			return result;
 		}
 
-		public void Play(IPlayerSource source)
+		private void Play(IPlayerSource source)
 		{
 			var oldSource = CurrentPlayerSource;
 			if (oldSource != source)
