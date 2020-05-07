@@ -46,7 +46,7 @@ namespace TS3AudioBot.Audio {
 		private Task CreateTask(int inSeconds, CancellationToken token) {
 			return new Task(() => {
 				Task.Delay(inSeconds * 1000, token).Wait();
-				Log.Info("Started background analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
+				Log.Info("Started analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
 				Run(token);
 			});
 		}
@@ -59,7 +59,7 @@ namespace TS3AudioBot.Audio {
 
 			if (!Resource.HasValue) {
 				Cancel();
-				Log.Warn("Song analyze task is hanging or something...");
+				Log.Warn("Song analyze task is hanging or didn't start yet...");
 
 				Run(new CancellationToken());
 				if(!Resource.HasValue)
@@ -100,7 +100,6 @@ namespace TS3AudioBot.Audio {
 		public void Dispose() {
 			Cancel();
 			TokenSource?.Dispose();
-			Task?.Dispose();
 		}
 	}
 
