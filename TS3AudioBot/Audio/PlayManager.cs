@@ -52,8 +52,10 @@ namespace TS3AudioBot.Audio {
 
 			playerConnection.FfmpegProducer.OnSongLengthParsed += (sender, args) => {
 				lock (Lock) {
-					if(songAnalyzer.Instance != null)
+					if (songAnalyzer.Instance != null) {
+						Log.Info("Preparing song analyzer... (OnSongLengthParsed)");
 						songAnalyzer.Prepare(GetAnalyzeTaskStartTime());
+					}
 				}
 			};
 		}
@@ -297,8 +299,10 @@ namespace TS3AudioBot.Audio {
 
 				songAnalyzer.SetNextSong(item);
 
-				if (playerConnection.FfmpegProducer.Length != TimeSpan.Zero)
+				if (playerConnection.FfmpegProducer.Length != TimeSpan.Zero) {
+					Log.Info("Preparing song analyzer... (PrepareNextSong)");
 					songAnalyzer.Prepare(GetAnalyzeTaskStartTime());
+				}
 			}
 		}
 

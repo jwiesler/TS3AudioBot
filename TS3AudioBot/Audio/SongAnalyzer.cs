@@ -126,6 +126,11 @@ namespace TS3AudioBot.Audio {
 			if(Instance == null)
 				throw new InvalidOperationException("instance null");
 
+			if (Instance.Task != null) {
+				Log.Warn("SongAnalyzerTask was already working");
+				return;
+			}
+
 			Instance.PrepareRun(inSeconds);
 			Instance.Start();
 		}
