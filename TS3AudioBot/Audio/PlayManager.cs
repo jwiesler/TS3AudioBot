@@ -73,7 +73,7 @@ namespace TS3AudioBot.Audio {
 
 		public E<LocalStr> Play() {
 			lock (Lock) {
-				return TryPlay();
+				return TryPlay(true);
 			}
 		}
 
@@ -117,7 +117,7 @@ namespace TS3AudioBot.Audio {
 		public E<LocalStr> Enqueue(QueueItem item) {
 			lock (Lock) {
 				Queue.Enqueue(item);
-				var res = TryInitialStart();
+				var res = TryInitialStart(true);
 				if(res.Ok)
 					UpdateNextSong();
 				return res;
@@ -127,7 +127,7 @@ namespace TS3AudioBot.Audio {
 		public E<LocalStr> Enqueue(IEnumerable<QueueItem> items) {
 			lock (Lock) {
 				Queue.Enqueue(items);
-				var res = TryInitialStart();
+				var res = TryInitialStart(true);
 				if(res.Ok)
 					UpdateNextSong();
 				return res;
@@ -141,7 +141,7 @@ namespace TS3AudioBot.Audio {
 				Log.Info("Skip {0} songs requested", count);
 				TryStopCurrentSong();
 				Queue.Skip(count);
-				return TryPlay();
+				return TryPlay(false);
 			}
 		}
 
@@ -154,21 +154,21 @@ namespace TS3AudioBot.Audio {
 					return R.Ok;
 				}
 
-				return TryPlay();
+				return TryPlay(false);
 			}
 		}
 
 		public E<LocalStr> Previous() {
 			lock (Lock) {
 				Log.Info("Previous song requested");
-				return TryPrevious();
+				return TryPrevious(true);
 			}
 		}
 
-		private E<LocalStr> TryPrevious() {
+		private E<LocalStr> TryPrevious(bool noSongIsError) {
 			TryStopCurrentSong();
 			if (!Queue.TryPrevious())
-				return new LocalStr("No song to play");
+				return NoSongToPlay(noSongIsError);
 
 			var item = Queue.Current;
 			var res = Start(item);
@@ -178,11 +178,10 @@ namespace TS3AudioBot.Audio {
 			Log.Info("Could not play song {0} (reason: {1})", item.AudioResource, res.Error);
 			if (!Queue.TryNext())
 				return new LocalStr("This should not happen");
-			res = TryPlay();
+			res = TryPlay(true);
 			if (res.Ok) {
 				return new LocalStr("Could not play previous song, playing current song again");
 			} else {
-				OnPlaybackEnded();
 				return res;
 			}
 		}
@@ -202,19 +201,24 @@ namespace TS3AudioBot.Audio {
 		}
 
 		// Try to start playing if not playing
-		private E<LocalStr> TryInitialStart() {
+		private E<LocalStr> TryInitialStart(bool noSongIsError) {
 			if (IsPlaying || !AutoStartPlaying)
 				return R.Ok;
-			return TryPlay();
+			return TryPlay(noSongIsError);
 		}
 
-		private E<LocalStr> TryPlay() {
+		private E<LocalStr> NoSongToPlay(bool noSongIsError) {
+			OnPlaybackEnded();
+			if(noSongIsError)
+				return new LocalStr("No song to play");
+			return R.Ok;
+		}
+
+		private E<LocalStr> TryPlay(bool noSongIsError) {
 			while (true) {
 				var item = Queue.Current;
-				if (item == null) {
-					OnPlaybackEnded();
-					return new LocalStr("No song to play");
-				}
+				if (item == null)
+					return NoSongToPlay(noSongIsError);
 
 				var res = Start(item);
 				if (res.Ok)
@@ -222,10 +226,8 @@ namespace TS3AudioBot.Audio {
 
 				Log.Info("Could not play song {0} (reason: {1})", item.AudioResource, res.Error);
 
-				if (!Queue.TryNext()) {
-					OnPlaybackEnded();
-					return new LocalStr("No song to play");
-				}
+				if (!Queue.TryNext())
+					return NoSongToPlay(noSongIsError);
 			}
 		}
 
