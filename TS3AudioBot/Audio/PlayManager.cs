@@ -151,7 +151,7 @@ namespace TS3AudioBot.Audio {
 				TryStopCurrentSong();
 				if (!Queue.TryNext()) {
 					OnPlaybackEnded();
-					return new LocalStr("No song to play");
+					return R.Ok;
 				}
 
 				return TryPlay();
