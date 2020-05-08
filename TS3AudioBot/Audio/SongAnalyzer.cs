@@ -45,9 +45,13 @@ namespace TS3AudioBot.Audio {
 
 		private Task CreateTask(int inSeconds, CancellationToken token) {
 			return new Task(() => {
-				Task.Delay(inSeconds * 1000, token).Wait();
-				Log.Info("Started analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
-				Run(token);
+				try {
+					Task.Delay(inSeconds * 1000, token).Wait();
+					Log.Info("Started analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
+					Run(token);
+				} catch(OperationCanceledException) {
+					// this is fine
+				}
 			});
 		}
 
