@@ -105,12 +105,13 @@ namespace TS3AudioBot.Audio
 			};
 
 			ffmpegProcess.Start();
-			WaitForExitAsync(ffmpegProcess, token).Wait();
-			if (token.IsCancellationRequested) {
-				ffmpegProcess.Kill();
-				return -1;
+			try {
+				WaitForExitAsync(ffmpegProcess, token).Wait();
+			} finally {
+				if (token.IsCancellationRequested)
+					ffmpegProcess.Kill();
 			}
-
+			
 			StreamReader errorReader = ffmpegProcess.StandardError;
 			string line;
 			while ((line = errorReader.ReadLine()) != null) {
