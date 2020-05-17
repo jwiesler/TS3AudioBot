@@ -373,7 +373,7 @@ namespace TS3AudioBot.Playlists
 				if (!list.Ok)
 					continue;
 				res.AddRange(list.Value.Items.Select((item, idx) => new PlaylistSearchItemInfo
-					{ListId = id, Resource = item.AudioResource}));
+					{ListId = id, ListIndex = idx, ResourceTitle = item.AudioResource.ResourceTitle, ResourceId = item.AudioResource.ResourceId}));
 			}
 
 			return res;
@@ -383,13 +383,15 @@ namespace TS3AudioBot.Playlists
 	public class PlaylistSearchItemInfo {
 		[JsonProperty(PropertyName = "listid")]
 		public string ListId { get; set; }
-		[JsonProperty(PropertyName = "resource")]
-		public AudioResource Resource { get; set; }
-	}
 
-	public class PlaylistSearchInfo {
-		public string Id;
-		public List<PlaylistSearchItemInfo> Items { get; set; }
+		[JsonProperty(PropertyName = "listindex")]
+		public int ListIndex { get; set; }
+
+		[JsonProperty(PropertyName = "title")]
+		public string ResourceTitle { get; set; }
+
+		[JsonProperty(PropertyName = "resid")]
+		public string ResourceId { get; set; }
 	}
 
 	public class PlaylistMeta
