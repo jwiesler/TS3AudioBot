@@ -803,7 +803,7 @@ namespace TS3AudioBot
 
 				for (int i = 0; i < result.Items.Count; ++i) {
 					var item = result.Items[i];
-					builder.AppendLine().Append(i + result.Offset).Append(": ").Append(item.Resource.ResourceTitle).Append(" (")
+					builder.AppendLine().Append(i + result.Offset).Append(": ").Append(item.ResourceTitle).Append(" (")
 						.Append(item.ListId).Append(')');
 				}
 

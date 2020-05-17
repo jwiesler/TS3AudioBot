@@ -16,7 +16,7 @@ namespace TS3AudioBot.Search {
 
 		public ResourceSearchInstance(List<PlaylistSearchItemInfo> items) {
 			this.items = items;
-			sa = new SuffixArray(items.Select(i => i.Resource.ResourceTitle.ToLowerInvariant()).ToList());
+			sa = new SuffixArray(items.Select(i => i.ResourceTitle.ToLowerInvariant()).ToList());
 		}
 
 		private List<PlaylistSearchItemInfo> LookupItems(int begin, int end) {
