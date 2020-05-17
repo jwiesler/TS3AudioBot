@@ -791,11 +791,10 @@ namespace TS3AudioBot
 		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, string query) {
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
-			var (totalResults, res) = resourceSearch.Find(query, from, SearchMaxItems).UnwrapThrow();
-			var list = new HashSet<PlaylistSearchItemInfo>(res).ToList();
+			var (totalResults, list) = resourceSearch.Find(query, from, SearchMaxItems).UnwrapThrow();
 			Log.Info($"Search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
 
-			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = list, Results = res.Count, TotalResults = totalResults }, result => {
+			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = list, Results = list.Count, TotalResults = totalResults }, result => {
 				StringBuilder builder = new StringBuilder();
 				builder.Append("Found ").Append(result.TotalResults).Append(" result(s).");
 				if (result.TotalResults > result.Items.Count)
@@ -803,8 +802,16 @@ namespace TS3AudioBot
 
 				for (int i = 0; i < result.Items.Count; ++i) {
 					var item = result.Items[i];
-					builder.AppendLine().Append(i + result.Offset).Append(": ").Append(item.ResourceTitle).Append(" (")
-						.Append(item.ListId).Append(')');
+					builder.AppendLine().Append(i + result.Offset).Append(": ").Append(item.ResourceTitle).Append(" (");
+
+					for (var j = 0; j < item.ContainingLists.Count; j++) {
+						var cl = item.ContainingLists[j];
+						if (j != 0)
+							builder.Append(',');
+						builder.Append(cl.Id).Append(':').Append(cl.Index);
+					}
+
+					builder.Append(')');
 				}
 
 				return builder.ToString();

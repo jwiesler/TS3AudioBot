@@ -14,8 +14,16 @@ namespace TS3AudioBot.Search {
 		private readonly SuffixArray sa;
 		private readonly List<PlaylistSearchItemInfo> items;
 
-		public ResourceSearchInstance(List<PlaylistSearchItemInfo> items) {
-			this.items = items;
+		public static PlaylistSearchItemInfo Convert(UniqueResourceInfo info) {
+			var r = new PlaylistSearchItemInfo();
+			r.ResourceTitle = info.Resource.ResourceTitle;
+			r.ResourceId = info.Resource.ResourceId;
+			r.ContainingLists = info.ContainingLists.Select(kv => new ContainingListInfo {Id = kv.Key, Index = kv.Value.First()}).ToList();
+			return r;
+		}
+
+		public ResourceSearchInstance(List<UniqueResourceInfo> uniqueItems) {
+			items = uniqueItems.Select(Convert).ToList();
 			sa = new SuffixArray(items.Select(i => i.ResourceTitle.ToLowerInvariant()).ToList());
 		}
 

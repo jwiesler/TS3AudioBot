@@ -29,8 +29,7 @@ namespace TS3AudioBot.Playlists
 	{
 		private readonly ConfBot confBot;
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		private readonly Dictionary<string, PlaylistMeta> playlistInfo = new Dictionary<string, PlaylistMeta>();
-		private readonly Dictionary<string, Playlist> playlistCache = new Dictionary<string, Playlist>(16);
+		private readonly PlaylistDatabase playlistCache = new PlaylistDatabase();
 		private readonly Dictionary<string, string> lowerIdToId = new Dictionary<string, string>();
 		private const int FileVersion = 3;
 		private readonly object ioLock = new object();
@@ -54,7 +53,7 @@ namespace TS3AudioBot.Playlists
 			lock (ioLock) {
 				var id = ToRealId(listId);
 				
-				if (playlistCache.TryGetValue(id, out var list))
+				if (playlistCache.TryGet(id, out Playlist list))
 					return list;
 
 				var result = ReadFullFromFile(IdToFile(id));
@@ -62,26 +61,8 @@ namespace TS3AudioBot.Playlists
 				if (!result.Ok)
 					return result.Error;
 
-				playlistCache.Add(id, result.Value.list);
-				playlistInfo[id] = result.Value.meta;
+				playlistCache.Update(id, result.Value.list);
 				return result.Value.list;
-			}
-		}
-
-		public R<PlaylistMeta, LocalStr> ReadInfo(string listId) {
-			lock (ioLock) {
-				var id = ToRealId(listId);
-
-				if (playlistInfo.TryGetValue(id, out var list))
-					return list;
-
-				var result = ReadMetaFromFile(IdToFile(id));
-
-				if (!result.Ok)
-					return result.Error;
-
-				playlistInfo[id] = result.Value;
-				return result.Value;
 			}
 		}
 
@@ -213,18 +194,17 @@ namespace TS3AudioBot.Playlists
 			return new PlaylistMeta { Title = "", Count = 0, Version = version };
 		}
 
-		public E<LocalStr> Write(string listId, IReadOnlyPlaylist list)
+		public E<LocalStr> Write(string listId, Playlist list)
 		{
 			lock (ioLock) {
 				var id = ToRealId(listId);
 
-				var meta = playlistInfo.GetOrNew(id);
-				UpdateMeta(meta, list);
+				var meta = playlistCache.Update(id, list);
 				return WriteToFile(IdToFile(id), meta, list.Items);
 			}
 		}
 
-		private static void UpdateMeta(PlaylistMeta meta, IReadOnlyPlaylist list) {
+		public static void UpdateMeta(PlaylistMeta meta, IReadOnlyPlaylist list) {
 			meta.Title = list.Title;
 			meta.Count = list.Items.Count;
 			meta.OwnerId = list.Owner.Value;
@@ -267,10 +247,8 @@ namespace TS3AudioBot.Playlists
 			lock (ioLock) {
 				var id = ToRealId(listId);
 				var file = IdToFile(id);
-				if(!playlistInfo.Remove(id) && !file.Exists)
+				if(!playlistCache.Remove(id) && !file.Exists)
 					return new LocalStr(strings.error_playlist_not_found);
-
-				playlistCache.Remove(id);
 
 				return DeleteFile(file);
 			}
@@ -290,6 +268,7 @@ namespace TS3AudioBot.Playlists
 		public void ReloadFolder() {
 			lock (ioLock) {
 				ReloadFolderInternal();
+				LoadAll();
 			}
 		}
 
@@ -300,7 +279,7 @@ namespace TS3AudioBot.Playlists
 
 			var fileEnu = di.EnumerateFiles();
 
-			playlistInfo.Clear();
+			playlistCache.Clear();
 			lowerIdToId.Clear();
 			foreach (var fi in fileEnu) {
 				var meta = ReadMetaFromFile(IdToFile(fi.Name));
@@ -314,24 +293,17 @@ namespace TS3AudioBot.Playlists
 				}
 
 				lowerIdToId.Add(lower, fi.Name);
-				playlistInfo[fi.Name] = meta.Value;
+				playlistCache.Add(fi.Name, meta.Value);
 			}
 		}
 
-		public R<PlaylistInfo[], LocalStr> ListPlaylists(string pattern)
+		public R<PlaylistInfo[], LocalStr> ListPlaylists()
 		{
 			if (confBot.LocalConfigDir is null)
 				return new LocalStr("Temporary bots cannot have playlists"); // TODO do this for all other methods too
 
 			lock (ioLock) {
-				return playlistInfo.Select(kvp => new PlaylistInfo
-				{
-					Id = kvp.Key,
-					Title = kvp.Value.Title,
-					SongCount = kvp.Value.Count,
-					OwnerId = kvp.Value.OwnerId,
-					AdditionalEditors = kvp.Value.AdditionalEditors
-				}).ToArray();
+				return playlistCache.GetInfos();
 			}
 		}
 
@@ -339,7 +311,7 @@ namespace TS3AudioBot.Playlists
 		{
 			lock (ioLock) {
 				var id = ToRealId(listId);
-				if (!playlistInfo.ContainsKey(id)) {
+				if (!playlistCache.Contains(id)) {
 					outId = null;
 					return false;
 				}
@@ -356,42 +328,49 @@ namespace TS3AudioBot.Playlists
 		public bool Exists(string listId) {
 			lock (ioLock) {
 				var id = ToRealId(listId);
-				return playlistInfo.ContainsKey(id);
+				return playlistCache.Contains(id);
 			}
 		}
 
-		public List<PlaylistSearchItemInfo> ListItems() {
+		public List<UniqueResourceInfo> ListItems() {
+			List<UniqueResourceInfo> items;
+			lock (playlistCache) {
+				items = new List<UniqueResourceInfo>(playlistCache.GetUniqueResources());
+			}
+
+			return items;
+		}
+
+		public void LoadAll() {
 			var res = new List<PlaylistSearchItemInfo>();
 
-			List<string> ids = new List<string>();
-			lock (playlistInfo) {
-				ids = playlistInfo.Keys.ToList();
+			List<string> ids;
+			lock (playlistCache) {
+				ids = new List<string>(playlistCache.Ids);
 			}
 
 			foreach (var id in ids) {
-				var list = ReadFull(id);
-				if (!list.Ok)
-					continue;
-				res.AddRange(list.Value.Items.Select((item, idx) => new PlaylistSearchItemInfo
-					{ListId = id, ListIndex = idx, ResourceTitle = item.AudioResource.ResourceTitle, ResourceId = item.AudioResource.ResourceId}));
+				ReadFull(id);
 			}
-
-			return res;
 		}
 	}
 
+	public class ContainingListInfo {
+		[JsonProperty(PropertyName = "index")]
+		public int Index { get; set; }
+		[JsonProperty(PropertyName = "id")]
+		public string Id { get; set; }
+	}
+
 	public class PlaylistSearchItemInfo {
-		[JsonProperty(PropertyName = "listid")]
-		public string ListId { get; set; }
-
-		[JsonProperty(PropertyName = "listindex")]
-		public int ListIndex { get; set; }
-
 		[JsonProperty(PropertyName = "title")]
 		public string ResourceTitle { get; set; }
 
 		[JsonProperty(PropertyName = "resid")]
 		public string ResourceId { get; set; }
+
+		[JsonProperty(PropertyName = "containinglists")]
+		public List<ContainingListInfo> ContainingLists { get; set; }
 	}
 
 	public class PlaylistMeta

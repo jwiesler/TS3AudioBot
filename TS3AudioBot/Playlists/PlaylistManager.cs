@@ -11,7 +11,6 @@ using System;
 using System.Collections.Generic;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
-using TS3AudioBot.ResourceFactories;
 using TS3AudioBot.Search;
 using TS3AudioBot.Web.Model;
 using TSLib;
@@ -106,9 +105,7 @@ namespace TS3AudioBot.Playlists
 			return ret;
 		}
 
-		public R<PlaylistInfo[], LocalStr> GetAvailablePlaylists(string pattern = null) => playlistPool.ListPlaylists(pattern);
-
-		public List<PlaylistSearchItemInfo> GetPlaylistItems() => playlistPool.ListItems();
+		public R<PlaylistInfo[], LocalStr> GetAvailablePlaylists(string pattern = null) => playlistPool.ListPlaylists();
 
 		public bool TryGetPlaylistId(string listId, out string id) {
 			var checkName = Util.IsSafeFileName(listId);
