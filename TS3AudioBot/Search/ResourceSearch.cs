@@ -39,13 +39,13 @@ namespace TS3AudioBot.Search {
 				return new LocalStr("Search failed.");
 			
 			Log.Info($"Found {end - begin} items for query \"{query}\"");
-			
+
+			int count = end - begin;
 			begin += offset;
 			if (end < begin)
 				return new LocalStr("Offset was out of bounds");
 
-			int count = end - begin;
-			if (maxItems < count)
+			if (maxItems < end - begin)
 				end = begin + maxItems;
 
 			var res = LookupItems(begin, end);
