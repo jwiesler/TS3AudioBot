@@ -122,12 +122,22 @@ namespace TS3AudioBot
 			return R.Ok;
 		}
 
+		private static void PrintException(Exception ex) {
+			Log.Trace("Exception message: " + ex.Message);
+			Log.Trace("STACK TRACE\n" + ex.StackTrace);
+
+			while (ex.InnerException != null) {
+				ex = ex.InnerException;
+				Log.Trace("Caused by: " + ex);
+			}
+		}
+
 		public void ExceptionHandler(object sender, UnhandledExceptionEventArgs e)
 		{
 			Exception ex = (Exception) e.ExceptionObject;
 			Log.Fatal(ex, "Critical program failure!");
-			Log.Trace("Exception message: " + ex.Message);
-			Log.Trace("STACK TRACE\n" + ex.StackTrace);
+			PrintException(ex);
+
 			Dispose();
 			System.Environment.Exit(-1);
 		}
@@ -136,8 +146,7 @@ namespace TS3AudioBot
 		{
 			var ex = e.Exception;
 			Log.Fatal(ex, "Critical program error! (Unhandled exception from TaskScheduler)");
-			Log.Trace("Exception message: " + ex.Message);
-			Log.Trace("STACK TRACE\n" + ex.StackTrace);
+			PrintException(ex);
 		}
 
 		public void ConsoleInterruptHandler(object sender, ConsoleCancelEventArgs e)
