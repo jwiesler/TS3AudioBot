@@ -30,7 +30,7 @@ namespace TS3AudioBot.Playlists
 		private readonly ConfBot confBot;
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		private readonly Dictionary<string, PlaylistMeta> playlistInfo = new Dictionary<string, PlaylistMeta>();
-		private readonly LruCache<string, Playlist> playlistCache = new LruCache<string, Playlist>(16);
+		private readonly Dictionary<string, Playlist> playlistCache = new Dictionary<string, Playlist>(16);
 		private readonly Dictionary<string, string> lowerIdToId = new Dictionary<string, string>();
 		private const int FileVersion = 3;
 		private readonly object ioLock = new object();
@@ -62,7 +62,7 @@ namespace TS3AudioBot.Playlists
 				if (!result.Ok)
 					return result.Error;
 
-				playlistCache.Set(id, result.Value.list);
+				playlistCache.Add(id, result.Value.list);
 				playlistInfo[id] = result.Value.meta;
 				return result.Value.list;
 			}
@@ -359,6 +359,37 @@ namespace TS3AudioBot.Playlists
 				return playlistInfo.ContainsKey(id);
 			}
 		}
+
+		public List<PlaylistSearchItemInfo> ListItems() {
+			var res = new List<PlaylistSearchItemInfo>();
+
+			List<string> ids = new List<string>();
+			lock (playlistInfo) {
+				ids = playlistInfo.Keys.ToList();
+			}
+
+			foreach (var id in ids) {
+				var list = ReadFull(id);
+				if (!list.Ok)
+					continue;
+				res.AddRange(list.Value.Items.Select((item, idx) => new PlaylistSearchItemInfo
+					{ListId = id, Resource = item.AudioResource}));
+			}
+
+			return res;
+		}
+	}
+
+	public class PlaylistSearchItemInfo {
+		[JsonProperty(PropertyName = "listid")]
+		public string ListId { get; set; }
+		[JsonProperty(PropertyName = "resource")]
+		public AudioResource Resource { get; set; }
+	}
+
+	public class PlaylistSearchInfo {
+		public string Id;
+		public List<PlaylistSearchItemInfo> Items { get; set; }
 	}
 
 	public class PlaylistMeta

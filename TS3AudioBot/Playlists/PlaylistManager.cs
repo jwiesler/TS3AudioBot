@@ -11,6 +11,8 @@ using System;
 using System.Collections.Generic;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
+using TS3AudioBot.ResourceFactories;
+using TS3AudioBot.Search;
 using TS3AudioBot.Web.Model;
 using TSLib;
 
@@ -19,6 +21,7 @@ namespace TS3AudioBot.Playlists
 	public sealed class PlaylistManager
 	{
 		private readonly PlaylistIO playlistPool;
+		public ResourceSearch ResourceSearch { get; set; }
 		private readonly object listLock = new object();
 
 		public bool Random
@@ -57,7 +60,10 @@ namespace TS3AudioBot.Playlists
 				return checkName;
 			if (playlistPool.Exists(listId))
 				return new LocalStr("Already exists");
-			return playlistPool.Write(listId, new Playlist(title ?? listId, owner));
+			
+			var ret = playlistPool.Write(listId, new Playlist(title ?? listId, owner));
+			ResourceSearch?.Rebuild();
+			return ret;
 		}
 
 		public bool ExistsPlaylist(string listId)
@@ -83,7 +89,10 @@ namespace TS3AudioBot.Playlists
 			{
 				action(plist);
 			}
-			return playlistPool.Write(listId, plist);
+
+			var ret = playlistPool.Write(listId, plist);
+			ResourceSearch?.Rebuild();
+			return ret;
 		}
 
 		public E<LocalStr> DeletePlaylist(string listId)
@@ -92,10 +101,14 @@ namespace TS3AudioBot.Playlists
 			if (!checkName.Ok)
 				return checkName.Error;
 
-			return playlistPool.Delete(listId);
+			var ret = playlistPool.Delete(listId);
+			ResourceSearch?.Rebuild();
+			return ret;
 		}
 
 		public R<PlaylistInfo[], LocalStr> GetAvailablePlaylists(string pattern = null) => playlistPool.ListPlaylists(pattern);
+
+		public List<PlaylistSearchItemInfo> GetPlaylistItems() => playlistPool.ListItems();
 
 		public bool TryGetPlaylistId(string listId, out string id) {
 			var checkName = Util.IsSafeFileName(listId);

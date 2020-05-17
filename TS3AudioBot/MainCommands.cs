@@ -10,10 +10,12 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Newtonsoft.Json;
 using TS3AudioBot.Algorithm;
 using TS3AudioBot.Audio;
 using TS3AudioBot.CommandSystem;
@@ -32,6 +34,7 @@ using TS3AudioBot.Playlists;
 using TS3AudioBot.Plugins;
 using TS3AudioBot.ResourceFactories;
 using TS3AudioBot.Rights;
+using TS3AudioBot.Search;
 using TS3AudioBot.Sessions;
 using TS3AudioBot.Web.Api;
 using TS3AudioBot.Web.Model;
@@ -47,6 +50,7 @@ namespace TS3AudioBot
 {
 	public static class MainCommands
 	{
+		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		internal static ICommandBag Bag { get; } = new MainCommandsBag();
 
 		internal class MainCommandsBag : ICommandBag
@@ -756,6 +760,55 @@ namespace TS3AudioBot
 				throw new CommandException(strings.error_unrecognized_descriptor, CommandExceptionReason.CommandError);
 			}
 			return index;
+		}
+
+		private const int SearchMaxItems = 20;
+
+		public class PlaylistSearchResult {
+			// offset of this query, offset + results <= totalresults
+			[JsonProperty(PropertyName = "offset")]
+			public int Offset { get; set; }
+
+			// total #results with duplicate entries (multiple matches)
+			[JsonProperty(PropertyName = "totalresults")]
+			public int TotalResults { get; set; }
+
+			// #results with duplicate entries in this result instance
+			[JsonProperty(PropertyName = "results")]
+			public int Results { get; set; }
+
+			// the actual results (this set only contains unique items)
+			[JsonProperty(PropertyName = "items")]
+			public List<PlaylistSearchItemInfo> Items { get; set; }
+		}
+
+		[Command("items")]
+		public static JsonValue<PlaylistSearchResult> CommandItems(ResourceSearch resourceSearch, string query) {
+			return CommandItemsFrom(resourceSearch, 0, query);
+		}
+
+		[Command("itemsf")]
+		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, string query) {
+			Stopwatch timer = new Stopwatch();
+			timer.Start();
+			var (totalResults, res) = resourceSearch.Find(query, from, SearchMaxItems).UnwrapThrow();
+			var list = new HashSet<PlaylistSearchItemInfo>(res).ToList();
+			Log.Info($"Search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
+
+			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = list, Results = res.Count, TotalResults = totalResults }, result => {
+				StringBuilder builder = new StringBuilder();
+				builder.Append("Found ").Append(result.TotalResults).Append(" result(s).");
+				if (result.TotalResults > result.Items.Count)
+					builder.Append(" Showing only ").Append(result.Items.Count).Append(" unique items out of ").Append(result.Results).Append(" items.");
+
+				for (int i = 0; i < result.Items.Count; ++i) {
+					var item = result.Items[i];
+					builder.AppendLine().Append(i + result.Offset).Append(": ").Append(item.Resource.ResourceTitle).Append(" (")
+						.Append(item.ListId).Append(')');
+				}
+
+				return builder.ToString();
+			});
 		}
 
 		[Command("info")]

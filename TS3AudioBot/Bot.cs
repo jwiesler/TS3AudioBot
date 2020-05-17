@@ -25,6 +25,7 @@ using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
 using TS3AudioBot.Plugins;
 using TS3AudioBot.ResourceFactories;
+using TS3AudioBot.Search;
 using TS3AudioBot.Sessions;
 using TSLib;
 using TSLib.Full;
@@ -111,6 +112,14 @@ namespace TS3AudioBot
 			{
 				Log.Error("Missing bot module dependency");
 				return "Could not load all bot modules";
+			}
+
+			{
+				var io = Injector.GetModule<PlaylistIO>();
+				var resourceSearch = new ResourceSearch(io);
+				Injector.AddModule(resourceSearch);
+				var playlistManager = Injector.GetModule<PlaylistManager>();
+				playlistManager.ResourceSearch = resourceSearch;
 			}
 
 			resourceResolver = Injector.GetModule<ResolveContext>();
