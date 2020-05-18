@@ -226,7 +226,7 @@ namespace TS3AudioBot.CommandSystem.Commands
 					return ResultHelper.ToResult(returnType, unwrapedResult);
 				else if (returnType == typeof(string))
 				{
-					Log.Debug("Convert {0} to a string", result);
+					Log.Debug("Convert result to a string");
 					var resultStr = result.ToString();
 					if (!string.IsNullOrEmpty(resultStr))
 						return new PrimitiveResult<string>(resultStr);
