@@ -38,9 +38,29 @@ namespace TS3AudioBot.ResourceFactories
 		/// <summary>An identifier to create the song. This id is uniqe among all resources with the same resource type string of a factory.</summary>
 		[JsonProperty(PropertyName = "resid")]
 		public string ResourceId { get; set; }
+
+		private string _resourceTitle;
+
 		/// <summary>The display title.</summary>
 		[JsonProperty(PropertyName = "title")]
-		public string ResourceTitle { get; set; }
+		public string ResourceTitle {
+			get => _resourceTitle;
+			set {
+				if (!TitleIsUserSet.HasValue || TitleIsUserSet.Value)
+					_resourceTitle = value;
+			}
+		}
+		[JsonProperty(PropertyName = "isusertitle", NullValueHandling = NullValueHandling.Ignore)]
+		public bool? TitleIsUserSet { get; set; }
+		[JsonIgnore]
+		public string UserTitle {
+			get => ResourceTitle;
+			set {
+				ResourceTitle = value;
+				TitleIsUserSet = true;
+			}
+		}
+
 		/// <summary>Additional data to resolve the link.</summary>
 		[JsonProperty(PropertyName = "add", NullValueHandling = NullValueHandling.Ignore)]
 		public Dictionary<string, string> AdditionalData { get; set; }
