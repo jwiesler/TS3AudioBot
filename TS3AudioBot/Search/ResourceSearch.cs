@@ -8,7 +8,7 @@ using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
 
 namespace TS3AudioBot.Search {
-	class ResourceSearchInstance {
+	public class ResourceSearchInstance {
 		private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
 		private readonly SuffixArray sa;
@@ -27,37 +27,49 @@ namespace TS3AudioBot.Search {
 			sa = new SuffixArray(items.Select(i => i.ResourceTitle.ToLowerInvariant()).ToList());
 		}
 
-		private List<PlaylistSearchItemInfo> LookupItems(int begin, int end) {
-			var res = new List<PlaylistSearchItemInfo>(end - begin);
-			for (int i = begin; i < end; ++i) {
-				var idx = sa.LookupItemAtSAIndex(i);
-				if (!idx.Ok) {
-					Log.Warn("LookupItemAtSAIndex returned error");
-					continue;
-				}
-				res.Add(items[idx.Value]);
+		private List<PlaylistSearchItemInfo> LookupItems(int[] offsets, int count) {
+			var res = new List<PlaylistSearchItemInfo>(count);
+			for (int i = 0; i < count; ++i) {
+				res.Add(items[offsets[i]]);
 			}
 
 			return res;
 		}
 
-		public R<(int totalResults, List<PlaylistSearchItemInfo> results), LocalStr> Find(string query, int offset, int maxItems) {
+		public class Result {
+			public List<PlaylistSearchItemInfo> Items { get; set; }
+			public int ConsumedResults { get; set; }
+			public int TotalResults { get; set; }
+		}
+
+		private Result FindAtMostItems(int begin, int end, int offset, int count) {
+			var timer = new Stopwatch();
+			timer.Start();
+			var (uniqueItems, okCount, totalConsumed) = sa.GetUniqueItemsFromRange(begin + offset, end, count);
+			Log.Info($"Unique took {timer.Elapsed.TotalMilliseconds}ms");
+			
+			return new Result {
+				ConsumedResults = totalConsumed,
+				Items = LookupItems(uniqueItems, okCount),
+				TotalResults = end - begin
+			};
+		}
+
+		public R<Result, LocalStr> Find(string query, int offset, int maxItems) {
 			var (begin, end) = sa.Find(query.ToLowerInvariant());
 			if (end < begin)
 				return new LocalStr("Search failed.");
 			
 			Log.Info($"Found {end - begin} items for query \"{query}\"");
 
-			int count = end - begin;
-			begin += offset;
-			if (end < begin)
+			if (end < begin + offset)
 				return new LocalStr("Offset was out of bounds");
 
-			if (maxItems < end - begin)
-				end = begin + maxItems;
+			int count = end - begin - offset;
+			if (maxItems < count)
+				count = maxItems;
 
-			var res = LookupItems(begin, end);
-			return (count, res);
+			return FindAtMostItems(begin, end, offset, count);
 		}
 	}
 
@@ -84,7 +96,7 @@ namespace TS3AudioBot.Search {
 			return inst;
 		}
 
-		public R<(int totalResults, List<PlaylistSearchItemInfo> results), LocalStr> Find(string query, int offset, int maxItems) {
+		public R<ResourceSearchInstance.Result, LocalStr> Find(string query, int offset, int maxItems) {
 			return Instance.Find(query, offset, maxItems);
 		}
 

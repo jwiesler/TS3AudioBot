@@ -762,7 +762,7 @@ namespace TS3AudioBot
 			return index;
 		}
 
-		private const int SearchMaxItems = 20;
+		private const int SearchMaxItems = 1000;
 
 		public class PlaylistSearchResult {
 			// offset of this query, offset + results <= totalresults
@@ -784,17 +784,17 @@ namespace TS3AudioBot
 
 		[Command("items")]
 		public static JsonValue<PlaylistSearchResult> CommandItems(ResourceSearch resourceSearch, string query) {
-			return CommandItemsFrom(resourceSearch, 0, query);
+			return CommandItemsFrom(resourceSearch, 0, 50, query);
 		}
 
 		[Command("itemsf")]
-		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, string query) {
+		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, int count, string query) {
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
-			var (totalResults, list) = resourceSearch.Find(query, from, SearchMaxItems).UnwrapThrow();
+			var res = resourceSearch.Find(query, from, Math.Min(SearchMaxItems, count)).UnwrapThrow();
 			Log.Info($"Search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
 
-			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = list, Results = list.Count, TotalResults = totalResults }, result => {
+			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = res.Items, Results = res.ConsumedResults, TotalResults = res.TotalResults }, result => {
 				StringBuilder builder = new StringBuilder();
 				builder.Append("Found ").Append(result.TotalResults).Append(" result(s).");
 				if (result.TotalResults > result.Items.Count)
