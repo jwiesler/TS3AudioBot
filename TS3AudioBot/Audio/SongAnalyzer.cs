@@ -111,7 +111,7 @@ namespace TS3AudioBot.Audio {
 
 	public class SongAnalyzer {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		private const int MaxSecondsBeforeNextSong = 10;
+		private const int MaxSecondsBeforeNextSong = 30;
 
 		public FfmpegProducer FfmpegProducer { get; }
 
