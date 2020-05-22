@@ -72,7 +72,7 @@ namespace TS3AudioBot.Playlists {
 
 			for (var i = 0; i < list.Items.Count; i++) {
 				var item = list.Items[i];
-				var unique = new UniqueResource(item.AudioResource.ResourceId, item.AudioResource.ResourceTitle, item.AudioResource.AudioType);
+				var unique = (UniqueResource)item.AudioResource;
 				if (uniqueSongs.TryGetValue(unique, out var info)) {
 					info.AddInstance(id, i);
 				} else {

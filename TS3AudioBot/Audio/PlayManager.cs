@@ -242,27 +242,27 @@ namespace TS3AudioBot.Audio {
 			if (!res.Ok)
 				return res.Error;
 
-			var (resource, gain) = res.Value;
+			var result = res.Value;
 			
-			if (item.AudioResource.ResourceTitle != resource.BaseData.ResourceTitle)
+			if (item.AudioResource.ResourceTitle != result.Resource.BaseData.ResourceTitle)
 			{
 				// Title changed, Log that name change
 				Log.Info("Title of song '{0}' changed from '{1}' to '{2}'.",
 					item.MetaData.ContainingPlaylistId != null ? "in playlist '" + item.MetaData.ContainingPlaylistId + "'" : "",
 					item.AudioResource.ResourceTitle,
-					resource.BaseData.ResourceTitle);
+					result.Resource.BaseData.ResourceTitle);
 			}
 
-			var r = Start(resource, item.MetaData, gain);
+			result.Resource.Meta = item.MetaData;
+			var r = Start(result.Resource, result.Gain, result.RestoredLink.OkOr(null));
 			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
 			return r;
 		}
 
-		private E<LocalStr> Start(PlayResource resource, MetaData meta, int gain) {
+		private E<LocalStr> Start(PlayResource resource, int gain, string restoredLink) {
 			Log.Trace("Starting resource...");
-			resource.Meta = meta;
-			var sourceLink = resourceResolver.RestoreLink(resource.BaseData).OkOr(null);
-			var playInfo = new PlayInfoEventArgs(meta.ResourceOwnerUid, resource, sourceLink);
+			
+			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
 			BeforeResourceStarted?.Invoke(this, playInfo);
 			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
 				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
