@@ -40,8 +40,6 @@ namespace TS3AudioBot.Audio
 
 		private readonly ConfToolsFfmpeg config;
 
-		private string resourceId;
-
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
 
@@ -134,7 +132,6 @@ namespace TS3AudioBot.Audio
 
 		public E<string> AudioStart(string url, string resId, int gain, TimeSpan? startOff = null)
 		{
-			resourceId = resId;
 			return StartFfmpegProcess(url, gain, startOff ?? TimeSpan.Zero);
 		}
 
