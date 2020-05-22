@@ -46,7 +46,7 @@ namespace TS3AudioBot.ResourceFactories
 		public string ResourceTitle {
 			get => _resourceTitle;
 			set {
-				if (!TitleIsUserSet.HasValue || TitleIsUserSet.Value)
+				if (!TitleIsUserSet.HasValue || !TitleIsUserSet.Value)
 					_resourceTitle = value;
 			}
 		}
