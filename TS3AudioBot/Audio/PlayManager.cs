@@ -338,7 +338,7 @@ namespace TS3AudioBot.Audio {
 				if (data is null)
 					return;
 				if (newInfo.Title != null)
-					data.ResourceData.ResourceTitle = newInfo.Title;
+					data.ResourceData = data.ResourceData.WithTitle(newInfo.Title);
 				// further properties...
 				OnResourceUpdated?.Invoke(this, data);
 			}

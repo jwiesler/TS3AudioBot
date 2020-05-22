@@ -35,12 +35,12 @@ namespace TS3AudioBot.ResourceFactories
 			var match = TwitchMatch.Match(uri);
 			if (!match.Success)
 				return new LocalStr(strings.error_media_invalid_uri);
-			return GetResourceById(null, new AudioResource(match.Groups[3].Value, null, ResolverFor));
+			return GetResourceById(null, match.Groups[3].Value, null);
 		}
 
-		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, AudioResource resource)
+		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, string resourceId, string title)
 		{
-			var channel = resource.ResourceId;
+			var channel = resourceId;
 
 			// request api token
 			if (!WebWrapper.DownloadString(out string jsonResponse, new Uri($"https://api.twitch.tv/api/channels/{channel}/access_token"), ("Client-ID", TwitchClientIdPrivate)))
@@ -132,9 +132,9 @@ namespace TS3AudioBot.ResourceFactories
 			if (codec < 0)
 				return new LocalStr(strings.error_media_no_stream_extracted);
 
-			if (resource.ResourceTitle == null)
-				resource.ResourceTitle = $"Twitch channel: {channel}";
-			return new PlayResource(dataList[codec].Url, resource);
+			if(title != null)
+				title = $"Twitch channel: {channel}";
+			return new PlayResource(dataList[codec].Url, new AudioResource(resourceId, title, ResolverFor));
 		}
 
 		private static int SelectStream(List<StreamData> list) => list.FindIndex(s => s.QualityType == StreamQuality.audio_only);

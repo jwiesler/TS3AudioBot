@@ -11,12 +11,13 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using TS3AudioBot.Audio;
 using TS3AudioBot.CommandSystem.CommandResults;
+using TS3AudioBot.Playlists;
 
 namespace TS3AudioBot.ResourceFactories
 {
 	public class PlayResource
 	{
-		public AudioResource BaseData { get; }
+		public AudioResource BaseData { get; set; }
 		public string PlayUri { get; }
 		public MetaData Meta { get; set; }
 
@@ -30,54 +31,67 @@ namespace TS3AudioBot.ResourceFactories
 		public override string ToString() => BaseData.ToString();
 	}
 
-	public class AudioResource : IAudioResourceResult
-	{
-		/// <summary>The resource type.</summary>
+	public class UniqueResource {
 		[JsonProperty(PropertyName = "type")]
-		public string AudioType { get; set; }
-		/// <summary>An identifier to create the song. This id is uniqe among all resources with the same resource type string of a factory.</summary>
+		public string AudioType { get; }
+
 		[JsonProperty(PropertyName = "resid")]
-		public string ResourceId { get; set; }
+		public string ResourceId { get; }
 
-		private string _resourceTitle;
-
-		/// <summary>The display title.</summary>
 		[JsonProperty(PropertyName = "title")]
-		public string ResourceTitle {
-			get => _resourceTitle;
-			set {
-				if (!TitleIsUserSet.HasValue || !TitleIsUserSet.Value)
-					_resourceTitle = value;
-			}
+		public string ResourceTitle { get; }
+
+		public UniqueResource(string resourceId, string resourceTitle, string audioType) {
+			AudioType = audioType;
+			ResourceId = resourceId;
+			ResourceTitle = resourceTitle;
 		}
+
+		public override bool Equals(object obj) {
+			if (!(obj is UniqueResource other))
+				return false;
+
+			return AudioType == other.AudioType
+			       && ResourceId == other.ResourceId && ResourceTitle == other.ResourceTitle;
+		}
+
+		public override int GetHashCode() => (AudioType, ResourceId, ResourceTitle).GetHashCode();
+
+		public override string ToString() { return $"{AudioType} ID:{ResourceId}"; }
+	}
+
+	public class AudioResource : UniqueResource, IAudioResourceResult
+	{
 		[JsonProperty(PropertyName = "isusertitle", NullValueHandling = NullValueHandling.Ignore)]
 		public bool? TitleIsUserSet { get; set; }
-		[JsonIgnore]
-		public string UserTitle {
-			get => ResourceTitle;
-			set {
-				ResourceTitle = value;
-				TitleIsUserSet = true;
-			}
-		}
 
 		/// <summary>Additional data to resolve the link.</summary>
 		[JsonProperty(PropertyName = "add", NullValueHandling = NullValueHandling.Ignore)]
 		public Dictionary<string, string> AdditionalData { get; set; }
-		/// <summary>An identifier wich is unique among all <see cref="AudioResource"/> and resource type string of a factory.</summary>
+
+		/// <summary>An identifier which is unique among all <see cref="AudioResource"/> and resource type string of a factory.</summary>
 		[JsonIgnore]
 		public string UniqueId => ResourceId + AudioType;
+
 		[JsonIgnore]
 		AudioResource IAudioResourceResult.AudioResource => this;
 
-		public AudioResource() { }
-
-		public AudioResource(string resourceId, string resourceTitle, string audioType, Dictionary<string, string> additionalData = null)
-		{
-			ResourceId = resourceId;
-			ResourceTitle = resourceTitle;
-			AudioType = audioType;
+		public AudioResource(
+			string resourceId, string resourceTitle = null, string audioType = null, Dictionary<string, string> additionalData = null)
+			: base(resourceId, resourceTitle, audioType) {
 			AdditionalData = additionalData;
+		}
+
+		public AudioResource WithUserTitle(string title) {
+			return new AudioResource(ResourceId, title, AudioType, AdditionalData == null ? null : new Dictionary<string, string>(AdditionalData)) {
+				TitleIsUserSet = true
+			};
+		}
+
+		public AudioResource WithAudioType(string audioType) {
+			return new AudioResource(ResourceId, ResourceTitle, audioType, AdditionalData == null ? null : new Dictionary<string, string>(AdditionalData)) {
+				TitleIsUserSet = TitleIsUserSet
+			};
 		}
 
 		public AudioResource Add(string key, string value)
@@ -95,20 +109,10 @@ namespace TS3AudioBot.ResourceFactories
 			return AdditionalData.TryGetValue(key, out var value) ? value : null;
 		}
 
-		public override bool Equals(object obj)
-		{
-			if (!(obj is AudioResource other))
-				return false;
-
-			return AudioType == other.AudioType
-				&& ResourceId == other.ResourceId;
-		}
-
-		public override int GetHashCode() => (AudioType, ResourceId).GetHashCode();
-
-		public override string ToString()
-		{
-			return $"{AudioType} ID:{ResourceId}";
+		public AudioResource WithTitle(string newInfoTitle) {
+			return new AudioResource(ResourceId, newInfoTitle, AudioType, AdditionalData == null ? null : new Dictionary<string, string>(AdditionalData)) {
+				TitleIsUserSet = TitleIsUserSet
+			};
 		}
 	}
 }

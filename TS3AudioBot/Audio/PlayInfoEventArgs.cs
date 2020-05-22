@@ -17,7 +17,12 @@ namespace TS3AudioBot.Audio
 	{
 		public Uid? Invoker { get; }
 		public PlayResource PlayResource { get; }
-		public AudioResource ResourceData => PlayResource.BaseData;
+
+		public AudioResource ResourceData {
+			get => PlayResource.BaseData;
+			set => PlayResource.BaseData = value;
+		}
+
 		public MetaData MetaData => PlayResource.Meta;
 		public string SourceLink { get; }
 

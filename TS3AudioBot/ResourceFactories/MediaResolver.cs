@@ -40,31 +40,29 @@ namespace TS3AudioBot.ResourceFactories
 
 		public R<PlayResource, LocalStr> GetResource(ResolveContext ctx, string uri)
 		{
-			return GetResourceById(ctx, new AudioResource(uri, null, ResolverFor));
+			return GetResourceById(ctx, uri, null);
 		}
 
-		public R<PlayResource, LocalStr> GetResourceById(ResolveContext ctx, AudioResource resource)
+		public R<PlayResource, LocalStr> GetResourceById(ResolveContext ctx, string uri, string title)
 		{
-			var result = ValidateFromString(ctx.Config, resource.ResourceId);
+			var result = ValidateFromString(ctx.Config, uri);
 			if (!result)
 				return result.Error;
 
 			var resData = result.Value;
 
-			if (resData.IsIcyStream)
-			{
-				resource.ResourceTitle = resData.Title;
-				return new MediaPlayResource(resData.FullUri, resource, null, true);
+			if (resData.IsIcyStream) {
+				title = resData.Title;
+				return new MediaPlayResource(resData.FullUri, new AudioResource(uri, title, ResolverFor), null, true);
 			}
 
-			if (resource.ResourceTitle == null)
-			{
+			if (title == null) {
 				if (!string.IsNullOrWhiteSpace(resData.Title))
-					resource.ResourceTitle = resData.Title;
+					title = resData.Title;
 				else
-					resource.ResourceTitle = resource.ResourceId;
+					title = uri;
 			}
-			return new MediaPlayResource(resData.FullUri, resource, resData.Image, false);
+			return new MediaPlayResource(resData.FullUri, new AudioResource(uri, title, ResolverFor), resData.Image, false);
 		}
 
 		public string RestoreLink(ResolveContext _, AudioResource resource) => resource.ResourceId;

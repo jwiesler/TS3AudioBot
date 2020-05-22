@@ -16,7 +16,7 @@ namespace TS3AudioBot.Playlists
 {
 	public class PlaylistItem : IAudioResourceResult
 	{
-		public AudioResource AudioResource { get; }
+		public AudioResource AudioResource { get; set; }
 
 		public PlaylistItem(AudioResource resource)
 		{

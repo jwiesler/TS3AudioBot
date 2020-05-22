@@ -49,26 +49,26 @@ namespace TS3AudioBot.ResourceFactories
 			var resource = CheckAndGet(track);
 			if (resource is null)
 				return new LocalStr(strings.error_media_internal_missing + " (parsedDict)");
-			return GetResourceById(resource, false);
+			return GetResourceById(resource.ResourceId, resource.ResourceTitle, false);
 		}
 
-		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, AudioResource resource) => GetResourceById(resource, true);
+		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, string id, string title) => GetResourceById(id, title, true);
 
-		private R<PlayResource, LocalStr> GetResourceById(AudioResource resource, bool allowNullName)
+		private R<PlayResource, LocalStr> GetResourceById(string id, string title, bool allowNullName)
 		{
-			if (SoundcloudLink.IsMatch(resource.ResourceId))
-				return GetResource(null, resource.ResourceId);
+			if (SoundcloudLink.IsMatch(id))
+				return GetResource(null, id);
 
-			if (resource.ResourceTitle is null)
-			{
-				if (!allowNullName) return new LocalStr(strings.error_media_internal_missing + " (title)");
-				string link = RestoreLink(null, resource);
-				if (link is null) return new LocalStr(strings.error_media_internal_missing + " (link)");
-				return GetResource(null, link);
-			}
+//			if (id is null)
+//			{
+//				if (!allowNullName) return new LocalStr(strings.error_media_internal_missing + " (title)");
+//				string link = RestoreLink(null, resource);
+//				if (link is null) return new LocalStr(strings.error_media_internal_missing + " (link)");
+//				return GetResource(null, link);
+//			}
 
-			string finalRequest = $"https://api.soundcloud.com/tracks/{resource.ResourceId}/stream?client_id={SoundcloudClientId}";
-			return new PlayResource(finalRequest, resource);
+			string finalRequest = $"https://api.soundcloud.com/tracks/{id}/stream?client_id={SoundcloudClientId}";
+			return new PlayResource(finalRequest, new AudioResource(id, title, ResolverFor));
 		}
 
 		public string RestoreLink(ResolveContext _, AudioResource resource)

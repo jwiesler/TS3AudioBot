@@ -43,7 +43,7 @@ namespace TS3AudioBot.History
 
 		public void SetName(string newName)
 		{
-			AudioResource.ResourceTitle = newName;
+			AudioResource = AudioResource.WithUserTitle(newName);
 		}
 
 		public override string ToString()

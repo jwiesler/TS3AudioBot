@@ -85,15 +85,18 @@ namespace TS3AudioBot.History
 			{
 			case 0:
 				var all = audioLogEntries.FindAll().ToArray();
-				foreach (var audioLogEntry in all)
-				{
+				foreach (var audioLogEntry in all) {
+					string audioType = null;
 					switch (audioLogEntry.AudioResource.AudioType)
 					{
-					case "MediaLink": audioLogEntry.AudioResource.AudioType = "media"; break;
-					case "Youtube": audioLogEntry.AudioResource.AudioType = "youtube"; break;
-					case "Soundcloud": audioLogEntry.AudioResource.AudioType = "soundcloud"; break;
-					case "Twitch": audioLogEntry.AudioResource.AudioType = "twitch"; break;
+					case "MediaLink": audioType = "media"; break;
+					case "Youtube": audioType = "youtube"; break;
+					case "Soundcloud": audioType = "soundcloud"; break;
+					case "Twitch": audioType = "twitch"; break;
 					}
+
+					if (audioType != null)
+						audioLogEntry.AudioResource = audioLogEntry.AudioResource.WithAudioType(audioType);
 				}
 				audioLogEntries.Update(all);
 				meta.Version = 1;

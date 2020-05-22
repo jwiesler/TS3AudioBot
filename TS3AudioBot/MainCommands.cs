@@ -1146,7 +1146,7 @@ namespace TS3AudioBot
 				if (index < 0 || index >= plist.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
 
-				plist[index].AudioResource.UserTitle = title;
+				plist[index].AudioResource = plist[index].AudioResource.WithUserTitle(title);
 			}).UnwrapThrow();
 		}
 

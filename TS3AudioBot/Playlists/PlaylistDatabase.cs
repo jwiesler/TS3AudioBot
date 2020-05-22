@@ -2,31 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Newtonsoft.Json;
 using TS3AudioBot.ResourceFactories;
 using TS3AudioBot.Web.Model;
 
 namespace TS3AudioBot.Playlists {
-	public class UniqueResource {
-		public string AudioType { get; }
-		public string ResourceId { get; }
-		public string ResourceTitle { get; }
-
-		public UniqueResource(string audioType, string resourceId, string resourceTitle) {
-			AudioType = audioType;
-			ResourceId = resourceId;
-			ResourceTitle = resourceTitle;
-		}
-
-		public override bool Equals(object obj) {
-			if (!(obj is UniqueResource other))
-				return false;
-
-			return AudioType == other.AudioType
-			       && ResourceId == other.ResourceId && ResourceTitle == other.ResourceTitle;
-		}
-
-		public override int GetHashCode() => (AudioType, ResourceId, ResourceTitle).GetHashCode();
-	}
+	
 
 	public class UniqueResourceInfo {
 		public UniqueResource Resource { get; }
@@ -54,6 +35,8 @@ namespace TS3AudioBot.Playlists {
 		public void RemoveList(string id) {
 			ContainingListInstances.Remove(id);
 		}
+
+		public bool IsContainedInAList => ContainingListInstances.Count > 0;
 	}
 
 	public class PlaylistDatabase {
@@ -89,8 +72,7 @@ namespace TS3AudioBot.Playlists {
 
 			for (var i = 0; i < list.Items.Count; i++) {
 				var item = list.Items[i];
-				var unique = new UniqueResource(item.AudioResource.AudioType, item.AudioResource.ResourceId,
-					item.AudioResource.ResourceTitle);
+				var unique = new UniqueResource(item.AudioResource.ResourceId, item.AudioResource.ResourceTitle, item.AudioResource.AudioType);
 				if (uniqueSongs.TryGetValue(unique, out var info)) {
 					info.AddInstance(id, i);
 				} else {
@@ -159,10 +141,11 @@ namespace TS3AudioBot.Playlists {
 			if (!wasNull) {
 				foreach (var s in data.Songs) {
 					s.RemoveList(id);
+					if (!s.IsContainedInAList)
+						uniqueSongs.Remove(s.Resource);
 				}
 			}
 			data.Songs = CreateSongsInfo(id, list);
-			
 
 			return data.Meta;
 		}

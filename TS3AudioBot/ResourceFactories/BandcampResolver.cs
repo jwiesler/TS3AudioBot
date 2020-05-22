@@ -70,25 +70,25 @@ namespace TS3AudioBot.ResourceFactories
 				GetTrackArtId(webSite));
 		}
 
-		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, AudioResource resource)
+		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, string id, string title)
 		{
-			var result = DownloadEmbeddedSite(resource.ResourceId);
+			var result = DownloadEmbeddedSite(id);
 			if (!result.Ok) return result.Error;
 			var webSite = result.Value;
 
-			if (string.IsNullOrEmpty(resource.ResourceTitle))
+			if (string.IsNullOrEmpty(title))
 			{
 				var nameMatch = TrackNameRegex.Match(webSite);
-				resource.ResourceTitle = nameMatch.Success
+				title = nameMatch.Success
 					? nameMatch.Groups[1].Value
-					: $"Bandcamp (id: {resource.ResourceId})";
+					: $"Bandcamp (id: {id})";
 			}
 
 			var match = TrackLinkRegex.Match(webSite);
 			if (!match.Success)
 				return new LocalStr(strings.error_media_internal_missing + " (TrackLinkRegex)");
 
-			return new BandcampPlayResource(match.Groups[1].Value, resource, GetTrackArtId(webSite));
+			return new BandcampPlayResource(match.Groups[1].Value, new AudioResource(id, title, ResolverFor), GetTrackArtId(webSite));
 		}
 
 		public string RestoreLink(ResolveContext _, AudioResource resource)
