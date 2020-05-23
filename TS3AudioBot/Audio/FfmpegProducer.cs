@@ -129,7 +129,7 @@ namespace TS3AudioBot.Audio
 					int absMax = (int) Math.Abs(maxVolumeFloat);
 					int absMean = (int) Math.Abs(meanVolumeFloat);
 					if (absMean - absMax >= 18) {
-						gain += 3;
+						gain += 5;
 					}
 				}
 			}
