@@ -33,6 +33,7 @@ namespace TS3AudioBot.Audio
 		private const string PostLinkConf = "-ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private const string LinkConfIcy = "-hide_banner -nostats -threads 1 -i pipe:0 -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private static readonly Regex FindMaxVolumeMatcher = new Regex("^.*max_volume: (-?\\d+\\.\\d+) dB$", Util.DefaultRegexConfig);
+		private static readonly Regex FindMeanVolumeMatcher = new Regex("^.*mean_volume: (-?\\d+\\.\\d+) dB$", Util.DefaultRegexConfig);
 		private const string PreLinkConfDetect = "-hide_banner -nostats -threads 1 -t 180 -i \"";
 		private const string PostLinkConfDetect = "-af volumedetect -f null /dev/null";
 		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
@@ -87,7 +88,8 @@ namespace TS3AudioBot.Audio
 
 		public int VolumeDetect(string url, CancellationToken token) {
 			int gain = 0;
-			float fgain = 0f;
+			float maxVolumeFloat = 0f;
+			float meanVolumeFloat = 0f;
 
 			var ffmpegProcess = new Process
 			{
@@ -109,24 +111,32 @@ namespace TS3AudioBot.Audio
 				if (token.IsCancellationRequested)
 					ffmpegProcess.Kill();
 			}
-			
+
 			StreamReader errorReader = ffmpegProcess.StandardError;
 			string line;
 			while ((line = errorReader.ReadLine()) != null) {
 				var match = FindMaxVolumeMatcher.Match(line);
-				if (match.Success) {
-					if (float.TryParse(match.Groups[1].Value, out var rawGain)) {
-						fgain = rawGain;
-						if (rawGain < 0) {
-							gain = (int) Math.Abs(rawGain);
-						}
-					}
+				if (match.Success && float.TryParse(match.Groups[1].Value, out var maxVolume)) {
+					maxVolumeFloat = maxVolume;
+				}
 
-					break;
+				match = FindMeanVolumeMatcher.Match(line);
+				if (match.Success && float.TryParse(match.Groups[1].Value, out var meanVolume)) {
+					meanVolumeFloat = meanVolume;
 				}
 			}
 
-			Log.Trace("Detected gain needed: {0}dB (maximum volume {1})", gain, fgain);
+			if (maxVolumeFloat < 0) {
+				gain += (int) Math.Round(Math.Abs(maxVolumeFloat));
+			}
+
+			float absMax = Math.Abs(maxVolumeFloat);
+			float absMean = Math.Abs(meanVolumeFloat);
+			if (absMean - absMax > 10) {
+				gain += (int) Math.Round((absMean - absMax - 10) / 2);
+			}
+
+			Log.Info($"Detected gain needed: {gain}dB (maximum volume {maxVolumeFloat:0.00}, mean volume {meanVolumeFloat:0.00})");
 			return gain;
 		}
 
@@ -304,7 +314,7 @@ namespace TS3AudioBot.Audio
 				Gain = gain,
 				OnSongLengthParsed = InvokeOnSongLengthParsed
 			};
-			
+
 			return StartFfmpegProcessInternal(newInstance, arguments);
 		}
 
