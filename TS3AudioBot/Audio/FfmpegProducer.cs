@@ -133,7 +133,7 @@ namespace TS3AudioBot.Audio
 			float absMax = Math.Abs(maxVolumeFloat);
 			float absMean = Math.Abs(meanVolumeFloat);
 			if (absMean - absMax > 10) {
-				gain += (int) Math.Ceiling((absMean - absMax - 10) / 2);
+				gain += (int) Math.Round((absMean - absMax - 10) / 2);
 			}
 
 			Log.Info($"Detected gain needed: {gain}dB (maximum volume {maxVolumeFloat:0.00}, mean volume {meanVolumeFloat:0.00})");
