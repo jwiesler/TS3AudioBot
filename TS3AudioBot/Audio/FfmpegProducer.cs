@@ -118,20 +118,22 @@ namespace TS3AudioBot.Audio
 				var match = FindMaxVolumeMatcher.Match(line);
 				if (match.Success && float.TryParse(match.Groups[1].Value, out var maxVolume)) {
 					maxVolumeFloat = maxVolume;
-					if (maxVolume < 0) {
-						gain += (int) Math.Abs(maxVolume);
-					}
 				}
 
 				match = FindMeanVolumeMatcher.Match(line);
 				if (match.Success && float.TryParse(match.Groups[1].Value, out var meanVolume)) {
 					meanVolumeFloat = meanVolume;
-					int absMax = (int) Math.Abs(maxVolumeFloat);
-					int absMean = (int) Math.Abs(meanVolumeFloat);
-					if (absMean - absMax >= 18) {
-						gain += 5;
-					}
 				}
+			}
+
+			if (maxVolumeFloat < 0) {
+				gain += (int) Math.Abs(maxVolumeFloat);
+			}
+
+			int absMax = (int) Math.Abs(maxVolumeFloat);
+			int absMean = (int) Math.Abs(meanVolumeFloat);
+			if (absMean - absMax >= 12) {
+				gain += 5;
 			}
 
 			Log.Info($"Detected gain needed: {gain}dB (maximum volume {maxVolumeFloat:0.00}, mean volume {meanVolumeFloat:0.00})");
