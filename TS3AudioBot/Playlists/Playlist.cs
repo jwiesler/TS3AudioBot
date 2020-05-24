@@ -22,7 +22,7 @@ namespace TS3AudioBot.Playlists
 		public string Title { get => title; set => SetTitle(value); }
 		public bool Modifiable { get; set; } = false;
 
-		private readonly HashSet<Uid> additionalEditors = new HashSet<Uid>();
+		private readonly HashSet<Uid> additionalEditors;
 		public IReadOnlyCollection<Uid> AdditionalEditors => additionalEditors;
 		public Uid Owner { get; }
 
@@ -41,9 +41,10 @@ namespace TS3AudioBot.Playlists
 
 		public Playlist(string title, Uid owner, IEnumerable<Uid> editors, List<PlaylistItem> items)
 		{
-			this.items = items ?? throw new ArgumentNullException(nameof(items));
 			this.title = TransformTitleString(title);
 			Owner = owner;
+			additionalEditors = new HashSet<Uid>(editors);
+			this.items = items ?? throw new ArgumentNullException(nameof(items));
 		}
 
 		public static string TransformTitleString(string title)
