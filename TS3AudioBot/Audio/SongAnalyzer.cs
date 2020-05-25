@@ -7,21 +7,23 @@ using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
 
 namespace TS3AudioBot.Audio {
-	public class SongAnalyzerTask : IDisposable {
+	public class SongAnalyzerResult {
+		public PlayResource Resource { get; set; }
+
+		public int Gain { get; set; }
+
+		public R<string, LocalStr> RestoredLink { get; set; }
+	}
+
+	public class SongAnalyzerTask {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 
 		public QueueItem Source { get; }
+
 		public FfmpegProducer FfmpegProducer { get; }
+
 		public ResolveContext ResourceResolver { get; }
-		public Task<R<Result, LocalStr>> Current { get; private set; }
-
-		public class Result {
-			public PlayResource Resource { get; set; }
-			public int Gain { get; set; }
-			public R<string, LocalStr> RestoredLink { get; set; }
-		}
-
-		private CancellationTokenSource TokenSource { get; } = new CancellationTokenSource();
+		
 
 		public SongAnalyzerTask(QueueItem source, ResolveContext resourceResolver, FfmpegProducer ffmpegProducer) {
 			Source = source;
@@ -29,7 +31,8 @@ namespace TS3AudioBot.Audio {
 			ResourceResolver = resourceResolver;
 		}
 
-		private R<Result, LocalStr> Run(CancellationToken cancellationToken) {
+		public R<SongAnalyzerResult, LocalStr> Run(CancellationToken cancellationToken) {
+			Log.Info("Started analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
 
@@ -47,42 +50,43 @@ namespace TS3AudioBot.Audio {
 			int gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
 
 			Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
-			return new Result {
+			return new SongAnalyzerResult {
 				Resource = res,
 				Gain = gain,
 				RestoredLink = restoredLink
 			};
 		}
+	}
 
-		private Task<R<Result, LocalStr>> CreateTask(int inSeconds, CancellationToken token) {
-			return new Task<R<Result, LocalStr>>(() => {
+	public class SongAnalyzerTaskHost {
+		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
+
+		public Task<R<SongAnalyzerResult, LocalStr>> Current { get; private set; }
+
+		private CancellationTokenSource TokenSource { get; } = new CancellationTokenSource();
+
+		public SongAnalyzerTask Data { get; }
+
+		public SongAnalyzerTaskHost(SongAnalyzerTask data) { Data = data; }
+
+		private Task<R<SongAnalyzerResult, LocalStr>> CreateTask(int inSeconds, CancellationToken token) {
+			return new Task<R<SongAnalyzerResult, LocalStr>>(() => {
 				try {
 					Task.Delay(inSeconds * 1000, token).Wait();
-					Log.Info("Started analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
-					return Run(token);
+					return Data.Run(token);
 				} catch (OperationCanceledException) {
 					return null;
 				}
 			});
 		}
 
-		public R<Result, LocalStr> TryGetResult() {
-			if (Current == null)
-				throw new InvalidOperationException();
+		public R<SongAnalyzerResult, LocalStr> Result {
+			get {
+				if (Current == null)
+					throw new InvalidOperationException();
 
-			bool ended = Current.Wait(2000);
-
-			if (!ended) {
-				Log.Warn("Song analyze task is taking very long...");
-				ended = Current.Wait(20000);
-				if (!ended) {
-					Cancel();
-					Log.Warn("Song analyze task is hanging...");
-					return Run(new CancellationToken());
-				}
+				return Current.Result;
 			}
-			
-			return Current.Result;
 		}
 
 		public void PrepareRun(int inSeconds) {
@@ -92,14 +96,12 @@ namespace TS3AudioBot.Audio {
 			}
 
 			Log.Debug("Preparing background analyzer for \"{0}\", starting in {1}s",
-				SongAnalyzer.GetItemDescription(Source), inSeconds);
+				SongAnalyzer.GetItemDescription(Data.Source), inSeconds);
 
 			Current = CreateTask(inSeconds, TokenSource.Token);
 		}
 
 		public void Start() { Current.Start(); }
-
-		public void RunSynchronously() { Current.RunSynchronously(); }
 
 		public void Cancel() { TokenSource.Cancel(); }
 
@@ -117,7 +119,7 @@ namespace TS3AudioBot.Audio {
 
 		private ResolveContext ResourceResolver { get; }
 
-		public SongAnalyzerTask Instance { get; private set; }
+		public SongAnalyzerTaskHost Instance { get; private set; }
 
 		public SongAnalyzer(ResolveContext resourceResolver, FfmpegProducer ffmpegProducer) {
 			ResourceResolver = resourceResolver;
@@ -137,28 +139,32 @@ namespace TS3AudioBot.Audio {
 			Instance.Start();
 		}
 
+		private SongAnalyzerTask CreateTask(QueueItem item) {
+			return new SongAnalyzerTask(item, ResourceResolver, FfmpegProducer);
+		}
+
 		public void SetNextSong(QueueItem item) {
 			Instance?.Dispose();
-			Instance = new SongAnalyzerTask(item, ResourceResolver, FfmpegProducer);
+			Instance = new SongAnalyzerTaskHost(CreateTask(item));
 		}
 
 		public static string GetItemDescription(QueueItem item) { return item.AudioResource.ResourceTitle; }
 
-		public R<SongAnalyzerTask.Result, LocalStr> TryGetResult(QueueItem item) {
-			if (Instance?.Current == null || !ReferenceEquals(Instance.Source, item)) {
-				Instance?.Cancel();
-				Log.Warn("Song {0} was not prepared", SongAnalyzer.GetItemDescription(item));
-				SetNextSong(item);
-				Instance.PrepareRun(0);
-				Instance.RunSynchronously();
+		public R<SongAnalyzerResult, LocalStr> TryGetResult(QueueItem item) {
+			R<SongAnalyzerResult, LocalStr> res;
+			if (Instance?.Current == null || !ReferenceEquals(Instance.Data.Source, item)) {
+				Log.Warn("Song {0} was not prepared", GetItemDescription(item));
+				Instance?.Dispose();
+				res = CreateTask(item).Run(new CancellationToken());
+			} else {
+				res = Instance.Result;
 			}
 
-			var res = Instance.TryGetResult();
 			Clear();
 			return res;
 		}
 
-		public bool IsPreparing(QueueItem item) { return Instance != null && ReferenceEquals(Instance.Source, item); }
+		public bool IsPreparing(QueueItem item) { return Instance != null && ReferenceEquals(Instance.Data.Source, item); }
 
 		public static int GetTaskStartTime(TimeSpan remainingSongTime) {
 			int remainingTime = (int) remainingSongTime.TotalSeconds;
