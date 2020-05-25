@@ -378,6 +378,10 @@ namespace TS3AudioBot
 			return ts3client.ChangeDescription(setString ?? "");
 		}
 
+		public void RegenerateStatusImage() {
+			GenerateStatusImage(null, EventArgs.Empty);
+		}
+
 		private void GenerateStatusImage(object sender, EventArgs e)
 		{
 			if (!config.GenerateStatusAvatar || IsDisposed)
