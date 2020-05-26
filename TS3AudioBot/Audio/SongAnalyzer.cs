@@ -23,7 +23,7 @@ namespace TS3AudioBot.Audio {
 		public FfmpegProducer FfmpegProducer { get; }
 
 		public ResolveContext ResourceResolver { get; }
-		
+
 
 		public SongAnalyzerTask(QueueItem source, ResolveContext resourceResolver, FfmpegProducer ffmpegProducer) {
 			Source = source;
@@ -32,7 +32,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public R<SongAnalyzerResult, LocalStr> Run(CancellationToken cancellationToken) {
-			Log.Info("Started analyze for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
+			Log.Info("Started analysis for \"{0}\"", SongAnalyzer.GetItemDescription(Source));
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
 
@@ -43,6 +43,14 @@ namespace TS3AudioBot.Audio {
 			var restoredLink = ResourceResolver.RestoreLink(res.BaseData);
 			if (!restoredLink.Ok)
 				return restoredLink.Error;
+
+			if (Source.AudioResource.AudioType != "youtube") {
+				return new SongAnalyzerResult {
+					Resource = res,
+					Gain = 0,
+					RestoredLink = restoredLink
+				};
+			}
 
 			Log.Debug("Song resolve took {0}ms", timer.ElapsedMilliseconds);
 			timer.Restart();
