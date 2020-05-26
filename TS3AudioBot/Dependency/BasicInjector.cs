@@ -19,5 +19,6 @@ namespace TS3AudioBot.Dependency
 		public object GetModule(Type type) => dynamicObjects.TryGetValue(type, out var mod) ? mod : null;
 		public void AddModule(Type type, object obj) => dynamicObjects[type] = obj;
 		public IEnumerable<object> GetAllModules() => dynamicObjects.Values;
+		public IReadOnlyDictionary<Type, object> Objects => dynamicObjects;
 	}
 }

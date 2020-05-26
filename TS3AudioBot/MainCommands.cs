@@ -301,18 +301,16 @@ namespace TS3AudioBot
 			if (botLock is null)
 				throw new CommandException(strings.error_bot_does_not_exist, CommandExceptionReason.CommandError);
 
-			var backParent = info.ParentInjector;
-			info.ParentInjector = botLock.Bot.Injector;
+			var exeInfo = info.CopyWithParent(botLock.Bot.Injector);
 			string backUpId = NLog.MappedDiagnosticsContext.Get("BotId");
 			NLog.MappedDiagnosticsContext.Set("BotId", botLock.Bot.Id.ToString());
 			try
 			{
-				return cmd.Execute(info, Array.Empty<ICommand>(), returnTypes);
+				return cmd.Execute(exeInfo, Array.Empty<ICommand>(), returnTypes);
 			}
 			finally
 			{
 				NLog.MappedDiagnosticsContext.Set("BotId", backUpId);
-				info.ParentInjector = backParent;
 			}
 		}
 
