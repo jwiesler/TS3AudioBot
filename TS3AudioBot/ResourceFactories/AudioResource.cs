@@ -76,6 +76,9 @@ namespace TS3AudioBot.ResourceFactories
 		[JsonIgnore]
 		AudioResource IAudioResourceResult.AudioResource => this;
 
+		[JsonProperty(PropertyName = "gain", NullValueHandling = NullValueHandling.Ignore)]
+		public int? Gain { get; set; }
+
 		public AudioResource(
 			string resourceId, string resourceTitle = null, string audioType = null, Dictionary<string, string> additionalData = null)
 			: base(resourceId, resourceTitle, audioType) {

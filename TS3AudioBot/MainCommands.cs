@@ -1101,6 +1101,27 @@ namespace TS3AudioBot
 			return plist[index];
 		}
 
+		[Command("list item gain get")]
+		public static JsonValue<int?> CommandListItemGainGet(PlaylistManager playlistManager, string name, int index)
+		{
+			var plist = playlistManager.LoadPlaylist(name).UnwrapThrow();
+			if (index < 0 || index >= plist.Items.Count)
+				throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
+
+			return new JsonValue<int?>(plist[index].AudioResource.Gain, g => g.HasValue ? $"Gain is {g.Value}db" : "Gain is not set.");
+		}
+
+		[Command("list item gain set")]
+		public static JsonValue<int?> CommandListItemGainSet(PlaylistManager playlistManager, ExecutionInformation info, string name, int index, int? value) {
+			ModifyPlaylist(playlistManager, name, info, list => {
+				if (index < 0 || index >= list.Items.Count)
+					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
+				list.Items[index].AudioResource.Gain = value;
+			}).UnwrapThrow();
+
+			return new JsonValue<int?>(value, g => g.HasValue ? $"Set the gain to {g.Value}." : "Reset the gain.");
+		}
+
 		[Command("list item move")] // TODO return modified elements
 		public static void CommandListItemMove(PlaylistManager playlistManager, ExecutionInformation info, string listId, int from, int to)
 		{

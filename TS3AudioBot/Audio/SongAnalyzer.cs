@@ -47,13 +47,14 @@ namespace TS3AudioBot.Audio {
 			Log.Debug("Song resolve took {0}ms", timer.ElapsedMilliseconds);
 
 			int gain;
-			if (Source.AudioResource.AudioType != "youtube") {
+			if (Source.AudioResource.Gain.HasValue) {
+				gain = Source.AudioResource.Gain.Value;
+			} else if (Source.AudioResource.AudioType != "youtube") {
 				gain = 0;
 			} else {
 				timer.Restart();
 
 				gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
-
 				Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			}
 
