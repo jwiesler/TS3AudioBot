@@ -115,7 +115,7 @@ namespace TS3AudioBot.Audio {
 
 		public void Dispose() {
 			Cancel();
-			TokenSource?.Dispose();
+			// TokenSource?.Dispose();
 		}
 	}
 
