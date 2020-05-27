@@ -44,20 +44,19 @@ namespace TS3AudioBot.Audio {
 			if (!restoredLink.Ok)
 				return restoredLink.Error;
 
+			Log.Debug("Song resolve took {0}ms", timer.ElapsedMilliseconds);
+
+			int gain;
 			if (Source.AudioResource.AudioType != "youtube") {
-				return new SongAnalyzerResult {
-					Resource = res,
-					Gain = 0,
-					RestoredLink = restoredLink
-				};
+				gain = 0;
+			} else {
+				timer.Restart();
+
+				gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
+
+				Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			}
 
-			Log.Debug("Song resolve took {0}ms", timer.ElapsedMilliseconds);
-			timer.Restart();
-
-			int gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
-
-			Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			return new SongAnalyzerResult {
 				Resource = res,
 				Gain = gain,
