@@ -63,21 +63,37 @@ namespace TS3AudioBot.Audio {
 
 		public Task<R<SongAnalyzerResult, LocalStr>> Current { get; private set; }
 
-		private CancellationTokenSource TokenSource { get; } = new CancellationTokenSource();
+		private CancellationTokenSource CancelTokenSource { get; } = new CancellationTokenSource();
+		public EventWaitHandle WaitHandle { get; } = new EventWaitHandle(false, EventResetMode.AutoReset);
+		private int waitSeconds;
 
 		public SongAnalyzerTask Data { get; }
 
 		public SongAnalyzerTaskHost(SongAnalyzerTask data) { Data = data; }
 
-		private Task<R<SongAnalyzerResult, LocalStr>> CreateTask(int inSeconds, CancellationToken token) {
+		private Task<R<SongAnalyzerResult, LocalStr>> CreateTask(CancellationToken token) {
 			return new Task<R<SongAnalyzerResult, LocalStr>>(() => {
 				try {
-					Task.Delay(inSeconds * 1000, token).Wait();
+					int seconds;
+					do {
+						Log.Info($"SongAnalyzerTask will run in {waitSeconds}s");
+						seconds = Interlocked.Exchange(ref waitSeconds, 0);
+					} while (WaitHandle.WaitOne(1000 * seconds) && !token.IsCancellationRequested && waitSeconds > 0);
+
+					if (token.IsCancellationRequested)
+						return null;
+					Log.Trace("SongAnalyzerTask finished waiting, running...");
+					
 					return Data.Run(token);
 				} catch (OperationCanceledException) {
 					return null;
 				}
 			});
+		}
+
+		public void ChangeWaitTime(int seconds) {
+			waitSeconds = seconds;
+			WaitHandle.Set();
 		}
 
 		public R<SongAnalyzerResult, LocalStr> Result {
@@ -89,25 +105,24 @@ namespace TS3AudioBot.Audio {
 			}
 		}
 
-		public void PrepareRun(int inSeconds) {
+		public void StartRun(int inSeconds) {
 			if (Current != null) {
-				Log.Warn("SongAnalyzerTask was already working");
+				Log.Info($"SongAnalyzerTask was already working, updating wait time to {inSeconds}s");
+				ChangeWaitTime(inSeconds);
 				return;
 			}
 
-			Log.Debug("Preparing background analyzer for \"{0}\", starting in {1}s",
+			Log.Info("Starting SongAnalyzerTask for \"{0}\", starting in {1}s",
 				SongAnalyzer.GetItemDescription(Data.Source), inSeconds);
 
-			Current = CreateTask(inSeconds, TokenSource.Token);
+			waitSeconds = inSeconds;
+			Current = CreateTask(CancelTokenSource.Token);
+			Current.Start();
 		}
 
-		public void Start() { Current.Start(); }
-
-		public void Cancel() { TokenSource.Cancel(); }
-
-		public void Dispose() {
-			Cancel();
-			// TokenSource?.Dispose();
+		public void Cancel() {
+			CancelTokenSource.Cancel();
+			ChangeWaitTime(0);
 		}
 	}
 
@@ -130,13 +145,7 @@ namespace TS3AudioBot.Audio {
 			if (Instance == null)
 				throw new InvalidOperationException("instance null");
 
-			if (Instance.Current != null) {
-				Log.Warn("SongAnalyzerTask was already working");
-				return;
-			}
-
-			Instance.PrepareRun(inSeconds);
-			Instance.Start();
+			Instance.StartRun(inSeconds);
 		}
 
 		private SongAnalyzerTask CreateTask(QueueItem item) {
@@ -144,7 +153,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void SetNextSong(QueueItem item) {
-			Instance?.Dispose();
+			Instance?.Cancel();
 			Instance = new SongAnalyzerTaskHost(CreateTask(item));
 		}
 
@@ -153,10 +162,11 @@ namespace TS3AudioBot.Audio {
 		public R<SongAnalyzerResult, LocalStr> TryGetResult(QueueItem item) {
 			R<SongAnalyzerResult, LocalStr> res;
 			if (Instance?.Current == null || !ReferenceEquals(Instance.Data.Source, item)) {
-				Log.Warn("Song {0} was not prepared", GetItemDescription(item));
-				Instance?.Dispose();
+				Log.Info("Song {0} was not prepared, running synchronously", GetItemDescription(item));
+				Instance?.Cancel();
 				res = CreateTask(item).Run(new CancellationToken());
 			} else {
+				Instance.ChangeWaitTime(0);
 				res = Instance.Result;
 			}
 
@@ -172,7 +182,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void Clear() {
-			Instance?.Dispose();
+			Instance?.Cancel();
 			Instance = null;
 		}
 	}
