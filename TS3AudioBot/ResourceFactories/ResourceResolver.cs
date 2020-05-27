@@ -93,7 +93,7 @@ namespace TS3AudioBot.ResourceFactories
 			R<PlayResource, LocalStr> result;
 			try
 			{
-				result = resolver.GetResourceById(ctx, resource.ResourceId, resource.ResourceTitle);
+				result = resolver.GetResourceById(ctx, resource);
 			}
 			catch (Exception ex)
 			{

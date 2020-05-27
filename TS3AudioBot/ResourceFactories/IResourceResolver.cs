@@ -25,7 +25,7 @@ namespace TS3AudioBot.ResourceFactories
 		/// <summary>The factory will try to parse the unique identifier of its scope of responsibility and create a playable resource from it.</summary>
 		/// <param name="resource">A resource containing the unique id for a song this factory is responsible for.</param>
 		/// <returns>The playable resource if successful, or an error message otherwise</returns>
-		R<PlayResource, LocalStr> GetResourceById(ResolveContext ctx, string id, string title);
+		R<PlayResource, LocalStr> GetResourceById(ResolveContext ctx, AudioResource resource);
 		/// <summary>Gets a link to the original site/location. This may differ from the link the resource was orininally created.</summary>
 		/// <param name="id">The unique id for a song this factory is responsible for.</param>
 		/// <returns>The (close to) original link if successful, null otherwise.</returns>

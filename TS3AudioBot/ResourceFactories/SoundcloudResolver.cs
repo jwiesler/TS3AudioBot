@@ -53,7 +53,7 @@ namespace TS3AudioBot.ResourceFactories
 			return GetResourceById(resource.ResourceId, resource.ResourceTitle, false);
 		}
 
-		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, string id, string title) => GetResourceById(id, title, true);
+		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, AudioResource resource) => GetResourceById(resource.UniqueId, resource.ResourceTitle, true); // TODO maybe
 
 		private R<PlayResource, LocalStr> GetResourceById(string id, string title, bool allowNullName)
 		{
