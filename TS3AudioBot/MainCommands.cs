@@ -972,7 +972,7 @@ namespace TS3AudioBot
 			ModifyPlaylist(playlistManager, listId, info, plist => {
 				item = new PlaylistItem(resource);
 				plist.Add(item).UnwrapThrow();
-				index = plist.Items.Count;
+				index = plist.Items.Count - 1;
 			}).UnwrapThrow();
 			return (item, index);
 		}
