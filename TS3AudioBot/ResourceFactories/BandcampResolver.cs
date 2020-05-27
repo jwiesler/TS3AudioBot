@@ -10,6 +10,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using TS3AudioBot.Helper;
@@ -64,9 +65,7 @@ namespace TS3AudioBot.ResourceFactories
 				return new LocalStr(strings.error_media_no_stream_extracted);
 
 			return new BandcampPlayResource(trackObj,
-				new AudioResource(id, title, ResolverFor)
-					.Add(AddArtist, artistName)
-					.Add(AddTrack, trackName),
+				new AudioResource(id, title, ResolverFor, new Dictionary<string, string>{{AddArtist, artistName}, {AddTrack, trackName}}),
 				GetTrackArtId(webSite));
 		}
 

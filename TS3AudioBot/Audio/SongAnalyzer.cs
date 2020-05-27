@@ -55,6 +55,7 @@ namespace TS3AudioBot.Audio {
 				timer.Restart();
 
 				gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
+				res.BaseData = res.BaseData.WithGain(gain);
 				Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			}
 

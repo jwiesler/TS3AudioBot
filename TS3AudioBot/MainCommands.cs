@@ -1116,7 +1116,8 @@ namespace TS3AudioBot
 			ModifyPlaylist(playlistManager, name, info, list => {
 				if (index < 0 || index >= list.Items.Count)
 					throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
-				list.Items[index].AudioResource.Gain = value;
+				var res = list.Items[index].AudioResource;
+				list.Items[index].AudioResource = res.WithGain(value);
 			}).UnwrapThrow();
 
 			return new JsonValue<int?>(value, g => g.HasValue ? $"Set the gain to {g.Value}." : "Reset the gain.");

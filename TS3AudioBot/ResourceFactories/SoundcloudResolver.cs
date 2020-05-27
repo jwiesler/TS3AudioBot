@@ -10,6 +10,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -100,9 +101,8 @@ namespace TS3AudioBot.ResourceFactories
 			return new AudioResource(
 				track.id.ToString(CultureInfo.InvariantCulture),
 				track.title,
-				ResolverFor)
-				.Add(AddArtist, track.user.permalink)
-				.Add(AddTrack, track.permalink);
+				ResolverFor,
+				new Dictionary<string, string>{{AddArtist, track.user.permalink}, {AddTrack, track.permalink}});
 		}
 
 		private R<PlayResource, LocalStr> YoutubeDlWrapped(string link)

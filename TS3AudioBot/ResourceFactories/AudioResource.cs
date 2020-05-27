@@ -11,8 +11,6 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using TS3AudioBot.Audio;
 using TS3AudioBot.CommandSystem.CommandResults;
-using TS3AudioBot.Playlists;
-
 namespace TS3AudioBot.ResourceFactories
 {
 	public class PlayResource
@@ -63,11 +61,14 @@ namespace TS3AudioBot.ResourceFactories
 	public class AudioResource : UniqueResource, IAudioResourceResult
 	{
 		[JsonProperty(PropertyName = "isusertitle", NullValueHandling = NullValueHandling.Ignore)]
-		public bool? TitleIsUserSet { get; set; }
+		public bool? TitleIsUserSet { get; }
+
+		[JsonProperty(PropertyName = "gain", NullValueHandling = NullValueHandling.Ignore)]
+		public int? Gain { get; }
 
 		/// <summary>Additional data to resolve the link.</summary>
 		[JsonProperty(PropertyName = "add", NullValueHandling = NullValueHandling.Ignore)]
-		public Dictionary<string, string> AdditionalData { get; set; }
+		public Dictionary<string, string> AdditionalData { get; }
 
 		/// <summary>An identifier which is unique among all <see cref="AudioResource"/> and resource type string of a factory.</summary>
 		[JsonIgnore]
@@ -76,33 +77,13 @@ namespace TS3AudioBot.ResourceFactories
 		[JsonIgnore]
 		AudioResource IAudioResourceResult.AudioResource => this;
 
-		[JsonProperty(PropertyName = "gain", NullValueHandling = NullValueHandling.Ignore)]
-		public int? Gain { get; set; }
-
+		[JsonConstructor]
 		public AudioResource(
-			string resourceId, string resourceTitle = null, string audioType = null, Dictionary<string, string> additionalData = null)
-			: base(resourceId, resourceTitle, audioType) {
+			string resourceId, string resourceTitle = null, string audioType = null,
+			Dictionary<string, string> additionalData = null, bool? titleIsUserSet = null, int? gain = null) : base(resourceId, resourceTitle, audioType) {
 			AdditionalData = additionalData;
-		}
-
-		public AudioResource WithUserTitle(string title) {
-			return new AudioResource(ResourceId, title, AudioType, AdditionalData == null ? null : new Dictionary<string, string>(AdditionalData)) {
-				TitleIsUserSet = true
-			};
-		}
-
-		public AudioResource WithAudioType(string audioType) {
-			return new AudioResource(ResourceId, ResourceTitle, audioType, AdditionalData == null ? null : new Dictionary<string, string>(AdditionalData)) {
-				TitleIsUserSet = TitleIsUserSet
-			};
-		}
-
-		public AudioResource Add(string key, string value)
-		{
-			if (AdditionalData == null)
-				AdditionalData = new Dictionary<string, string>();
-			AdditionalData.Add(key, value);
-			return this;
+			TitleIsUserSet = titleIsUserSet;
+			Gain = gain;
 		}
 
 		public string Get(string key)
@@ -113,9 +94,19 @@ namespace TS3AudioBot.ResourceFactories
 		}
 
 		public AudioResource WithTitle(string newInfoTitle) {
-			return new AudioResource(ResourceId, newInfoTitle, AudioType, AdditionalData == null ? null : new Dictionary<string, string>(AdditionalData)) {
-				TitleIsUserSet = TitleIsUserSet
-			};
+			return new AudioResource(ResourceId, newInfoTitle, AudioType, AdditionalData, TitleIsUserSet, Gain);
+		}
+
+		public AudioResource WithUserTitle(string title) {
+			return new AudioResource(ResourceId, title, AudioType, AdditionalData, true, Gain);
+		}
+
+		public AudioResource WithAudioType(string audioType) {
+			return new AudioResource(ResourceId, ResourceTitle, audioType, AdditionalData, TitleIsUserSet, Gain);
+		}
+
+		public AudioResource WithGain(int? gain) {
+			return new AudioResource(ResourceId, ResourceTitle, AudioType, AdditionalData, TitleIsUserSet, gain);
 		}
 	}
 }
