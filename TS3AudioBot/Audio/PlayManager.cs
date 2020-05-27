@@ -254,12 +254,12 @@ namespace TS3AudioBot.Audio {
 			}
 
 			result.Resource.Meta = item.MetaData;
-			var r = Start(result.Resource, result.Gain, result.RestoredLink.OkOr(null));
+			var r = Start(result.Resource, result.RestoredLink.OkOr(null));
 			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
 			return r;
 		}
 
-		private E<LocalStr> Start(PlayResource resource, int gain, string restoredLink) {
+		private E<LocalStr> Start(PlayResource resource, string restoredLink) {
 			Log.Trace("Starting resource...");
 			
 			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
@@ -268,7 +268,8 @@ namespace TS3AudioBot.Audio {
 				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
 				return new LocalStr(strings.error_playmgr_internal_error);
 			}
-			
+
+			var gain = resource.BaseData.Gain ?? 0;
 			Log.Debug("AudioResource start: {0} with gain {1}", resource, gain);
 			var result = playerConnection.Play(resource, gain);
 

@@ -10,8 +10,6 @@ namespace TS3AudioBot.Audio {
 	public class SongAnalyzerResult {
 		public PlayResource Resource { get; set; }
 
-		public int Gain { get; set; }
-
 		public R<string, LocalStr> RestoredLink { get; set; }
 	}
 
@@ -23,7 +21,6 @@ namespace TS3AudioBot.Audio {
 		public FfmpegProducer FfmpegProducer { get; }
 
 		public ResolveContext ResourceResolver { get; }
-
 
 		public SongAnalyzerTask(QueueItem source, ResolveContext resourceResolver, FfmpegProducer ffmpegProducer) {
 			Source = source;
@@ -46,22 +43,16 @@ namespace TS3AudioBot.Audio {
 
 			Log.Debug("Song resolve took {0}ms", timer.ElapsedMilliseconds);
 
-			int gain;
-			if (Source.AudioResource.Gain.HasValue) {
-				gain = Source.AudioResource.Gain.Value;
-			} else if (Source.AudioResource.AudioType != "youtube") {
-				gain = 0;
-			} else {
+			if(!(Source.AudioResource.Gain.HasValue || Source.AudioResource.AudioType != "youtube")) {
 				timer.Restart();
 
-				gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
+				var gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
 				res.BaseData = res.BaseData.WithGain(gain);
 				Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			}
 
 			return new SongAnalyzerResult {
 				Resource = res,
-				Gain = gain,
 				RestoredLink = restoredLink
 			};
 		}
