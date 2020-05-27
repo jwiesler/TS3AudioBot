@@ -15,6 +15,7 @@ using TS3AudioBot.Config;
 using TS3AudioBot.Environment;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
+using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories;
 using TSLib.Helper;
 
@@ -26,6 +27,7 @@ namespace TS3AudioBot.Audio {
 		private readonly ConfBot confBot;
 		private readonly Player playerConnection;
 		private readonly ResolveContext resourceResolver;
+		private readonly PlaylistManager playlistManager;
 		private readonly Stats stats;
 
 		public object Lock { get; } = new object();
@@ -43,11 +45,12 @@ namespace TS3AudioBot.Audio {
 
 		private readonly SongAnalyzer songAnalyzer;
 
-		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats) {
+		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats, PlaylistManager playlistManager) {
 			confBot = config;
 			this.playerConnection = playerConnection;
 			this.resourceResolver = resourceResolver;
 			this.stats = stats;
+			this.playlistManager = playlistManager;
 			songAnalyzer = new SongAnalyzer(resourceResolver, playerConnection.FfmpegProducer);
 
 			playerConnection.FfmpegProducer.OnSongLengthParsed += (sender, args) => {
@@ -233,27 +236,32 @@ namespace TS3AudioBot.Audio {
 			}
 		}
 
-		private E<LocalStr> Start(QueueItem item) {
-			Log.Info("Starting song {0}...", item.AudioResource.ResourceTitle);
+		private E<LocalStr> Start(QueueItem queueItem) {
+			Log.Info("Starting song {0}...", queueItem.AudioResource.ResourceTitle);
 
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
-			var res = songAnalyzer.TryGetResult(item);
+			var res = songAnalyzer.TryGetResult(queueItem);
 			if (!res.Ok)
 				return res.Error;
 
 			var result = res.Value;
 			
-			if (item.AudioResource.ResourceTitle != result.Resource.BaseData.ResourceTitle)
+			if (!ReferenceEquals(queueItem.AudioResource, result.Resource.BaseData))
 			{
-				// Title changed, Log that name change
-				Log.Info("Title of song '{0}' changed from '{1}' to '{2}'.",
-					item.MetaData.ContainingPlaylistId != null ? "in playlist '" + item.MetaData.ContainingPlaylistId + "'" : "",
-					item.AudioResource.ResourceTitle,
-					result.Resource.BaseData.ResourceTitle);
+				Log.Info("AudioResource was changed by loader, saving containing playlist");
+
+				var modifyR = playlistManager.ModifyPlaylist(queueItem.MetaData.ContainingPlaylistId, list => {
+					foreach (var item in list.Items) {
+						if (ReferenceEquals(item.AudioResource, queueItem.AudioResource))
+							item.AudioResource = result.Resource.BaseData;
+					}
+				});
+				if (!modifyR.Ok)
+					return modifyR;
 			}
 
-			result.Resource.Meta = item.MetaData;
+			result.Resource.Meta = queueItem.MetaData;
 			var r = Start(result.Resource, result.RestoredLink.OkOr(null));
 			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
 			return r;
