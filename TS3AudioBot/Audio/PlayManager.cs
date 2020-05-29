@@ -246,8 +246,8 @@ namespace TS3AudioBot.Audio {
 				return res.Error;
 
 			var result = res.Value;
-			
-			if (!ReferenceEquals(queueItem.AudioResource, result.Resource.BaseData))
+
+			if (queueItem.MetaData.ContainingPlaylistId != null && !ReferenceEquals(queueItem.AudioResource, result.Resource.BaseData))
 			{
 				Log.Info("AudioResource was changed by loader, saving containing playlist");
 
@@ -269,7 +269,7 @@ namespace TS3AudioBot.Audio {
 
 		private E<LocalStr> Start(PlayResource resource, string restoredLink) {
 			Log.Trace("Starting resource...");
-			
+
 			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
 			BeforeResourceStarted?.Invoke(this, playInfo);
 			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
