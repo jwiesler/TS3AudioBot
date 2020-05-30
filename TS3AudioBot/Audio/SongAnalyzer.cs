@@ -81,7 +81,7 @@ namespace TS3AudioBot.Audio {
 					} while (WaitHandle.WaitOne(1000 * seconds) && !token.IsCancellationRequested && waitSeconds > 0);
 
 					if (token.IsCancellationRequested)
-						return null;
+						return new LocalStr("Canceled");
 					Log.Trace("SongAnalyzerTask finished waiting, running...");
 					
 					return Data.Run(token);
