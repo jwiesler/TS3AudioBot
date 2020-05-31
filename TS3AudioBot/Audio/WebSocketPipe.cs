@@ -15,6 +15,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -86,17 +87,21 @@ namespace TS3AudioBot.Audio
 					const string eol = "\r\n";
 					const string guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-					byte[] response = Encoding.UTF8.GetBytes(
-						"HTTP/1.1 101 Switching Protocols" + eol
-						+ "Connection: Upgrade" + eol
-						+ "Upgrade: websocket" + eol
-						+ "Sec-WebSocket-Accept: " +  Convert.ToBase64String(
-                           System.Security.Cryptography.SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(
-                                   new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[1].Value.Trim() + guid
-                               )
-                           )
-                       ) + eol + eol
-					);
+					string key = new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[1].Value.Trim();
+					byte[] hashedAcceptKey = SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(key + guid));
+					string base64AcceptKey = Convert.ToBase64String(hashedAcceptKey);
+					StringBuilder hex = new StringBuilder(hashedAcceptKey.Length * 2);
+					foreach (byte b in hashedAcceptKey) {
+						hex.AppendFormat("{0:x2}", b);
+					}
+					Log.Trace("Received Sec-Key: " + key);
+					Log.Trace("Hashed Accept-Key: " + hex);
+					Log.Trace("Base64 Accept-Key: " + base64AcceptKey);
+					string responseStr = "HTTP/1.1 101 Switching Protocols" + eol
+											+ "Connection: Upgrade" + eol
+	                                        + "Upgrade: websocket" + eol
+	                                        + "Sec-WebSocket-Accept: " + base64AcceptKey + eol + eol;
+					byte[] response = Encoding.UTF8.GetBytes(responseStr);
 
 					// Send handshake response
 					stream.WriteTimeout = 10;
