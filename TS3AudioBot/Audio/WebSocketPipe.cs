@@ -147,6 +147,7 @@ namespace TS3AudioBot.Audio
 				waitingForPongSince = -1;
 
 				logPrefix = $"[{GetClientId()}] ";
+				Log.Info(logPrefix + "Established connection.");
 			}
 
 			public bool IsRunning() {
