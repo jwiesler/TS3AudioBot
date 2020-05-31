@@ -22,17 +22,20 @@ namespace TS3AudioBot.Audio
 		private const Codec SendCodec = Codec.OpusMusic;
 
 		public IPlayerSource CurrentPlayerSource { get; private set; }
+		public WebSocketPipe WebSocketPipe { get; }
 		public StallCheckPipe StallCheckPipe { get; }
 		public VolumePipe VolumePipe { get; }
 		public FfmpegProducer FfmpegProducer { get; }
 		public PreciseTimedPipe TimePipe { get; }
 		public PassiveMergePipe MergePipe { get; }
+		public PassiveSplitterPipe SplitterPipe { get; }
 		public EncoderPipe EncoderPipe { get; }
 		public IAudioPassiveConsumer PlayerSink { get; private set; }
 
 		public Player(ConfBot config, Id id)
 		{
 			FfmpegProducer = new FfmpegProducer(config.GetParent().Tools.Ffmpeg, id);
+			WebSocketPipe = new WebSocketPipe();
 			StallCheckPipe = new StallCheckPipe();
 			VolumePipe = new VolumePipe();
 			Volume = config.Audio.Volume.Default;
@@ -40,10 +43,13 @@ namespace TS3AudioBot.Audio
 			TimePipe = new PreciseTimedPipe { ReadBufferSize = EncoderPipe.PacketSize };
 			TimePipe.Initialize(EncoderPipe, id);
 			MergePipe = new PassiveMergePipe();
+			SplitterPipe = new PassiveSplitterPipe();
 
 			config.Audio.Bitrate.Changed += (s, e) => EncoderPipe.Bitrate = ScaleBitrate(e.NewValue);
 
-			MergePipe.Into(TimePipe).Chain<CheckActivePipe>().Chain(StallCheckPipe).Chain(VolumePipe).Chain(EncoderPipe);
+			MergePipe.Into(TimePipe).Chain<CheckActivePipe>().Chain(SplitterPipe);
+			SplitterPipe.Chain(WebSocketPipe);
+			SplitterPipe.Chain(StallCheckPipe).Chain(VolumePipe).Chain(EncoderPipe);
 		}
 
 		public void SetTarget(IAudioPassiveConsumer target)

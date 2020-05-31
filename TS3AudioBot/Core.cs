@@ -123,6 +123,7 @@ namespace TS3AudioBot
 		}
 
 		private static void PrintException(Exception ex) {
+			Log.Trace("Exception Type: " + ex.GetType());
 			Log.Trace("Exception message: " + ex.Message);
 			Log.Trace("STACK TRACE\n" + ex.StackTrace);
 
