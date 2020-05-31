@@ -156,7 +156,9 @@ namespace TS3AudioBot.Audio
 			private readonly string logPrefix;
 
 			public WebSocketConnection(TcpClient client) {
-				this.client = client;
+				running = true;
+				
+                this.client = client;
 				receivedMessageHandlerThread = new Thread(ReceivedMessageHandler) {
 					IsBackground = true
 				};
@@ -166,8 +168,6 @@ namespace TS3AudioBot.Audio
 					IsBackground = true
 				};
 				keepaliveThread.Start();
-
-				running = true;
 				waitingForPongSince = -1;
 
 				logPrefix = $"[{GetClientId()}] ";
@@ -282,6 +282,8 @@ namespace TS3AudioBot.Audio
 						data = ProcessMessage(data);
 					}
 				}
+
+                Log.Trace(logPrefix + "ReceivedMessageHandler exited");
 			}
 
 			private byte[] ProcessMessage(byte[] data) {
@@ -421,6 +423,8 @@ namespace TS3AudioBot.Audio
 
 					Thread.Sleep(1000);
 				}
+
+                Log.Trace(logPrefix + "KeepaliveHandler exited");
 			}
 
 			public void Stop() {
