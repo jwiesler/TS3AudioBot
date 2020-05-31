@@ -94,6 +94,8 @@ namespace TS3AudioBot.Audio
 					foreach (byte b in hashedAcceptKey) {
 						hex.AppendFormat("{0:x2}", b);
 					}
+					Log.Trace("Full Request: " + request);
+					Log.Trace("Number of groups: " + new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups.Count);
 					Log.Trace("Received Sec-Key: " + key);
 					Log.Trace("Hashed Accept-Key: " + hex);
 					Log.Trace("Base64 Accept-Key: " + base64AcceptKey);
