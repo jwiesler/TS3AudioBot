@@ -87,18 +87,35 @@ namespace TS3AudioBot.Audio
 					const string eol = "\r\n";
 					const string guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-					string key = new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[1].Value.Trim();
+					// HTML headers are case insensitive
+					var match = new Regex("Sec-WebSocket-Key: (.*)", RegexOptions.IgnoreCase).Match(request);
+					if (!match.Success) {
+						Log.Error("Sec-WebSocket-Key was not found in request.");
+						Log.Trace("Request was (base64-encoded): " + Convert.ToBase64String(Encoding.ASCII.GetBytes(request)));
+						continue;
+					}
+
+					if (match.Groups.Count != 2) {
+						Log.Error("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
+						for (int i = 0; i < match.Groups.Count; i++) {
+							Log.Trace($"Group {i}: " + new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[i]);
+						}
+						continue;
+					}
+					string key = match.Groups[1].Value.Trim();
 					byte[] hashedAcceptKey = SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(key + guid));
 					string base64AcceptKey = Convert.ToBase64String(hashedAcceptKey);
-					StringBuilder hex = new StringBuilder(hashedAcceptKey.Length * 2);
-					foreach (byte b in hashedAcceptKey) {
-						hex.AppendFormat("{0:x2}", b);
+
+					Log.Trace("Received Sec-WebSocket-Key: " + key);
+					if (Log.IsTraceEnabled) {
+						StringBuilder hex = new StringBuilder(hashedAcceptKey.Length * 2);
+						foreach (byte b in hashedAcceptKey) {
+							hex.AppendFormat("{0:x2}", b);
+						}
+						Log.Trace("Hashed Sec-WebSocket-Key: " + hex);
 					}
-					Log.Trace("Full Request: " + request);
-					Log.Trace("Number of groups: " + new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups.Count);
-					Log.Trace("Received Sec-Key: " + key);
-					Log.Trace("Hashed Accept-Key: " + hex);
-					Log.Trace("Base64 Accept-Key: " + base64AcceptKey);
+
+					Log.Trace("Base64 if Sec-WebSocket-Key Hash: " + base64AcceptKey);
 					string responseStr = "HTTP/1.1 101 Switching Protocols" + eol
 											+ "Connection: Upgrade" + eol
 	                                        + "Upgrade: websocket" + eol
