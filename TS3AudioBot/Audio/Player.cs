@@ -30,6 +30,7 @@ namespace TS3AudioBot.Audio
 		public PassiveMergePipe MergePipe { get; }
 		public PassiveSplitterPipe SplitterPipe { get; }
 		public EncoderPipe EncoderPipe { get; }
+		public EncoderPipe EncoderPipeHighQuality { get; }
 		public IAudioPassiveConsumer PlayerSink { get; private set; }
 
 		public Player(ConfBot config, Id id)
@@ -40,6 +41,7 @@ namespace TS3AudioBot.Audio
 			VolumePipe = new VolumePipe();
 			Volume = config.Audio.Volume.Default;
 			EncoderPipe = new EncoderPipe(SendCodec) { Bitrate = ScaleBitrate(config.Audio.Bitrate) };
+			EncoderPipeHighQuality = new EncoderPipe(Codec.OpusMusic) { Bitrate = 192000 };
 			TimePipe = new PreciseTimedPipe { ReadBufferSize = EncoderPipe.PacketSize };
 			TimePipe.Initialize(EncoderPipe, id);
 			MergePipe = new PassiveMergePipe();
@@ -48,7 +50,7 @@ namespace TS3AudioBot.Audio
 			config.Audio.Bitrate.Changed += (s, e) => EncoderPipe.Bitrate = ScaleBitrate(e.NewValue);
 
 			MergePipe.Into(TimePipe).Chain<CheckActivePipe>().Chain(SplitterPipe);
-			SplitterPipe.Chain(WebSocketPipe);
+			SplitterPipe.Chain(EncoderPipeHighQuality).Chain(WebSocketPipe);
 			SplitterPipe.Chain(StallCheckPipe).Chain(VolumePipe).Chain(EncoderPipe);
 		}
 

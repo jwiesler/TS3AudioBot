@@ -19,7 +19,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using Microsoft.CodeAnalysis;
 using TSLib.Audio;
 
 namespace TS3AudioBot.Audio
@@ -136,8 +135,7 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		public void Write(Span<byte> data, Meta meta)
-		{
+		public void Write(Span<byte> data, Meta meta) {
 			foreach (var pair in connectedClients) {
 				pair.Value.Send(data.ToArray());
 			}
@@ -157,7 +155,7 @@ namespace TS3AudioBot.Audio
 
 			public WebSocketConnection(TcpClient client) {
 				running = true;
-				
+
                 this.client = client;
 				receivedMessageHandlerThread = new Thread(ReceivedMessageHandler) {
 					IsBackground = true
@@ -179,6 +177,10 @@ namespace TS3AudioBot.Audio
 			}
 
 			public void Send(byte[] data) {
+				if (!client.Connected) {
+					return;
+				}
+
 				if (running) {
 					ComposeAndSend(2, data);
 				}
