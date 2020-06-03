@@ -19,7 +19,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using Microsoft.CodeAnalysis;
 using TSLib.Audio;
 
 namespace TS3AudioBot.Audio
@@ -136,8 +135,7 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		public void Write(Span<byte> data, Meta meta)
-		{
+		public void Write(Span<byte> data, Meta meta) {
 			foreach (var pair in connectedClients) {
 				pair.Value.Send(data.ToArray());
 			}
@@ -157,7 +155,7 @@ namespace TS3AudioBot.Audio
 
 			public WebSocketConnection(TcpClient client) {
 				running = true;
-				
+
                 this.client = client;
 				receivedMessageHandlerThread = new Thread(ReceivedMessageHandler) {
 					IsBackground = true
@@ -171,7 +169,7 @@ namespace TS3AudioBot.Audio
 				waitingForPongSince = -1;
 
 				logPrefix = $"[{GetClientId()}] ";
-				Log.Info(logPrefix + "Established connection.");
+				Log.Info(logPrefix + "Established connection to new WebSocket client.");
 			}
 
 			public bool IsRunning() {
@@ -179,6 +177,10 @@ namespace TS3AudioBot.Audio
 			}
 
 			public void Send(byte[] data) {
+				if (!client.Connected) {
+					return;
+				}
+
 				if (running) {
 					ComposeAndSend(2, data);
 				}
@@ -416,7 +418,7 @@ namespace TS3AudioBot.Audio
 
 					if (waitingForPongSince > 0 && currentTime - waitingForPongSince > KeepaliveTimeout) {
 						// Timeout
-						Log.Info(logPrefix + "Client did not respond to PING in time, disconnecting...");
+						Log.Info(logPrefix + "WebSocket client did not respond to PING in time, disconnecting...");
 						running = false;
 						return;
 					}
@@ -435,7 +437,7 @@ namespace TS3AudioBot.Audio
 				keepaliveThread.Join();
 				Log.Trace(logPrefix + "Joined keepalive thread");
 				client.Close();
-				Log.Info(logPrefix + "Disconnected client.");
+				Log.Info(logPrefix + "WebSocket client disconnected.");
 			}
 		}
 	}
