@@ -39,7 +39,7 @@ namespace TS3AudioBot.Playlists
 			this.playlistPool = playlistPool;
 		}
 
-		public R<IReadOnlyPlaylist, LocalStr> LoadPlaylist(string listId)
+		public R<(IReadOnlyPlaylist list, string id), LocalStr> LoadPlaylist(string listId)
 		{
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
@@ -73,7 +73,7 @@ namespace TS3AudioBot.Playlists
 			return playlistPool.Exists(listId);
 		}
 
-		public E<LocalStr> ModifyPlaylist(string listId, Action<Playlist> action)
+		public E<LocalStr> ModifyPlaylist(string listId, Action<Playlist, string> action)
 		{
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
@@ -83,13 +83,13 @@ namespace TS3AudioBot.Playlists
 				return res.Error;
 			}
 
-			var plist = res.Value;
+			var (list, id) = res.Value;
 			lock (listLock)
 			{
-				action(plist);
+				action(list, id);
 			}
 
-			var ret = playlistPool.Write(listId, plist);
+			var ret = playlistPool.Write(id, list);
 			ResourceSearch?.Rebuild();
 			return ret;
 		}

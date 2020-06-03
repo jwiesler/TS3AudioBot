@@ -49,12 +49,12 @@ namespace TS3AudioBot.Playlists
 			return lowerIdToId.TryGetValue(lower, out var id) ? id : listId;
 		}
 
-		public R<Playlist, LocalStr> ReadFull(string listId) {
+		public R<(Playlist list, string id), LocalStr> ReadFull(string listId) {
 			lock (ioLock) {
 				var id = ToRealId(listId);
 				
 				if (playlistCache.TryGet(id, out Playlist list))
-					return list;
+					return (list, id);
 
 				var result = ReadFullFromFile(IdToFile(id));
 
@@ -62,7 +62,7 @@ namespace TS3AudioBot.Playlists
 					return result.Error;
 
 				playlistCache.Update(id, result.Value.list);
-				return result.Value.list;
+				return (result.Value.list, id);
 			}
 		}
 

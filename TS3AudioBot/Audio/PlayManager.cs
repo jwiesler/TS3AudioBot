@@ -251,7 +251,7 @@ namespace TS3AudioBot.Audio {
 			{
 				Log.Info("AudioResource was changed by loader, saving containing playlist");
 
-				var modifyR = playlistManager.ModifyPlaylist(queueItem.MetaData.ContainingPlaylistId, list => {
+				var modifyR = playlistManager.ModifyPlaylist(queueItem.MetaData.ContainingPlaylistId, (list, _) => {
 					foreach (var item in list.Items) {
 						if (ReferenceEquals(item.AudioResource, queueItem.AudioResource))
 							item.AudioResource = result.Resource.BaseData;
