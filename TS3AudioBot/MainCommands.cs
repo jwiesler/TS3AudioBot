@@ -1262,12 +1262,17 @@ namespace TS3AudioBot
 
 		[Command("list show")]
 		[Usage("<name> <index>", "Lets you specify the starting index from which songs should be listed.")]
-		public static JsonValue<PlaylistInfo> CommandListShow(TsFullClient ts3Client, PlaylistManager playlistManager, ResolveContext resourceFactory, string userProvidedId, int? offset = null, int? count = null)
-		{
-			const int maxSongs = 50;
+		public static JsonValue<PlaylistInfo> CommandListShow(TsFullClient ts3Client, PlaylistManager playlistManager, ResolveContext resourceFactory, string userProvidedId, int? offset = null, int? count = null) {
+			const int defaultSongCount = 50;
 			var (plist, id) = playlistManager.LoadPlaylist(userProvidedId).UnwrapThrow();
 			int offsetV = Tools.Clamp(offset ?? 0, 0, plist.Items.Count);
-			int countV = Tools.Clamp(count ?? maxSongs, 0, Math.Min(maxSongs, plist.Items.Count - offsetV));
+			int countV = count ?? defaultSongCount;
+			if (countV == -1) {
+				// All items if specifically requested
+				countV = plist.Items.Count - offsetV;
+			} else {
+				countV = Tools.Clamp(countV, 0, plist.Items.Count - offsetV);
+			}
 			var items = plist.Items.Skip(offsetV).Take(countV).Select(x => resourceFactory.ToApiFormat(x.AudioResource)).ToArray();
 			var plInfo = new PlaylistInfo
 			{
