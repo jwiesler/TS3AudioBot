@@ -91,7 +91,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				if (parsed?.videoDetails != null)
 				{
 					if(resource.ResourceTitle == null)
-						resource = resource.WithTitle(parsed.videoDetails.title);
+						resource = resource.WithTitle(StringNormalize.Normalize(parsed.videoDetails.title));
 
 					bool isLive = parsed.videoDetails.isLive ?? false;
 					if (isLive && parsed.streamingData?.hlsManifestUrl != null)
@@ -156,7 +156,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				if (streamSelect != null)
 				{
 					if(resource.ResourceTitle == null)
-						resource = resource.WithTitle(parsed.videoDetails.title);
+						resource = resource.WithTitle(StringNormalize.Normalize(parsed.videoDetails.title));
 					return new PlayResource(streamSelect.TrackUrl, resource);
 				}
 			}
@@ -332,7 +332,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 						new PlaylistItem(
 							new AudioResource(
 								item.contentDetails.videoId,
-								item.snippet.title,
+								StringNormalize.Normalize(item.snippet.title),
 								ResolverFor
 							)
 						)
@@ -357,7 +357,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				new PlaylistItem(
 					new AudioResource(
 						entry.id,
-						entry.title,
+						StringNormalize.Normalize(entry.title),
 						ResolverFor
 					)
 				)));
@@ -412,7 +412,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			}
 
 			if (resource.ResourceTitle == null)
-				resource = resource.WithTitle(response.title ?? $"Youtube-{resource.ResourceId}");
+				resource = resource.WithTitle(StringNormalize.Normalize(response.title) ?? $"Youtube-{resource.ResourceId}");
 			
 
 			Log.Debug("youtube-dl succeeded!");
@@ -472,7 +472,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			var parsed = JsonConvert.DeserializeObject<JsonSearchListResponse>(response);
 			return parsed.items.Select(x => new AudioResource(
 				x.id.videoId,
-				x.snippet.title,
+				StringNormalize.Normalize(x.snippet.title),
 				ResolverFor)).ToArray();
 		}
 
@@ -486,7 +486,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			return search.entries.Select(entry =>
 				new AudioResource(
 					entry.id,
-					entry.title,
+					StringNormalize.Normalize(entry.title),
 					ResolverFor
 				)).ToArray();
 		}

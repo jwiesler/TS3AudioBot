@@ -110,7 +110,7 @@ namespace TS3AudioBot.Playlists
 					if (rsSplit.Length < 3)
 						goto default;
 					if (!string.IsNullOrWhiteSpace(rsSplit[0]))
-						items.Add(new PlaylistItem(new AudioResource(Uri.UnescapeDataString(rsSplit[1]), Uri.UnescapeDataString(rsSplit[2]), rsSplit[0])));
+						items.Add(new PlaylistItem(new AudioResource(Uri.UnescapeDataString(rsSplit[1]), StringNormalize.Normalize(Uri.UnescapeDataString(rsSplit[2])), rsSplit[0])));
 					else
 						goto default;
 					break;
@@ -118,6 +118,8 @@ namespace TS3AudioBot.Playlists
 
 				case "rsj":
 					var res = JsonConvert.DeserializeObject<AudioResource>(value);
+					// This can be commented out if all playlist have been written once
+					res = res.WithTitle(StringNormalize.Normalize(res.ResourceTitle));
 					items.Add(new PlaylistItem(res));
 					break;
 

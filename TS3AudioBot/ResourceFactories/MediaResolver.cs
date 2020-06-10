@@ -53,12 +53,12 @@ namespace TS3AudioBot.ResourceFactories
 
 			if (resData.IsIcyStream) {
 				if(resource.ResourceTitle == null)
-					resource = resource.WithTitle(resData.Title);
+					resource = resource.WithTitle(StringNormalize.Normalize(resData.Title));
 				return new MediaPlayResource(resData.FullUri, resource, null, true);
 			}
 
 			if (resource.ResourceTitle == null)
-				resource = resource.WithTitle(!string.IsNullOrWhiteSpace(resData.Title) ? resData.Title : resource.ResourceId);
+				resource = resource.WithTitle(!string.IsNullOrWhiteSpace(resData.Title) ? StringNormalize.Normalize(resData.Title) : resource.ResourceId);
 			
 			return new MediaPlayResource(resData.FullUri, resource, resData.Image, false);
 		}

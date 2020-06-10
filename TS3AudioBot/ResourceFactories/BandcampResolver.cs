@@ -65,7 +65,7 @@ namespace TS3AudioBot.ResourceFactories
 				return new LocalStr(strings.error_media_no_stream_extracted);
 
 			return new BandcampPlayResource(trackObj,
-				new AudioResource(id, title, ResolverFor, new Dictionary<string, string>{{AddArtist, artistName}, {AddTrack, trackName}}),
+				new AudioResource(id, StringNormalize.Normalize(title), ResolverFor, new Dictionary<string, string>{{AddArtist, artistName}, {AddTrack, trackName}}),
 				GetTrackArtId(webSite));
 		}
 
@@ -79,7 +79,7 @@ namespace TS3AudioBot.ResourceFactories
 			{
 				var nameMatch = TrackNameRegex.Match(webSite);
 				resource = resource.WithTitle(nameMatch.Success
-					? nameMatch.Groups[1].Value
+					? StringNormalize.Normalize(nameMatch.Groups[1].Value)
 					: $"Bandcamp (id: {resource.ResourceId})");
 			}
 

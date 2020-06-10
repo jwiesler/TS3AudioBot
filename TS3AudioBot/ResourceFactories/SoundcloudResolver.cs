@@ -69,7 +69,7 @@ namespace TS3AudioBot.ResourceFactories
 //			}
 
 			string finalRequest = $"https://api.soundcloud.com/tracks/{id}/stream?client_id={SoundcloudClientId}";
-			return new PlayResource(finalRequest, new AudioResource(id, title, ResolverFor));
+			return new PlayResource(finalRequest, new AudioResource(id, StringNormalize.Normalize(title), ResolverFor));
 		}
 
 		public string RestoreLink(ResolveContext _, AudioResource resource)
@@ -100,7 +100,7 @@ namespace TS3AudioBot.ResourceFactories
 
 			return new AudioResource(
 				track.id.ToString(CultureInfo.InvariantCulture),
-				track.title,
+				StringNormalize.Normalize(track.title),
 				ResolverFor,
 				new Dictionary<string, string>{{AddArtist, track.user.permalink}, {AddTrack, track.permalink}});
 		}
@@ -123,7 +123,7 @@ namespace TS3AudioBot.ResourceFactories
 
 			Log.Debug("youtube-dl succeeded!");
 
-			return new PlayResource(url, new AudioResource(link, title, ResolverFor));
+			return new PlayResource(url, new AudioResource(link, StringNormalize.Normalize(title), ResolverFor));
 		}
 
 		public R<Playlist, LocalStr> GetPlaylist(ResolveContext _, string url, Uid owner)

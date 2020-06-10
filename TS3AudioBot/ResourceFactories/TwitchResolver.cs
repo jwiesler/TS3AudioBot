@@ -133,7 +133,7 @@ namespace TS3AudioBot.ResourceFactories
 				return new LocalStr(strings.error_media_no_stream_extracted);
 
 			if(resource.ResourceTitle == null)
-				resource = resource.WithTitle($"Twitch channel: {channel}");
+				resource = resource.WithTitle($"Twitch channel: {StringNormalize.Normalize(channel)}");
 			return new PlayResource(dataList[codec].Url, resource);
 		}
 
