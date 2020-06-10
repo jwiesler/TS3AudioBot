@@ -341,6 +341,12 @@ namespace TS3AudioBot.Playlists
 			return items;
 		}
 
+		public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
+			lock (playlistCache) {
+				return playlistCache.UniqueResourcesDictionary.TryGetValue(resource, out info);
+			}
+		}
+
 		public void LoadAll() {
 			var res = new List<PlaylistSearchItemInfo>();
 

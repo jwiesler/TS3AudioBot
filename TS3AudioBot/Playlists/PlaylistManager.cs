@@ -8,9 +8,9 @@
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
 using System;
-using System.Collections.Generic;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
+using TS3AudioBot.ResourceFactories;
 using TS3AudioBot.Search;
 using TS3AudioBot.Web.Model;
 using TSLib;
@@ -115,6 +115,14 @@ namespace TS3AudioBot.Playlists
 			}
 
 			return playlistPool.TryGetPlaylistId(listId, out id);
+		}
+
+		public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
+			return playlistPool.TryGetUniqueItem(resource, out info);
+		}
+
+		public void ReloadFromDisk() {
+			playlistPool.ReloadFolder();
 		}
 	}
 }

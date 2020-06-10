@@ -155,6 +155,8 @@ namespace TS3AudioBot.Playlists {
 			uniqueSongs.Clear();
 		}
 
+		public IReadOnlyDictionary<UniqueResource, UniqueResourceInfo> UniqueResourcesDictionary => uniqueSongs;
+
 		public IReadOnlyCollection<UniqueResourceInfo> GetUniqueResources() { return uniqueSongs.Values; }
 	}
 }

@@ -1164,6 +1164,84 @@ namespace TS3AudioBot
 			return new JsonValue<GainValue>(new GainValue(value), g => g.Value.HasValue ? $"Set the gain to {g.Value.Value}." : "Reset the gain.");
 		}
 
+		[Command("list item info")]
+		public static string CommandListItemInfo(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, int index) {
+			var (list, id) = playlistManager.LoadPlaylist(userProvidedId).UnwrapThrow();
+			if (index < 0 || index >= list.Items.Count)
+				throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
+			var item = list[index].AudioResource;
+			var builder = new StringBuilder();
+			builder.Append("Item at index ").Append(index).Append(" of list \"").Append(id).AppendLine("\":");
+			builder.Append("Resource title: ").Append(item.ResourceTitle).AppendLine();
+			builder.Append("Resource id: ").Append(item.ResourceId).AppendLine();
+			builder.Append("Audio type: ").Append(item.AudioType).AppendLine();
+			bool contained = playlistManager.TryGetUniqueItem(item, out var uniqueResourceInfo);
+			builder.Append("Is in database: ").Append(contained).AppendLine();
+			if (contained) {
+				builder.Append("Database resource equals: ").Append(Equals(uniqueResourceInfo.Resource, item))
+					.AppendLine();
+				builder.Append("Database resource reference equals: ").Append(ReferenceEquals(uniqueResourceInfo.Resource, item))
+					.AppendLine();
+				builder.Append("Database resource containing lists: ");
+
+				int j = 0;
+				foreach (var keyValuePair in uniqueResourceInfo.ContainingLists) {
+					foreach (var offset in keyValuePair.Value) {
+						if (j++ != 0)
+							builder.Append(',');
+						builder.Append(keyValuePair.Key).Append(':').Append(offset);
+					}
+				}
+				builder.AppendLine();
+			}
+
+			builder.Append("Hash: ").Append(item.GetHashCode()).AppendLine();
+
+			builder.Append("Gain: ");
+			if (item.Gain.HasValue)
+				builder.Append(item.Gain.Value);
+			else
+				builder.Append("Not set");
+			builder.AppendLine();
+
+			builder.Append("Title is set by user: ");
+			if (item.TitleIsUserSet.HasValue)
+				builder.Append(item.TitleIsUserSet.Value);
+			else
+				builder.Append("Not set");
+			builder.AppendLine();
+
+			if (item.AdditionalData != null && item.AdditionalData.Count > 0) {
+				builder.AppendLine("Additional data: ");
+				foreach (var kv in item.AdditionalData) {
+					builder.AppendLine().Append("- ").Append(kv.Key).Append(" -> ").Append(kv.Value);
+				}
+			}
+			return builder.ToString();
+		}
+
+		[Command("list item equal")]
+		public static string CommandListItemInfo(
+			PlaylistManager playlistManager, string userProvidedIdA, int indexA,
+			string userProvidedIdB, int indexB) {
+			var (listA, _) = playlistManager.LoadPlaylist(userProvidedIdA).UnwrapThrow();
+			var (listB, _) = playlistManager.LoadPlaylist(userProvidedIdB).UnwrapThrow();
+			if (indexA < 0 || indexA >= listA.Items.Count)
+				throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
+			if (indexB < 0 || indexB >= listB.Items.Count)
+				throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
+			var itemA = listA[indexA].AudioResource;
+			var itemB = listB[indexB].AudioResource;
+			var builder = new StringBuilder();
+			builder.Append("Audio resources are equal: ").Append(Equals(itemA, itemB)).AppendLine();
+			builder.Append("Audio resources are reference equal: ").Append(ReferenceEquals(itemA, itemB)).AppendLine();
+			builder.Append("Audio types are equal: ").Append(Equals(itemA.AudioType, itemB.AudioType)).AppendLine();
+			builder.Append("Resource ids equal: ").Append(Equals(itemA.ResourceId, itemB.ResourceId)).AppendLine();
+			builder.Append("Titles are equal: ").Append(Equals(itemA.ResourceTitle, itemB.ResourceTitle)).AppendLine();
+			builder.Append("Hash values are equal: ").Append(Equals(itemA.GetHashCode(), itemB.GetHashCode())).AppendLine();
+			return builder.ToString();
+		}
+
 		[Command("list item move")] // TODO return modified elements
 		public static void CommandListItemMove(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, int from, int to)
 		{
