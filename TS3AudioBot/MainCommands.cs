@@ -1387,7 +1387,7 @@ namespace TS3AudioBot
 			{
 				var tmb = new TextModBuilder();
 
-				tmb.AppendFormat(strings.cmd_list_show_header, x.Title.Mod().Bold(), x.SongCount.ToString(), x.OwnerId).Append(x.Modifiable ? strings.cmd_list_show_header_modifiable : "").Append("\n");
+				tmb.AppendFormat(strings.cmd_list_show_header, x.Id.Mod().Bold(), x.SongCount.ToString(), x.OwnerId).Append(x.Modifiable ? strings.cmd_list_show_header_modifiable : "").Append("\n");
 				var index = x.DisplayOffset;
 				foreach (var plitem in x.Items)
 					tmb.Append((index++).ToString()).Append(": ").AppendLine(plitem.Title);
