@@ -919,6 +919,25 @@ namespace TS3AudioBot
 				throw new CommandException(strings.cmd_kickme_missing_permission, CommandExceptionReason.CommandError);
 		}
 
+		[Command("reload lists")]
+		public static string CommandReloadPlaylists(PlaylistManager playlistManager, ResourceSearch search) {
+			Log.Info("Reloading playlists...");
+			playlistManager.ReloadFromDisk();
+			Log.Info("Reloading search...");
+			search.Rebuild();
+			return "Lists and search reloaded";
+		}
+
+		[Command("reload search")]
+		public static string CommandReloadSearch(ResourceSearch search) {
+			Log.Info("Reloading search...");
+			search.Rebuild();
+			return "Search reloaded";
+		}
+
+		[Command("reload rights")]
+		public static JsonEmpty CommandReloadRights(RightsManager rightsManager) => CommandRightsReload(rightsManager);
+
 		private const string RightBypassManageCheck = "list.manage.unowned";
 
 		private static void ThrowPlaylistNoPermission(IReadOnlyPlaylist playlist, string action) {
