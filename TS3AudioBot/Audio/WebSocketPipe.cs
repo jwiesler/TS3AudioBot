@@ -187,6 +187,10 @@ namespace TS3AudioBot.Audio
 			}
 
 			private bool ComposeAndSend(uint opcode, byte[] payload) {
+				if (!client.Connected) {
+					return false;
+				}
+
 				byte[] packet = ComposePacket(opcode, payload);
 				if (packet == null) {
 					return false;
