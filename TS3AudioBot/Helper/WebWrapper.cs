@@ -24,6 +24,33 @@ namespace TS3AudioBot.Helper
 			ServicePointManager.DefaultConnectionLimit = int.MaxValue;
 		}
 
+		public static E<LocalStr> PostRequest(out string site, Uri link, params (string name, string value)[] headers)
+		{
+			WebRequest request;
+			try { request = WebRequest.Create(link); }
+			catch (NotSupportedException) { site = null; return new LocalStr(strings.error_media_invalid_uri); }
+
+			foreach (var (name, value) in headers)
+				request.Headers.Add(name, value);
+
+			try {
+				request.Method = "POST";
+				request.Timeout = (int)DefaultTimeout.TotalMilliseconds;
+				using (var response = request.GetResponse())
+				using (var stream = response.GetResponseStream())
+				using (var reader = new StreamReader(stream))
+				{
+					site = reader.ReadToEnd();
+					return R.Ok;
+				}
+			}
+			catch (Exception ex)
+			{
+				site = null;
+				return ToLoggedError(ex);
+			}
+		}
+
 		public static E<LocalStr> DownloadString(out string site, Uri link, params (string name, string value)[] headers)
 		{
 			WebRequest request;
@@ -47,6 +74,36 @@ namespace TS3AudioBot.Helper
 			catch (Exception ex)
 			{
 				site = null;
+				return ToLoggedError(ex);
+			}
+		}
+
+		public static R<int, LocalStr> DownloadStringReturnHttpStatusCode(out string site, Uri link, params (string name, string value)[] headers)
+		{
+			WebRequest request;
+			try { request = WebRequest.Create(link); }
+			catch (NotSupportedException) { site = null; return new LocalStr(strings.error_media_invalid_uri); }
+
+			foreach (var (name, value) in headers)
+				request.Headers.Add(name, value);
+
+			try
+			{
+				request.Timeout = (int)DefaultTimeout.TotalMilliseconds;
+				using (var response = request.GetResponse())
+				using (var stream = response.GetResponseStream())
+				using (var reader = new StreamReader(stream))
+				{
+					site = reader.ReadToEnd();
+					return 200;
+				}
+			}
+			catch (WebException ex)
+			{
+				site = null;
+				if (ex.Response is HttpWebResponse errorResponse) {
+					return (int) errorResponse.StatusCode;
+				}
 				return ToLoggedError(ex);
 			}
 		}
