@@ -64,8 +64,7 @@ namespace TS3AudioBot.Audio {
 		public Task<R<SongAnalyzerResult, LocalStr>> Current { get; private set; }
 
 		private CancellationTokenSource CancelTokenSource { get; } = new CancellationTokenSource();
-		public EventWaitHandle WaitHandle { get; } = new EventWaitHandle(false, EventResetMode.AutoReset);
-		private int waitSeconds;
+		private WaitTask waitTask;
 
 		public SongAnalyzerTask Data { get; }
 
@@ -74,16 +73,11 @@ namespace TS3AudioBot.Audio {
 		private Task<R<SongAnalyzerResult, LocalStr>> CreateTask(CancellationToken token) {
 			return new Task<R<SongAnalyzerResult, LocalStr>>(() => {
 				try {
-					int seconds;
-					do {
-						Log.Info($"SongAnalyzerTask will run in {waitSeconds}s");
-						seconds = Interlocked.Exchange(ref waitSeconds, 0);
-					} while (WaitHandle.WaitOne(1000 * seconds) && !token.IsCancellationRequested && waitSeconds > 0);
-
-					if (token.IsCancellationRequested)
+					if(!waitTask.Run())
 						return new LocalStr("Canceled");
+
 					Log.Trace("SongAnalyzerTask finished waiting, running...");
-					
+
 					return Data.Run(token);
 				} catch (OperationCanceledException) {
 					return null;
@@ -92,8 +86,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void ChangeWaitTime(int seconds) {
-			waitSeconds = seconds;
-			WaitHandle.Set();
+			waitTask.UpdateWaitTime(seconds * 1000);
 		}
 
 		public R<SongAnalyzerResult, LocalStr> Result {
@@ -115,14 +108,14 @@ namespace TS3AudioBot.Audio {
 			Log.Info("Starting SongAnalyzerTask for \"{0}\", starting in {1}s",
 				SongAnalyzer.GetItemDescription(Data.Source), inSeconds);
 
-			waitSeconds = inSeconds;
+			waitTask = new WaitTask(inSeconds * 1000, CancelTokenSource.Token);
 			Current = CreateTask(CancelTokenSource.Token);
 			Current.Start();
 		}
 
 		public void Cancel() {
 			CancelTokenSource.Cancel();
-			ChangeWaitTime(0);
+			waitTask.UpdateWaitTime(0);
 		}
 	}
 
@@ -134,56 +127,60 @@ namespace TS3AudioBot.Audio {
 
 		private ResolveContext ResourceResolver { get; }
 
-		public SongAnalyzerTaskHost Instance { get; private set; }
+//		public SongAnalyzerTaskHost Instance { get; private set; }
 
 		public SongAnalyzer(ResolveContext resourceResolver, FfmpegProducer ffmpegProducer) {
 			ResourceResolver = resourceResolver;
 			FfmpegProducer = ffmpegProducer;
 		}
 
-		public void Prepare(int inSeconds) {
-			if (Instance == null)
-				throw new InvalidOperationException("instance null");
-
-			Instance.StartRun(inSeconds);
-		}
+//		public void Prepare(int inSeconds) {
+//			if (Instance == null)
+//				throw new InvalidOperationException("instance null");
+//
+//			Instance.StartRun(inSeconds);
+//		}
 
 		private SongAnalyzerTask CreateTask(QueueItem item) {
 			return new SongAnalyzerTask(item, ResourceResolver, FfmpegProducer);
 		}
 
-		public void SetNextSong(QueueItem item) {
-			Instance?.Cancel();
-			Instance = new SongAnalyzerTaskHost(CreateTask(item));
-		}
+//		public void SetNextSong(QueueItem item) {
+//			Instance?.Cancel();
+//			Instance = new SongAnalyzerTaskHost(CreateTask(item));
+//		}
 
 		public static string GetItemDescription(QueueItem item) { return item.AudioResource.ResourceTitle; }
 
-		public R<SongAnalyzerResult, LocalStr> TryGetResult(QueueItem item) {
-			R<SongAnalyzerResult, LocalStr> res;
-			if (Instance?.Current == null || !ReferenceEquals(Instance.Data.Source, item)) {
-				Log.Info("Song {0} was not prepared, running synchronously", GetItemDescription(item));
-				Instance?.Cancel();
-				res = CreateTask(item).Run(new CancellationToken());
-			} else {
-				Instance.ChangeWaitTime(0);
-				res = Instance.Result;
-			}
-
-			Clear();
-			return res;
+		public R<SongAnalyzerResult, LocalStr> RunSync(QueueItem item, CancellationToken token) {
+			return CreateTask(item).Run(token);
 		}
 
-		public bool IsPreparing(QueueItem item) { return Instance != null && ReferenceEquals(Instance.Data.Source, item); }
+//		public R<SongAnalyzerResult, LocalStr> TryGetResult(QueueItem item) {
+//			R<SongAnalyzerResult, LocalStr> res;
+//			if (Instance?.Current == null || !ReferenceEquals(Instance.Data.Source, item)) {
+//				Log.Info("Song {0} was not prepared, running synchronously", GetItemDescription(item));
+//				Instance?.Cancel();
+//				res = CreateTask(item).Run(new CancellationToken());
+//			} else {
+//				Instance.ChangeWaitTime(0);
+//				res = Instance.Result;
+//			}
+//
+//			Clear();
+//			return res;
+//		}
+
+//		public bool IsPreparing(QueueItem item) { return Instance != null && ReferenceEquals(Instance.Data.Source, item); }
 
 		public static int GetTaskStartTime(TimeSpan remainingSongTime) {
 			int remainingTime = (int) remainingSongTime.TotalSeconds;
 			return Math.Max(remainingTime - MaxSecondsBeforeNextSong, 0);
 		}
 
-		public void Clear() {
-			Instance?.Cancel();
-			Instance = null;
-		}
+//		public void Clear() {
+//			Instance?.Cancel();
+//			Instance = null;
+//		}
 	}
 }

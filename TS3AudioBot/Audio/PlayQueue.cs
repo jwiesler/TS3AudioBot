@@ -164,7 +164,7 @@ namespace TS3AudioBot.Audio {
 				Index -= count;
 		}
 
-		public void Skip(int count) {
+		public bool Skip(int count) {
 			if(count <= 0)
 				throw new ArgumentException("count too small");
 
@@ -173,6 +173,7 @@ namespace TS3AudioBot.Audio {
 				throw new ArgumentException("count too large");
 
 			Index = targetIndex;
+			return Index != items.Count;
 		}
 
 		public bool TryNext() {

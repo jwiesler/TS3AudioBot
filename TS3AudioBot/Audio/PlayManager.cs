@@ -9,7 +9,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using TS3AudioBot.Config;
 using TS3AudioBot.Environment;
@@ -17,7 +16,6 @@ using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories;
-using TSLib.Helper;
 
 namespace TS3AudioBot.Audio {
 	/// <summary>Provides a convenient inferface for enqueing, playing and registering song events.</summary>
@@ -45,6 +43,9 @@ namespace TS3AudioBot.Audio {
 
 		private readonly SongAnalyzer songAnalyzer;
 
+		private StartSongTask CurrentStartSongTask { get; set; }
+		private QueueItem NextSongToPrepare { get; set; }
+
 		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats, PlaylistManager playlistManager) {
 			confBot = config;
 			this.playerConnection = playerConnection;
@@ -55,10 +56,10 @@ namespace TS3AudioBot.Audio {
 
 			playerConnection.FfmpegProducer.OnSongLengthParsed += (sender, args) => {
 				lock (Lock) {
-					if (songAnalyzer.Instance != null) {
-						Log.Info("Preparing song analyzer... (OnSongLengthParsed)");
-						songAnalyzer.Prepare(GetAnalyzeTaskStartTime());
-					}
+					if (CurrentStartSongTask == null)
+						return;
+					Log.Info("Preparing song analyzer... (OnSongLengthParsed)");
+					StartCurrentPrepareTask(GetAnalyzeTaskStartTime());
 				}
 			};
 		}
@@ -72,7 +73,7 @@ namespace TS3AudioBot.Audio {
 				Queue.Clear();
 				TryStopCurrentSong();
 				OnPlaybackEnded();
-				songAnalyzer.Clear();
+				CurrentStartSongTask?.Cancel();
 			}
 		}
 
@@ -166,22 +167,11 @@ namespace TS3AudioBot.Audio {
 				return NoSongToPlay(noSongIsError);
 
 			var item = Queue.Current;
-			var res = Start(item);
-			if (res.Ok)
-				return R.Ok;
-
-			Log.Info("Could not play song {0} (reason: {1})", item.AudioResource, res.Error);
-			if (!Queue.TryNext())
-				return new LocalStr("This should not happen");
-			res = TryPlay(true);
-			if (res.Ok) {
-				return new LocalStr("Could not play previous song, playing current song again");
-			} else {
-				return res;
-			}
+			StartAsync(item);
+			return R.Ok;
 		}
 
-		public void OnPlaybackEnded() {
+		private void OnPlaybackEnded() {
 			Log.Info("Playback ended for some reason");
 			PlaybackStopped?.Invoke(this, EventArgs.Empty);
 		}
@@ -215,93 +205,187 @@ namespace TS3AudioBot.Audio {
 				if (item == null)
 					return NoSongToPlay(noSongIsError);
 
-				var res = Start(item);
-				if (res.Ok)
-					return R.Ok;
-
-				Log.Info("Could not play song {0} (reason: {1})", item.AudioResource, res.Error);
-
-				if (!Queue.TryNext())
-					return NoSongToPlay(noSongIsError);
+				StartAsync(item);
+				return R.Ok;
 			}
 		}
 
-		private E<LocalStr> Start(QueueItem queueItem) {
-			Log.Info("Starting song {0}...", queueItem.AudioResource.ResourceTitle);
+		private void OnBeforeResourceStarted(object sender, PlayInfoEventArgs e) {
+			lock (Lock) {
+				if (sender == null || !ReferenceEquals(sender, CurrentStartSongTask))
+					return;
 
-			Stopwatch timer = new Stopwatch();
-			timer.Start();
-			var res = songAnalyzer.TryGetResult(queueItem);
-			if (!res.Ok)
-				return res.Error;
+				BeforeResourceStarted?.Invoke(this, e);
+			}
+		}
 
-			var result = res.Value;
+		private void OnAfterResourceStarted(object sender, PlayInfoEventArgs e) {
+			lock (Lock) {
+				if (sender == null || !ReferenceEquals(sender, CurrentStartSongTask))
+					return;
 
-			if (queueItem.MetaData.ContainingPlaylistId != null && !ReferenceEquals(queueItem.AudioResource, result.Resource.BaseData))
-			{
+				RemoveCurrentSongTask();
+				CurrentPlayData = e; // TODO meta as readonly
+				AfterResourceStarted?.Invoke(this, e);
+				UpdateNextSong();
+			}
+		}
+
+		private void OnAudioResourceUpdated(object sender, AudioResourceUpdatedEventArgs e) {
+			lock (Lock) {
+				if (sender == null || !ReferenceEquals(sender, CurrentStartSongTask))
+					return;
+
 				Log.Info("AudioResource was changed by loader, saving containing playlist");
 
-				var modifyR = playlistManager.ModifyPlaylist(queueItem.MetaData.ContainingPlaylistId, (list, _) => {
+				var modifyR = playlistManager.ModifyPlaylist(e.QueueItem.MetaData.ContainingPlaylistId, (list, _) => {
 					foreach (var item in list.Items) {
-						if (ReferenceEquals(item.AudioResource, queueItem.AudioResource))
-							item.AudioResource = result.Resource.BaseData;
+						if (ReferenceEquals(item.AudioResource, e.QueueItem.AudioResource))
+							item.AudioResource = e.Resource;
 					}
 				});
 				if (!modifyR.Ok)
-					return modifyR;
+					Log.Warn($"Failed to save playlist {e.QueueItem.MetaData.ContainingPlaylistId}: {modifyR.Error}");
 			}
-
-			result.Resource.Meta = queueItem.MetaData;
-			var r = Start(result.Resource, result.RestoredLink.OkOr(null));
-			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
-			return r;
 		}
 
-		private E<LocalStr> Start(PlayResource resource, string restoredLink) {
-			Log.Trace("Starting resource...");
+		private void OnLoadFailure(object sender, LoadFailureEventArgs e) {
+			lock (Lock) {
+				if (sender == null || !ReferenceEquals(sender, CurrentStartSongTask))
+					return;
 
-			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
-			BeforeResourceStarted?.Invoke(this, playInfo);
-			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
-				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
-				return new LocalStr(strings.error_playmgr_internal_error);
+				Log.Info("Could not play song {0} (reason: {1})", CurrentStartSongTask.QueueItem.AudioResource, e.Error);
+				RemoveCurrentSongTask();
+
+				Next();
 			}
-
-			var gain = resource.BaseData.Gain ?? 0;
-			Log.Debug("AudioResource start: {0} with gain {1}", resource, gain);
-			var result = playerConnection.Play(resource, gain);
-
-			if (!result) {
-				Log.Error("Error return from player: {0}", result.Error);
-				return new LocalStr(strings.error_playmgr_internal_error);
-			}
-
-			playerConnection.Volume =
-				Tools.Clamp(playerConnection.Volume, confBot.Audio.Volume.Min, confBot.Audio.Volume.Max);
-			CurrentPlayData = playInfo; // TODO meta as readonly
-			AfterResourceStarted?.Invoke(this, playInfo);
-			UpdateNextSong();
-
-			return R.Ok;
 		}
+
+		private void ConnectCurrentTask() {
+			CurrentStartSongTask.BeforeResourceStarted += OnBeforeResourceStarted;
+			CurrentStartSongTask.AfterResourceStarted += OnAfterResourceStarted;
+			CurrentStartSongTask.OnAudioResourceUpdated += OnAudioResourceUpdated;
+			CurrentStartSongTask.OnLoadFailure += OnLoadFailure;
+		}
+
+		private void DisconnectCurrentTask() {
+			CurrentStartSongTask.BeforeResourceStarted -= OnBeforeResourceStarted;
+			CurrentStartSongTask.AfterResourceStarted -= OnAfterResourceStarted;
+			CurrentStartSongTask.OnAudioResourceUpdated -= OnAudioResourceUpdated;
+			CurrentStartSongTask.OnLoadFailure -= OnLoadFailure;
+		}
+
+		private void RemoveCurrentSongTask() {
+			DisconnectCurrentTask();
+			CurrentStartSongTask = null;
+		}
+		
+		private void SetPrepareTask(QueueItem queueItem) { // assert that this item is being prepared or start this one
+			if (CurrentStartSongTask != null) {
+				CurrentStartSongTask.Cancel();
+				RemoveCurrentSongTask();
+			}
+
+			if (queueItem == null)
+				return;
+
+			CurrentStartSongTask = new StartSongTask(playerConnection, confBot, queueItem, songAnalyzer, Lock);
+			ConnectCurrentTask();
+		}
+
+		private void StartCurrentPrepareTask(int seconds) {
+			if(CurrentStartSongTask.Running)
+				CurrentStartSongTask.UpdateStartAnalyzeTime(seconds);
+			else
+				CurrentStartSongTask.StartTask(seconds);
+		}
+
+		private void StartAsync(QueueItem queueItem) {
+			SetPrepareTask(queueItem);
+			StartCurrentPrepareTask(0);
+			CurrentStartSongTask.PlayWhenFinished();
+		}
+
+//		private E<LocalStr> Start(QueueItem queueItem) {
+//			Log.Info("Starting song {0}...", queueItem.AudioResource.ResourceTitle);
+//
+//			Stopwatch timer = new Stopwatch();
+//			timer.Start();
+//			var res = songAnalyzer.TryGetResult(queueItem);
+//			if (!res.Ok)
+//				return res.Error;
+//
+//			var result = res.Value;
+//
+//			if (queueItem.MetaData.ContainingPlaylistId != null && !ReferenceEquals(queueItem.AudioResource, result.Resource.BaseData))
+//			{
+//				Log.Info("AudioResource was changed by loader, saving containing playlist");
+//
+//				var modifyR = playlistManager.ModifyPlaylist(queueItem.MetaData.ContainingPlaylistId, (list, _) => {
+//					foreach (var item in list.Items) {
+//						if (ReferenceEquals(item.AudioResource, queueItem.AudioResource))
+//							item.AudioResource = result.Resource.BaseData;
+//					}
+//				});
+//				if (!modifyR.Ok)
+//					return modifyR;
+//			}
+//
+//			result.Resource.Meta = queueItem.MetaData;
+//			var r = Start(result.Resource, result.RestoredLink.OkOr(null));
+//			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
+//			return r;
+//		}
+//
+//		private E<LocalStr> Start(PlayResource resource, string restoredLink) {
+//			Log.Trace("Starting resource...");
+//
+//			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
+//			BeforeResourceStarted?.Invoke(this, playInfo);
+//			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
+//				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
+//				return new LocalStr(strings.error_playmgr_internal_error);
+//			}
+//
+//			var gain = resource.BaseData.Gain ?? 0;
+//			Log.Debug("AudioResource start: {0} with gain {1}", resource, gain);
+//			var result = playerConnection.Play(resource, gain);
+//
+//			if (!result) {
+//				Log.Error("Error return from player: {0}", result.Error);
+//				return new LocalStr(strings.error_playmgr_internal_error);
+//			}
+//
+//			playerConnection.Volume =
+//				Tools.Clamp(playerConnection.Volume, confBot.Audio.Volume.Min, confBot.Audio.Volume.Max);
+//			CurrentPlayData = playInfo; // TODO meta as readonly
+//			AfterResourceStarted?.Invoke(this, playInfo);
+//			UpdateNextSong();
+//
+//			return R.Ok;
+//		}
 
 		private void UpdateNextSong() {
 			var next = Queue.Next;
-			if (next != null)
-				PrepareNextSong(next);
+			PrepareNextSong(next);
 		}
 
-		public void PrepareNextSong(QueueItem item) {
+		private void PrepareNextSong(QueueItem item) {
 			lock (Lock) {
-				if (songAnalyzer.IsPreparing(item))
+				if (CurrentStartSongTask != null && ReferenceEquals(CurrentStartSongTask.QueueItem, item))
 					return;
 
-				songAnalyzer.SetNextSong(item);
+				// Prepare this song now only if the preparing song is a next song and not the song we are trying to play now
+				if (CurrentStartSongTask == null || ReferenceEquals(NextSongToPrepare, CurrentStartSongTask.QueueItem)) { 
+					SetPrepareTask(item);
 
-				if (playerConnection.FfmpegProducer.Length != TimeSpan.Zero) {
-					Log.Info("Preparing song analyzer... (PrepareNextSong)");
-					songAnalyzer.Prepare(GetAnalyzeTaskStartTime());
+					if (CurrentStartSongTask != null && playerConnection.FfmpegProducer.Length != TimeSpan.Zero) {
+						Log.Info("Preparing song analyzer... (PrepareNextSong)");
+						StartCurrentPrepareTask(GetAnalyzeTaskStartTime());
+					}
 				}
+
+				NextSongToPrepare = item;
 			}
 		}
 
@@ -309,7 +393,7 @@ namespace TS3AudioBot.Audio {
 
 		public void Stop() {
 			StopSong(true);
-			songAnalyzer.Clear();
+			RemoveCurrentSongTask();
 		}
 
 		private void StopSong(bool stopped /* true if stopped manually, false if ended normally */) {
