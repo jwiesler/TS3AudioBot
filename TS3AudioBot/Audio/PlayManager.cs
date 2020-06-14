@@ -145,20 +145,10 @@ namespace TS3AudioBot.Audio {
 			lock (Lock) {
 				Log.Info("Skip {0} songs requested", count);
 				TryStopCurrentSong();
-				Queue.Skip(count);
-				return TryPlay(false);
-			}
-		}
-
-		public E<LocalStr> Next() {
-			lock (Lock) {
-				Log.Debug("Next song requested");
-				TryStopCurrentSong();
-				if (!Queue.TryNext()) {
+				if (!Queue.Skip(count)) {
 					OnPlaybackEnded();
 					return R.Ok;
 				}
-
 				return TryPlay(false);
 			}
 		}
