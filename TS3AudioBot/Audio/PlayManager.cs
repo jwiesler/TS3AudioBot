@@ -41,8 +41,6 @@ namespace TS3AudioBot.Audio {
 		public event EventHandler<SongEndEventArgs> ResourceStopped;
 		public event EventHandler PlaybackStopped;
 
-		private readonly SongAnalyzer songAnalyzer;
-
 		private StartSongTask CurrentStartSongTask { get; set; }
 		private QueueItem NextSongToPrepare { get; set; }
 
@@ -52,7 +50,6 @@ namespace TS3AudioBot.Audio {
 			this.resourceResolver = resourceResolver;
 			this.stats = stats;
 			this.playlistManager = playlistManager;
-			songAnalyzer = new SongAnalyzer(resourceResolver, playerConnection.FfmpegProducer);
 
 			playerConnection.FfmpegProducer.OnSongLengthParsed += (sender, args) => {
 				lock (Lock) {
@@ -289,7 +286,7 @@ namespace TS3AudioBot.Audio {
 			if (queueItem == null)
 				return;
 
-			CurrentStartSongTask = new StartSongTask(playerConnection, confBot, queueItem, songAnalyzer, Lock);
+			CurrentStartSongTask = new StartSongTask(resourceResolver, playerConnection, confBot, Lock, queueItem);
 			ConnectCurrentTask();
 		}
 
