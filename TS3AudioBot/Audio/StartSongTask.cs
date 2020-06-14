@@ -58,9 +58,12 @@ namespace TS3AudioBot.Audio {
 			var timer = new Stopwatch();
 			timer.Start();
 			var res = StartBackground(QueueItem, waitForStartPlayHandle, token);
-			if (!res.Ok)
+			if (!res.Ok) {
+				Log.Debug($"Task {GetHashCode()}: Failed ({res.Error})");
 				OnLoadFailure?.Invoke(this, new LoadFailureEventArgs(res.Error));
-			Log.Debug("Start song took {0}ms", timer.ElapsedMilliseconds);
+			} else {
+				Log.Debug($"Task {GetHashCode()}: Start song took {timer.ElapsedMilliseconds}ms");
+			}
 		}
 
 		public void StartTask(int seconds) {
@@ -142,15 +145,42 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void Cancel() {
+			if (task == null)
+				return;
 			TokenSource.Cancel();
-			waitTask.UpdateWaitTime(0);
+			waitTask.CancelCurrentWait();
 			waitForStartPlayHandle.Set();
 		}
 
 		public void PlayWhenFinished() { waitForStartPlayHandle.Set(); }
 
-		public void UpdateStartAnalyzeTime(int seconds) {
-			waitTask.UpdateWaitTime(seconds * 1000);
+		public void StartOrStopWaiting() {
+			if(Running)
+				waitTask.CancelCurrentWait();
+			else
+				StartTask(0);
+		}
+
+		public void UpdateStartAnalyzeTime(int ms) {
+			waitTask.UpdateWaitTime(ms);
+		}
+	}
+
+	public abstract class StartSongTaskHost : UniqueTaskHost<StartSongTask, QueueItem> {
+		private QueueItem nextSongToPrepare;
+
+		protected override bool ShouldCreateNewTask(StartSongTask task, QueueItem newValue) {
+			if (ReferenceEquals(task.QueueItem, newValue))
+				return false;
+
+			var oldNextSong = nextSongToPrepare;
+			nextSongToPrepare = newValue;
+			// are we preparing the next song and this is another one?
+			return ReferenceEquals(oldNextSong, task.QueueItem);
+		}
+		
+		protected override void StopTask(StartSongTask task) {
+			task?.Cancel();
 		}
 	}
 }
