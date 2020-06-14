@@ -367,7 +367,7 @@ namespace TS3AudioBot.Audio {
 			PrepareNextSong(next);
 		}
 
-		private void PrepareNextSong(QueueItem item) {
+		public void PrepareNextSong(QueueItem item) {
 			lock (Lock) {
 				if (CurrentStartSongTask != null && ReferenceEquals(CurrentStartSongTask.QueueItem, item))
 					return;
