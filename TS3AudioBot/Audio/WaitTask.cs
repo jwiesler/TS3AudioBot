@@ -14,18 +14,16 @@ namespace TS3AudioBot.Audio
 
 		// Returns true if the wait succeeded
 		public bool Run() {
-			int seconds;
+			int ms;
 			do {
-				seconds = Interlocked.Exchange(ref waitMs, 0);
-			} while (waitHandle.WaitOne(seconds) && !token.IsCancellationRequested && waitMs > 0);
+				ms = Interlocked.Exchange(ref waitMs, 0);
+			} while (waitHandle.WaitOne(ms) && !token.IsCancellationRequested && waitMs > 0);
 
 			return !token.IsCancellationRequested;
 		}
 
 		// Callable from any thread while the Task is waiting, updates the wait time
 		public void UpdateWaitTime(int ms) {
-			if (ms == waitMs)
-				return;
 			Interlocked.Exchange(ref waitMs, ms);
 			waitHandle.Set();
 		}
