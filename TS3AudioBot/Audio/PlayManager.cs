@@ -140,6 +140,9 @@ namespace TS3AudioBot.Audio {
 			lock (Lock) {
 				Log.Info("Skip {0} songs requested", count);
 				TryStopCurrentSong();
+				if (!Queue.CanSkip(count))
+					return new LocalStr("Can't skip that many songs.");
+
 				if (!Queue.Skip(count)) {
 					OnPlaybackEnded();
 					return R.Ok;

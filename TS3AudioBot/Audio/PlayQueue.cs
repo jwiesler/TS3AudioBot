@@ -76,6 +76,11 @@ namespace TS3AudioBot.Audio {
 				Index -= count;
 		}
 
+		public bool CanSkip(int count) {
+			int targetIndex = Index + count;
+			return 0 < count && Tools.IsBetween(targetIndex, 0, items.Count);
+		}
+
 		public bool Skip(int count) {
 			if(count <= 0)
 				throw new ArgumentException("count too small");
