@@ -52,7 +52,6 @@ namespace TS3AudioBot.Audio {
 				lock (Lock) {
 					if (Current == null)
 						return;
-					Log.Info("Preparing song analyzer... (OnSongLengthParsed)");
 					Current.StartOrUpdateWaitTime(GetAnalyzeTaskStartTime());
 				}
 			};
@@ -73,28 +72,33 @@ namespace TS3AudioBot.Audio {
 
 		public E<LocalStr> Play() {
 			lock (Lock) {
-				return TryPlay(true);
+				StartPlaying();
+				return R.Ok;
 			}
+		}
+
+		public void OnQueueChanged() {
+			UpdateNextSong();
 		}
 
 		public void EnqueueAsNextSong(QueueItem item) {
 			lock (Lock) {
 				Queue.InsertAfter(item, Queue.Index);
-				UpdateNextSong();
+				OnQueueChanged();
 			}
 		}
 
 		public void RemoveAt(int index) {
 			lock (Lock) {
 				Queue.Remove(index);
-				UpdateNextSong();
+				OnQueueChanged();
 			}
 		}
 
 		public void RemoveRange(int from, int to) {
 			lock (Lock) {
 				Queue.RemoveRange(from, to);
-				UpdateNextSong();
+				OnQueueChanged();
 			}
 		}
 
@@ -117,20 +121,18 @@ namespace TS3AudioBot.Audio {
 		public E<LocalStr> Enqueue(QueueItem item) {
 			lock (Lock) {
 				Queue.Enqueue(item);
-				var res = TryInitialStart(true);
-				if(res.Ok)
-					UpdateNextSong();
-				return res;
+				TryInitialStart();
+				OnQueueChanged();
+				return R.Ok;
 			}
 		}
 
 		public E<LocalStr> Enqueue(IEnumerable<QueueItem> items) {
 			lock (Lock) {
 				Queue.Enqueue(items);
-				var res = TryInitialStart(true);
-				if(res.Ok)
-					UpdateNextSong();
-				return res;
+				TryInitialStart();
+				OnQueueChanged();
+				return R.Ok;
 			}
 		}
 
@@ -148,7 +150,8 @@ namespace TS3AudioBot.Audio {
 					OnPlaybackEnded();
 					return R.Ok;
 				}
-				return TryPlay(false);
+				StartPlaying();
+				return R.Ok;
 			}
 		}
 
@@ -177,7 +180,7 @@ namespace TS3AudioBot.Audio {
 		private void TryStopCurrentSong() {
 			if (CurrentPlayData != null) {
 				Log.Debug("Stopping current song");
-				if(Current != null && IsCurrentSongPreparing())
+				if(Current != null && IsPreparingCurrentSong())
 					ClearTask();
 				playerConnection.Stop();
 				CurrentPlayData = null;
@@ -186,10 +189,10 @@ namespace TS3AudioBot.Audio {
 		}
 
 		// Try to start playing if not playing
-		private E<LocalStr> TryInitialStart(bool noSongIsError) {
-			if (IsPlaying || !AutoStartPlaying)
-				return R.Ok;
-			return TryPlay(noSongIsError);
+		private void TryInitialStart() {
+			if (IsPlaying || (Current != null && IsPreparingCurrentSong()) || !AutoStartPlaying)
+				return;
+			StartPlaying();
 		}
 
 		private E<LocalStr> NoSongToPlay(bool noSongIsError) {
@@ -199,15 +202,12 @@ namespace TS3AudioBot.Audio {
 			return R.Ok;
 		}
 
-		private E<LocalStr> TryPlay(bool noSongIsError) {
-			while (true) {
-				var item = Queue.Current;
-				if (item == null)
-					return NoSongToPlay(noSongIsError);
+		private void StartPlaying() {
+			var item = Queue.Current;
+			if (item == null)
+				return;
 
-				StartAsync(item);
-				return R.Ok;
-			}
+			StartAsync(item);
 		}
 
 		private void OnBeforeResourceStarted(object sender, PlayInfoEventArgs e) {
@@ -272,7 +272,7 @@ namespace TS3AudioBot.Audio {
 			lock (Lock) {
 				var next = Queue.Next;
 				if (next == null) {
-					if (!IsCurrentSongPreparing())
+					if (Current != null && IsPreparingNextSong())
 						ClearTask();
 				} else {
 					PrepareNextSong(next);
@@ -350,8 +350,6 @@ namespace TS3AudioBot.Audio {
 
 		protected override void StopTask(StartSongTask task) {
 			base.StopTask(task);
-			if (task == null)
-				return;
 
 			task.BeforeResourceStarted -= OnBeforeResourceStarted;
 			task.AfterResourceStarted -= OnAfterResourceStarted;

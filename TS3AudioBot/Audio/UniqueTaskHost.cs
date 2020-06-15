@@ -36,13 +36,15 @@ namespace TS3AudioBot.Audio
 			
 			if(ex != task)
 				throw new InvalidOperationException("Task was changed in the background");
-			StopTask(task);
+			if(task != null)
+				StopTask(task);
 			StartTask(newTask);
 		}
 
 		protected void ClearTask() {
 			var task = ExchangeTask(default);
-			StopTask(task);
+			if(task != null)
+				StopTask(task);
 		}
 
 		protected TTask RemoveFinishedTask() { return ExchangeTask(default); }

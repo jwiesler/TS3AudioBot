@@ -182,8 +182,12 @@ namespace TS3AudioBot.Audio {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		private QueueItem nextSongToPrepare;
 
-		protected bool IsCurrentSongPreparing() {
-			return !ReferenceEquals(Current.QueueItem, nextSongToPrepare);
+		protected bool IsPreparingNextSong() {
+			return ReferenceEquals(Current.QueueItem, nextSongToPrepare);
+		}
+
+		protected bool IsPreparingCurrentSong() {
+			return !IsPreparingNextSong();
 		}
 
 		protected override bool ShouldCreateNewTask(StartSongTask task, QueueItem newValue) {
