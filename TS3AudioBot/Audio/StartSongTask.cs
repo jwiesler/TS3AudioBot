@@ -208,11 +208,15 @@ namespace TS3AudioBot.Audio {
 			task.Cancel();
 		}
 
+		protected void ClearNextSong() {
+			nextSongToPrepare = null;
+		}
+
 		protected new StartSongTask RemoveFinishedTask() {
 			var task = base.RemoveFinishedTask();
 			if (ReferenceEquals(task.QueueItem, nextSongToPrepare)) {
 				Log.Trace($"Load for {task.QueueItem.GetHashCode()} finished, clearing next song.");
-				nextSongToPrepare = null;
+				ClearNextSong();
 			}
 
 			return task;

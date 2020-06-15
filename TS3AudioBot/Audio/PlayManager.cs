@@ -178,10 +178,13 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private void TryStopCurrentSong() {
+			if (Current != null && IsPreparingCurrentSong()) {
+				Log.Debug("Stopping preparation of current song");
+				ClearTask();
+			}
+
 			if (CurrentPlayData != null) {
 				Log.Debug("Stopping current song");
-				if(Current != null && IsPreparingCurrentSong())
-					ClearTask();
 				playerConnection.Stop();
 				CurrentPlayData = null;
 				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
@@ -272,8 +275,10 @@ namespace TS3AudioBot.Audio {
 			lock (Lock) {
 				var next = Queue.Next;
 				if (next == null) {
-					if (Current != null && IsPreparingNextSong())
+					if (Current != null && IsPreparingNextSong()) {
 						ClearTask();
+						ClearNextSong();
+					}
 				} else {
 					PrepareNextSong(next);
 				}
