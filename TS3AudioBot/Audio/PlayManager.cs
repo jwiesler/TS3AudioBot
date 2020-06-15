@@ -265,7 +265,7 @@ namespace TS3AudioBot.Audio {
 		}
 		
 		private void StartAsync(QueueItem queueItem) {
-			Log.Info($"Starting {queueItem.AudioResource.ResourceTitle} async...");
+			Log.Info($"Starting {queueItem.AudioResource.ResourceTitle}...");
 			RunTaskFor(queueItem);
 			Current.StartOrStopWaiting();
 			Current.PlayWhenFinished();
