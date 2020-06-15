@@ -53,13 +53,13 @@ namespace TS3AudioBot.Audio {
 					if (Current == null)
 						return;
 					Log.Info("Preparing song analyzer... (OnSongLengthParsed)");
-					Current.UpdateStartAnalyzeTime(GetAnalyzeTaskStartTime());
+					Current.StartOrUpdateWaitTime(GetAnalyzeTaskStartTime());
 				}
 			};
 		}
 
 		private int GetAnalyzeTaskStartTime() {
-			return GetTaskStartTime(playerConnection.Length - playerConnection.Position);
+			return GetTaskStartTimeSeconds(playerConnection.Length - playerConnection.Position) * 1000;
 		}
 
 		public void Clear() {
@@ -353,7 +353,7 @@ namespace TS3AudioBot.Audio {
 
 		private const int MaxSecondsBeforeNextSong = 30;
 
-		public static int GetTaskStartTime(TimeSpan remainingSongTime) {
+		public static int GetTaskStartTimeSeconds(TimeSpan remainingSongTime) {
 			int remainingTime = (int) remainingSongTime.TotalSeconds;
 			return Math.Max(remainingTime - MaxSecondsBeforeNextSong, 0);
 		}

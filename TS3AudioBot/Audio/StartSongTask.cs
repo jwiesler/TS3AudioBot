@@ -66,11 +66,11 @@ namespace TS3AudioBot.Audio {
 			}
 		}
 
-		public void StartTask(int seconds) {
+		public void StartTask(int ms) {
 			if (task != null)
-				throw new InvalidOperationException();
+				throw new InvalidOperationException("Task was already running");
 
-			waitTask = new WaitTask(seconds * 1000, TokenSource.Token);
+			waitTask = new WaitTask(ms, TokenSource.Token);
 			task = Task.Run(() => { Run(TokenSource.Token); });
 		}
 
@@ -93,7 +93,6 @@ namespace TS3AudioBot.Audio {
 
 			if (queueItem.MetaData.ContainingPlaylistId != null &&
 			    !ReferenceEquals(queueItem.AudioResource, result.Resource.BaseData)) {
-				Log.Info("AudioResource was changed by loader, saving containing playlist");
 				OnAudioResourceUpdated?.Invoke(this,
 					new AudioResourceUpdatedEventArgs(queueItem, result.Resource.BaseData));
 			}
@@ -154,15 +153,18 @@ namespace TS3AudioBot.Audio {
 
 		public void PlayWhenFinished() { waitForStartPlayHandle.Set(); }
 
+		public void StartOrUpdateWaitTime(int ms) {
+			if(Running)
+				waitTask.UpdateWaitTime(ms);
+			else
+				StartTask(ms);
+		}
+
 		public void StartOrStopWaiting() {
 			if(Running)
 				waitTask.CancelCurrentWait();
 			else
 				StartTask(0);
-		}
-
-		public void UpdateStartAnalyzeTime(int ms) {
-			waitTask.UpdateWaitTime(ms);
 		}
 	}
 
