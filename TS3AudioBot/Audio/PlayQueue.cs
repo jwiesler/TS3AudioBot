@@ -25,96 +25,8 @@ namespace TS3AudioBot.Audio {
 		}
 	}
 
-//	public class PlayQueue {
-//		private readonly List<QueueItem> items;
-//		private readonly object listLock = new object();
-//		private int index = -1;
-//
-//		public event EventHandler<PlayQueueCurrentChangedEventArgs> OnCurrentItemChanged;
-//
-//		public QueueItem Current {
-//			get {
-//				lock (listLock) {
-//					return index == -1 || index == items.Count ? null : items[index];
-//				}
-//			}
-//		}
-//
-//		public IReadOnlyList<QueueItem> Items => items;
-//
-//		public PlayQueue() { items = new List<QueueItem>(); }
-//
-//		public void Enqueue(QueueItem item) {
-//			lock (listLock) {
-//				items.Add(item);
-//			}
-//		}
-//
-//		public void Enqueue(IEnumerable<QueueItem> items) {
-//			lock (listLock) {
-//				items.AddRange(items);
-//			}
-//		}
-//
-//		public void Remove(int at) {
-//			lock (listLock) {
-//				if (index == at)
-//					throw new InvalidOperationException("Can't remove the current item");
-//
-//				items.RemoveAt(at);
-//			}
-//		}
-//
-//		public void RemoveRange(int from, int to) {
-//			lock (listLock) {
-//				if (!Tools.IsBetweenExcludingUpper(from, 0, items.Capacity) ||
-//				    !Tools.IsBetweenExcludingUpper(to, 0, items.Capacity) || to < from)
-//					throw new ArgumentException();
-//				if (Tools.IsBetween(index, from, to))
-//					throw new InvalidOperationException("Can't remove the current item");
-//				items.RemoveRange(from, to - from + 1);
-//			}
-//		}
-//
-//		private void InvokeCurrentItemChanged(int idx) {
-//			OnCurrentItemChanged?.Invoke(this, new PlayQueueCurrentChangedEventArgs(idx));
-//		}
-//
-//		public bool TryNext() {
-//			int idx;
-//			lock (listLock) {
-//				if (items.Count == index - 1)
-//					return false;
-//				idx = ++index;
-//			}
-//			InvokeCurrentItemChanged(idx);
-//			return true;
-//		}
-//
-//		public bool TryPrevious() {
-//			int idx;
-//			lock (listLock) {
-//				if (0 == index)
-//					return false;
-//				idx = --index;
-//			}
-//			InvokeCurrentItemChanged(idx);
-//			return true;
-//		}
-//
-//		public void Clear() {
-//			lock (listLock) {
-//				items.Clear();
-//				index = -1;
-//			}
-//			InvokeCurrentItemChanged(-1);
-//		}
-//	}
-
 	public class PlayQueue {
 		private readonly List<QueueItem> items;
-
-		//public event EventHandler<PlayQueueCurrentChangedEventArgs> OnCurrentItemChanged;
 
 		public int Index { get; private set; } = 0;
 
@@ -141,7 +53,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void Remove(int at) {
-			if (!Tools.IsBetweenExcludingUpper(at, 0, items.Capacity))
+			if (!Tools.IsBetweenExcludingUpper(at, 0, items.Count))
 				throw new ArgumentException();
 			if (Index == at)
 				throw new InvalidOperationException("Can't remove the current item");
@@ -152,8 +64,8 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void RemoveRange(int from, int to) {
-			if (!Tools.IsBetweenExcludingUpper(from, 0, items.Capacity) ||
-			    !Tools.IsBetweenExcludingUpper(to, 0, items.Capacity) || to < from)
+			if (!Tools.IsBetweenExcludingUpper(from, 0, items.Count) ||
+			    !Tools.IsBetweenExcludingUpper(to, 0, items.Count) || to < from)
 				throw new ArgumentException();
 			if (Tools.IsBetween(Index, from, to))
 				throw new InvalidOperationException("Can't remove the current item");
@@ -169,7 +81,7 @@ namespace TS3AudioBot.Audio {
 				throw new ArgumentException("count too small");
 
 			int targetIndex = Index + count;
-			if (!Tools.IsBetween(targetIndex, 0, items.Capacity))
+			if (!Tools.IsBetween(targetIndex, 0, items.Count))
 				throw new ArgumentException("count too large");
 
 			Index = targetIndex;
