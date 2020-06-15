@@ -44,5 +44,7 @@ namespace TS3AudioBot.Audio
 			var task = ExchangeTask(default);
 			StopTask(task);
 		}
+
+		protected TTask RemoveFinishedTask() { return ExchangeTask(default); }
 	}
 }

@@ -59,10 +59,10 @@ namespace TS3AudioBot.Audio {
 			timer.Start();
 			var res = StartBackground(QueueItem, waitForStartPlayHandle, token);
 			if (!res.Ok) {
-				Log.Trace($"Task {GetHashCode()}: Failed ({res.Error})");
+				Log.Trace($"StartSongTask {GetHashCode()}: Failed ({res.Error})");
 				OnLoadFailure?.Invoke(this, new LoadFailureEventArgs(res.Error));
 			} else {
-				Log.Trace($"Task {GetHashCode()}: Start song took {timer.ElapsedMilliseconds}ms");
+				Log.Trace($"StartSongTask {GetHashCode()}: Finished, start song took {timer.ElapsedMilliseconds}ms.");
 			}
 		}
 
@@ -76,9 +76,13 @@ namespace TS3AudioBot.Audio {
 
 		public void Run(CancellationToken token) {
 			try {
+				Log.Trace($"Task {GetHashCode()}: Created, waiting.");
 				waitTask.Run();
+				Log.Trace($"Task {GetHashCode()}: Finished waiting, executing.");
 				RunActualTask(token);
-			} catch (OperationCanceledException) { }
+			} catch (OperationCanceledException) {
+				Log.Trace($"Task {GetHashCode()}: Cancelled by exception.");
+			}
 		}
 
 		private R<SongAnalyzerResult, LocalStr> AnalyzeBackground(QueueItem queueItem, CancellationToken cancelled) {
@@ -99,8 +103,6 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private E<LocalStr> StartResource(PlayResource resource, string restoredLink) {
-			Log.Trace("Starting resource...");
-
 			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
 			BeforeResourceStarted?.Invoke(this, playInfo);
 			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
@@ -128,19 +130,19 @@ namespace TS3AudioBot.Audio {
 			if (!result.Ok)
 				return result;
 
-			Log.Trace($"Task {GetHashCode()}: Finished analyze, waiting for play...");
+			Log.Trace($"StartSongTask {GetHashCode()}: Finished analyze, waiting for play.");
 			waitBeforePlayHandle.WaitOne();
-			Log.Trace($"Task {GetHashCode()}: Finished waiting for play, checking cancellation");
+			Log.Trace($"StartSongTask {GetHashCode()}: Finished waiting for play, checking cancellation.");
 			lock (playManagerLock) {
 				if (token.IsCancellationRequested) {
-					Log.Trace($"Task {GetHashCode()}: Cancelled");
+					Log.Trace($"StartSongTask {GetHashCode()}: Cancelled.");
 					throw new TaskCanceledException();
 				}
 
 				var resource = result.Value.Resource;
 				var restoredLink = result.Value.RestoredLink.OkOr(null);
 
-				Log.Info($"Task {GetHashCode()}: Not cancelled, starting resource");
+				Log.Trace($"StartSongTask {GetHashCode()}: Not cancelled, starting resource.");
 				return StartResource(resource, restoredLink);
 			}
 		}
@@ -148,14 +150,19 @@ namespace TS3AudioBot.Audio {
 		public void Cancel() {
 			if (task == null)
 				return;
+			Log.Trace($"StartSongTask {GetHashCode()}: Cancellation requested");
 			TokenSource.Cancel();
 			waitTask.CancelCurrentWait();
 			waitForStartPlayHandle.Set();
 		}
 
-		public void PlayWhenFinished() { waitForStartPlayHandle.Set(); }
+		public void PlayWhenFinished() {
+			Log.Trace($"StartSongTask {GetHashCode()}: Play requested");
+			waitForStartPlayHandle.Set();
+		}
 
 		public void StartOrUpdateWaitTime(int ms) {
+			Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested");
 			if(Running)
 				waitTask.UpdateWaitTime(ms);
 			else
@@ -163,6 +170,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void StartOrStopWaiting() {
+			Log.Trace($"StartSongTask {GetHashCode()}: Run now requested");
 			if(Running)
 				waitTask.CancelCurrentWait();
 			else
@@ -171,6 +179,7 @@ namespace TS3AudioBot.Audio {
 	}
 
 	public abstract class StartSongTaskHost : UniqueTaskHost<StartSongTask, QueueItem> {
+		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		private QueueItem nextSongToPrepare;
 
 		protected bool IsCurrentSongPreparing() {
@@ -186,12 +195,23 @@ namespace TS3AudioBot.Audio {
 		}
 
 		protected void SetNextSong(QueueItem item) {
+			Log.Trace($"Setting next song to {item.GetHashCode()}.");
 			RunTaskFor(item);
 			nextSongToPrepare = item;
 		}
 
 		protected override void StopTask(StartSongTask task) {
-			task?.Cancel();
+			task.Cancel();
+		}
+
+		protected new StartSongTask RemoveFinishedTask() {
+			var task = base.RemoveFinishedTask();
+			if (ReferenceEquals(task.QueueItem, nextSongToPrepare)) {
+				Log.Trace($"Load for {task.QueueItem.GetHashCode()} finished, clearing next song.");
+				nextSongToPrepare = null;
+			}
+
+			return task;
 		}
 	}
 }

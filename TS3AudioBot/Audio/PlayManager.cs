@@ -139,9 +139,10 @@ namespace TS3AudioBot.Audio {
 				return R.Ok;
 			lock (Lock) {
 				Log.Info("Skip {0} songs requested", count);
-				TryStopCurrentSong();
 				if (!Queue.CanSkip(count))
 					return new LocalStr("Can't skip that many songs.");
+
+				TryStopCurrentSong();
 
 				if (!Queue.Skip(count)) {
 					OnPlaybackEnded();
@@ -223,7 +224,7 @@ namespace TS3AudioBot.Audio {
 				if (sender == null || !ReferenceEquals(sender, Current))
 					return;
 
-				ClearTask();
+				RemoveFinishedTask();
 				CurrentPlayData = e;
 				AfterResourceStarted?.Invoke(this, e);
 				UpdateNextSong();
@@ -255,7 +256,7 @@ namespace TS3AudioBot.Audio {
 
 				Log.Info("Could not play song {0} (reason: {1})", Current.QueueItem.AudioResource, e.Error);
 
-				ClearTask();
+				RemoveFinishedTask();
 				Next();
 			}
 		}
