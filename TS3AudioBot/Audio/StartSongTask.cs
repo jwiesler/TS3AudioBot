@@ -59,7 +59,7 @@ namespace TS3AudioBot.Audio {
 			timer.Start();
 			var res = StartBackground(QueueItem, waitForStartPlayHandle, token);
 			if (!res.Ok) {
-				Log.Trace($"StartSongTask {GetHashCode()}: Failed ({res.Error})");
+				Log.Trace($"StartSongTask {GetHashCode()}: Failed ({res.Error}).");
 				OnLoadFailure?.Invoke(this, new LoadFailureEventArgs(res.Error));
 			} else {
 				Log.Trace($"StartSongTask {GetHashCode()}: Finished, start song took {timer.ElapsedMilliseconds}ms.");
@@ -70,18 +70,20 @@ namespace TS3AudioBot.Audio {
 			if (task != null)
 				throw new InvalidOperationException("Task was already running");
 
+			Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested.");
+
 			waitTask = new WaitTask(ms, TokenSource.Token);
 			task = Task.Run(() => { Run(TokenSource.Token); });
 		}
 
 		public void Run(CancellationToken token) {
 			try {
-				Log.Trace($"Task {GetHashCode()}: Created, waiting.");
+				Log.Trace($"StartSongTask {GetHashCode()}: Created, waiting.");
 				waitTask.Run();
-				Log.Trace($"Task {GetHashCode()}: Finished waiting, executing.");
+				Log.Trace($"StartSongTask {GetHashCode()}: Finished waiting, executing.");
 				RunActualTask(token);
 			} catch (OperationCanceledException) {
-				Log.Trace($"Task {GetHashCode()}: Cancelled by exception.");
+				Log.Trace($"StartSongTask {GetHashCode()}: Cancelled by exception.");
 			}
 		}
 
@@ -150,31 +152,28 @@ namespace TS3AudioBot.Audio {
 		public void Cancel() {
 			if (task == null)
 				return;
-			Log.Trace($"StartSongTask {GetHashCode()}: Cancellation requested");
+			Log.Trace($"StartSongTask {GetHashCode()}: Cancellation requested.");
 			TokenSource.Cancel();
 			waitTask.CancelCurrentWait();
 			waitForStartPlayHandle.Set();
 		}
 
 		public void PlayWhenFinished() {
-			Log.Trace($"StartSongTask {GetHashCode()}: Play requested");
+			Log.Trace($"StartSongTask {GetHashCode()}: Play requested.");
 			waitForStartPlayHandle.Set();
 		}
 
 		public void StartOrUpdateWaitTime(int ms) {
-			Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested");
-			if(Running)
+			if(Running) {
+				Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested.");
 				waitTask.UpdateWaitTime(ms);
-			else
+			} else {
 				StartTask(ms);
+			}
 		}
 
 		public void StartOrStopWaiting() {
-			Log.Trace($"StartSongTask {GetHashCode()}: Run now requested");
-			if(Running)
-				waitTask.CancelCurrentWait();
-			else
-				StartTask(0);
+			StartOrUpdateWaitTime(0);
 		}
 	}
 
