@@ -76,8 +76,7 @@ namespace TS3AudioBot.Audio {
 
 		public void Run(CancellationToken token) {
 			try {
-				if (!waitTask.Run())
-					return;
+				waitTask.Run();
 				RunActualTask(token);
 			} catch (OperationCanceledException) { }
 		}

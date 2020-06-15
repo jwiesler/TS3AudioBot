@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TS3AudioBot.Audio
 {
@@ -13,13 +14,14 @@ namespace TS3AudioBot.Audio
 		}
 
 		// Returns true if the wait succeeded
-		public bool Run() {
+		public void Run() {
 			int ms;
 			do {
 				ms = Interlocked.Exchange(ref waitMs, 0);
 			} while (waitHandle.WaitOne(ms) && !token.IsCancellationRequested && waitMs > 0);
 
-			return !token.IsCancellationRequested;
+			if (token.IsCancellationRequested)
+				throw new TaskCanceledException();
 		}
 
 		// Callable from any thread while the Task is waiting, updates the wait time
