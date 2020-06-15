@@ -59,10 +59,10 @@ namespace TS3AudioBot.Audio {
 			timer.Start();
 			var res = StartBackground(QueueItem, waitForStartPlayHandle, token);
 			if (!res.Ok) {
-				Log.Debug($"Task {GetHashCode()}: Failed ({res.Error})");
+				Log.Trace($"Task {GetHashCode()}: Failed ({res.Error})");
 				OnLoadFailure?.Invoke(this, new LoadFailureEventArgs(res.Error));
 			} else {
-				Log.Debug($"Task {GetHashCode()}: Start song took {timer.ElapsedMilliseconds}ms");
+				Log.Trace($"Task {GetHashCode()}: Start song took {timer.ElapsedMilliseconds}ms");
 			}
 		}
 
@@ -83,8 +83,6 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private R<SongAnalyzerResult, LocalStr> AnalyzeBackground(QueueItem queueItem, CancellationToken cancelled) {
-			var timer = new Stopwatch();
-			timer.Start();
 			var res = new SongAnalyzerTask(queueItem, resourceResolver, player.FfmpegProducer).Run(cancelled);
 			if (!res.Ok)
 				return res.Error;
@@ -101,7 +99,7 @@ namespace TS3AudioBot.Audio {
 			return result;
 		}
 
-		private E<LocalStr> Start(PlayResource resource, string restoredLink) {
+		private E<LocalStr> StartResource(PlayResource resource, string restoredLink) {
 			Log.Trace("Starting resource...");
 
 			var playInfo = new PlayInfoEventArgs(resource.Meta.ResourceOwnerUid, resource, restoredLink);
@@ -131,15 +129,20 @@ namespace TS3AudioBot.Audio {
 			if (!result.Ok)
 				return result;
 
+			Log.Trace($"Task {GetHashCode()}: Finished analyze, waiting for play...");
 			waitBeforePlayHandle.WaitOne();
+			Log.Trace($"Task {GetHashCode()}: Finished waiting for play, checking cancellation");
 			lock (playManagerLock) {
-				if (token.IsCancellationRequested)
-					return new LocalStr("Task cancelled");
+				if (token.IsCancellationRequested) {
+					Log.Trace($"Task {GetHashCode()}: Cancelled");
+					throw new TaskCanceledException();
+				}
 
 				var resource = result.Value.Resource;
 				var restoredLink = result.Value.RestoredLink.OkOr(null);
 
-				return Start(resource, restoredLink);
+				Log.Info($"Task {GetHashCode()}: Not cancelled, starting resource");
+				return StartResource(resource, restoredLink);
 			}
 		}
 
@@ -171,16 +174,23 @@ namespace TS3AudioBot.Audio {
 	public abstract class StartSongTaskHost : UniqueTaskHost<StartSongTask, QueueItem> {
 		private QueueItem nextSongToPrepare;
 
+		protected bool IsCurrentSongPreparing() {
+			return !ReferenceEquals(Current.QueueItem, nextSongToPrepare);
+		}
+
 		protected override bool ShouldCreateNewTask(StartSongTask task, QueueItem newValue) {
 			if (ReferenceEquals(task.QueueItem, newValue))
 				return false;
 
-			var oldNextSong = nextSongToPrepare;
-			nextSongToPrepare = newValue;
-			// are we preparing the next song and this is another one?
-			return ReferenceEquals(oldNextSong, task.QueueItem);
+			// are we preparing the next song?
+			return ReferenceEquals(nextSongToPrepare, task.QueueItem);
 		}
-		
+
+		protected void SetNextSong(QueueItem item) {
+			RunTaskFor(item);
+			nextSongToPrepare = item;
+		}
+
 		protected override void StopTask(StartSongTask task) {
 			task?.Cancel();
 		}

@@ -176,6 +176,8 @@ namespace TS3AudioBot.Audio {
 		private void TryStopCurrentSong() {
 			if (CurrentPlayData != null) {
 				Log.Debug("Stopping current song");
+				if(Current != null && IsCurrentSongPreparing())
+					ClearTask();
 				playerConnection.Stop();
 				CurrentPlayData = null;
 				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
@@ -221,9 +223,9 @@ namespace TS3AudioBot.Audio {
 				if (sender == null || !ReferenceEquals(sender, Current))
 					return;
 
+				ClearTask();
 				CurrentPlayData = e;
 				AfterResourceStarted?.Invoke(this, e);
-				ClearTask();
 				UpdateNextSong();
 			}
 		}
@@ -266,40 +268,42 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private void UpdateNextSong() {
-			var next = Queue.Next;
-			if(next != null)
-				PrepareNextSong(next);
+			lock (Lock) {
+				var next = Queue.Next;
+				if (next == null) {
+					if (!IsCurrentSongPreparing())
+						ClearTask();
+				} else {
+					PrepareNextSong(next);
+				}
+			}
 		}
 
 		// ReSharper disable once MemberCanBePrivate.Global
 		public void PrepareNextSong(QueueItem item) {
 			lock (Lock) {
-				RunTaskFor(item);
+				SetNextSong(item);
 			}
 		}
 
-		public void SongEndedEvent(object sender, EventArgs e) { StopSong(false); }
-
-		public void Stop() {
-			StopSong(true);
+		public void SongEndedEvent(object sender, EventArgs e) {
+			lock (Lock) {
+				Log.Debug("Song ended");
+				ResourceStopped?.Invoke(this, new SongEndEventArgs(false));
+				var result = Next();
+				if (result.Ok)
+					return;
+				Log.Info("Automatically playing next song ended with error: {0}", result.Error);
+			}
 		}
 
-		private void StopSong(bool stopped /* true if stopped manually, false if ended normally */) {
+		public void Stop() {
 			lock (Lock) {
 				Log.Debug("Song stopped");
-				ResourceStopped?.Invoke(this, new SongEndEventArgs(stopped));
+				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
+				playerConnection.Stop();
 
-				if (stopped) {
-					playerConnection.Stop();
-
-					TryStopCurrentSong();
-					ClearTask();
-				} else {
-					var result = Next();
-					if (result.Ok)
-						return;
-					Log.Info("Automatically playing next song ended with error: {0}", result.Error);
-				}
+				TryStopCurrentSong();
 			}
 		}
 
