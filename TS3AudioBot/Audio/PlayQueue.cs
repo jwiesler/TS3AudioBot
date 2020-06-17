@@ -30,9 +30,9 @@ namespace TS3AudioBot.Audio {
 
 		public int Index { get; private set; } = 0;
 
-		public QueueItem Current => Index == items.Count ? null : items[Index];
+		public QueueItem Current => Index < items.Count ? items[Index] : null;
 
-		public QueueItem Next => Index + 1 == items.Count ? null : items[Index + 1];
+		public QueueItem Next => Index + 1 < items.Count ? items[Index + 1] : null;
 
 		public IReadOnlyList<QueueItem> Items => items;
 
