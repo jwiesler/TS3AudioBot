@@ -180,6 +180,7 @@ namespace TS3AudioBot.Audio {
 	public abstract class StartSongTaskHost : UniqueTaskHost<StartSongTask, QueueItem> {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		private QueueItem nextSongToPrepare;
+		protected QueueItem nextSongShadow;
 
 		protected bool IsPreparingNextSong() {
 			return ReferenceEquals(Current.QueueItem, nextSongToPrepare);
@@ -198,7 +199,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		protected void SetNextSong(QueueItem item) {
-			Log.Trace($"Setting next song to {item.GetHashCode()}.");
+			Log.Trace($"Setting next song to {item.AudioResource.ResourceTitle} ({item.GetHashCode()}).");
 			RunTaskFor(item);
 			nextSongToPrepare = item;
 		}
@@ -209,6 +210,8 @@ namespace TS3AudioBot.Audio {
 
 		protected void ClearNextSong() {
 			nextSongToPrepare = null;
+			if(nextSongToPrepare == nextSongShadow)
+				nextSongShadow = null;
 		}
 
 		protected new StartSongTask RemoveFinishedTask() {

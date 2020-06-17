@@ -18,6 +18,12 @@ using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories;
 
 namespace TS3AudioBot.Audio {
+	public class PlaybackStoppedEventArgs : EventArgs {
+		public QueueItem Item { get; set; }
+
+		public QueueItem NextShadow { get; set; }
+	}
+
 	/// <summary>Provides a convenient inferface for enqueing, playing and registering song events.</summary>
 	public class PlayManager : StartSongTaskHost {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
@@ -39,7 +45,7 @@ namespace TS3AudioBot.Audio {
 		public event EventHandler<PlayInfoEventArgs> BeforeResourceStarted;
 		public event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
 		public event EventHandler<SongEndEventArgs> ResourceStopped;
-		public event EventHandler PlaybackStopped;
+		public event EventHandler<PlaybackStoppedEventArgs> PlaybackStopped;
 
 		public PlayManager(ConfBot config, Player playerConnection, ResolveContext resourceResolver, Stats stats, PlaylistManager playlistManager) {
 			confBot = config;
@@ -72,7 +78,7 @@ namespace TS3AudioBot.Audio {
 
 		public E<LocalStr> Play() {
 			lock (Lock) {
-				StartPlaying();
+				StartPlayingCurrent();
 				return R.Ok;
 			}
 		}
@@ -147,10 +153,21 @@ namespace TS3AudioBot.Audio {
 				TryStopCurrentSong();
 
 				if (!Queue.Skip(count)) {
-					OnPlaybackEnded();
-					return R.Ok;
+					var e = OnPlaybackEnded();
+					if (e.Item == null) {
+						Log.Trace("Could not recover from queue end.");
+						NextSongShadow = e.NextShadow;
+						return R.Ok;
+					}
+
+					Log.Trace("Recovered from queue end, queueing new song...");
+					Queue.Enqueue(e.Item);
+					StartPlayingCurrent();
+					NextSongShadow = e.NextShadow;
+				} else {
+					StartPlayingCurrent();
 				}
-				StartPlaying();
+
 				return R.Ok;
 			}
 		}
@@ -158,23 +175,26 @@ namespace TS3AudioBot.Audio {
 		public E<LocalStr> Previous() {
 			lock (Lock) {
 				Log.Info("Previous song requested");
-				return TryPrevious(true);
+				return TryPrevious();
 			}
 		}
 
-		private E<LocalStr> TryPrevious(bool noSongIsError) {
+		private E<LocalStr> TryPrevious() {
 			TryStopCurrentSong();
 			if (!Queue.TryPrevious())
-				return NoSongToPlay(noSongIsError);
+				return new LocalStr("No previous song.");
 
 			var item = Queue.Current;
 			StartAsync(item);
 			return R.Ok;
 		}
 
-		private void OnPlaybackEnded() {
-			Log.Info("Playback ended for some reason");
-			PlaybackStopped?.Invoke(this, EventArgs.Empty);
+		private PlaybackStoppedEventArgs OnPlaybackEnded() {
+			var e = new PlaybackStoppedEventArgs {
+				NextShadow = nextSongShadow
+			};
+			PlaybackStopped?.Invoke(this, e);
+			return e;
 		}
 
 		private void TryStopCurrentSong() {
@@ -195,17 +215,10 @@ namespace TS3AudioBot.Audio {
 		private void TryInitialStart() {
 			if (IsPlaying || (Current != null && IsPreparingCurrentSong()) || !AutoStartPlaying)
 				return;
-			StartPlaying();
+			StartPlayingCurrent();
 		}
 
-		private E<LocalStr> NoSongToPlay(bool noSongIsError) {
-			OnPlaybackEnded();
-			if(noSongIsError)
-				return new LocalStr("No song to play");
-			return R.Ok;
-		}
-
-		private void StartPlaying() {
+		private void StartPlayingCurrent() {
 			var item = Queue.Current;
 			if (item == null)
 				return;
@@ -266,29 +279,35 @@ namespace TS3AudioBot.Audio {
 		
 		private void StartAsync(QueueItem queueItem) {
 			Log.Info($"Starting {queueItem.AudioResource.ResourceTitle}...");
+			ClearNextSong();
 			RunTaskFor(queueItem);
 			Current.StartOrStopWaiting();
 			Current.PlayWhenFinished();
 		}
 
+		// This song will be prepared as next song if the queue is empty
+		// It will not be played automatically, it has to be queued in some way
+		public QueueItem NextSongShadow {
+			get => nextSongShadow;
+			set {
+				lock (Lock) {
+					nextSongShadow = value;
+					UpdateNextSong();
+				}
+			}
+		}
+
 		private void UpdateNextSong() {
 			lock (Lock) {
-				var next = Queue.Next;
+				var next = Queue.Next ?? NextSongShadow;
 				if (next == null) {
 					if (Current != null && IsPreparingNextSong()) {
 						ClearTask();
 						ClearNextSong();
 					}
 				} else {
-					PrepareNextSong(next);
+					SetNextSong(next);
 				}
-			}
-		}
-
-		// ReSharper disable once MemberCanBePrivate.Global
-		public void PrepareNextSong(QueueItem item) {
-			lock (Lock) {
-				SetNextSong(item);
 			}
 		}
 
