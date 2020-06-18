@@ -5,7 +5,7 @@ namespace TS3AudioBot.Audio
 {
 	public class UniqueHostBase<T> where T : class {
 		private T current;
-		protected T Current => current;
+		public T Current => current;
 		
 		protected T ExchangeTask(T newTask) {
 			return Interlocked.Exchange(ref current, newTask);
@@ -19,19 +19,25 @@ namespace TS3AudioBot.Audio
 	public abstract class UniqueTaskHost<TTask, TValue> : UniqueHostBase<TTask>
 		where TTask : class
 		where TValue : class {
-		protected abstract TTask CreateTask(TValue value);
-		protected abstract void StartTask(TTask task);
-		protected abstract void StopTask(TTask task);
-		protected abstract bool ShouldCreateNewTask(TTask task, TValue newValue);
+		// protected abstract void StartTask(TTask task);
 
-		protected void RunTaskFor(TValue value) {
+		public event EventHandler<TTask> OnTaskStart;
+		public event EventHandler<TTask> OnTaskStop;
+
+		private void StartTask(TTask task) { OnTaskStart?.Invoke(this, task); }
+
+		private void StopTask(TTask task) { OnTaskStop?.Invoke(this, task); }
+
+		public abstract bool ShouldCreateNewTask(TTask task, TValue newValue);
+
+		public void RunTaskFor(TValue value, Func<TValue, TTask> constructor) {
 			if(value == default)
 				throw new NullReferenceException();
 
 			var task = Current;
 			if (task != default && !ShouldCreateNewTask(task, value))
 				return;
-			var newTask = CreateTask(value);
+			var newTask = constructor(value);
 			var ex = ExchangeTask(newTask, task);
 			
 			if(ex != task)
@@ -41,12 +47,12 @@ namespace TS3AudioBot.Audio
 			StartTask(newTask);
 		}
 
-		protected void ClearTask() {
+		public void ClearTask() {
 			var task = ExchangeTask(default);
 			if(task != null)
 				StopTask(task);
 		}
 
-		protected TTask RemoveFinishedTask() { return ExchangeTask(default); }
+		public TTask RemoveFinishedTask() { return ExchangeTask(default); }
 	}
 }

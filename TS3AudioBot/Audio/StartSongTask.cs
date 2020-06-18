@@ -187,48 +187,53 @@ namespace TS3AudioBot.Audio {
 		}
 	}
 
-	public abstract class StartSongTaskHost : UniqueTaskHost<StartSongTaskHandler, QueueItem> {
+	public class NextSongHandler {
+		public QueueItem NextSongToPrepare { get; set; }
+		public QueueItem NextSongShadow { get; set; }
+
+		public bool IsPreparingNextSong(QueueItem current) {
+			return ReferenceEquals(current, NextSongToPrepare);
+		}
+
+		public bool IsPreparingCurrentSong(QueueItem current) {
+			return !IsPreparingNextSong(current);
+		}
+
+		public bool ShouldCreateNewTask(QueueItem current, QueueItem newValue) {
+			return !ReferenceEquals(current, newValue) && // are we already preparing this song?
+			       ReferenceEquals(NextSongToPrepare, current); // are we preparing the next song? 
+		}
+
+		public void ClearNextSong() {
+			NextSongToPrepare = null;
+			if(NextSongToPrepare == NextSongShadow)
+				NextSongShadow = null;
+		}
+	}
+
+	public class StartSongTaskHost : UniqueTaskHost<StartSongTaskHandler, QueueItem> {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		private QueueItem nextSongToPrepare;
-		protected QueueItem nextSongShadow;
+		public NextSongHandler NextSongHandler { get; } = new NextSongHandler();
 
-		protected bool IsPreparingNextSong() {
-			return ReferenceEquals(Current.StartSongTask.QueueItem, nextSongToPrepare);
-		}
-
-		protected bool IsPreparingCurrentSong() {
-			return !IsPreparingNextSong();
-		}
-
-		protected override bool ShouldCreateNewTask(StartSongTaskHandler task, QueueItem newValue) {
-			if (ReferenceEquals(task.StartSongTask.QueueItem, newValue))
-				return false;
-
-			// are we preparing the next song?
-			return ReferenceEquals(nextSongToPrepare, task.StartSongTask.QueueItem);
-		}
-
-		protected void SetNextSong(QueueItem item) {
+		public void SetNextSong(QueueItem item, Func<QueueItem, StartSongTaskHandler> constructor) {
 			Log.Trace($"Setting next song to {item.AudioResource.ResourceTitle} ({item.GetHashCode()}).");
-			RunTaskFor(item);
-			nextSongToPrepare = item;
+			RunTaskFor(item, constructor);
+			NextSongHandler.NextSongToPrepare = item;
 		}
 
-		protected override void StopTask(StartSongTaskHandler task) {
-			task.Cancel();
+//		protected override void StopTask(StartSongTaskHandler task) {
+//			task.Cancel();
+//		}
+
+		public override bool ShouldCreateNewTask(StartSongTaskHandler task, QueueItem newValue) {
+			return NextSongHandler.ShouldCreateNewTask(task.StartSongTask.QueueItem, newValue);
 		}
 
-		protected void ClearNextSong() {
-			nextSongToPrepare = null;
-			if(nextSongToPrepare == nextSongShadow)
-				nextSongShadow = null;
-		}
-
-		protected new StartSongTaskHandler RemoveFinishedTask() {
+		public new StartSongTaskHandler RemoveFinishedTask() {
 			var task = base.RemoveFinishedTask();
-			if (ReferenceEquals(task.StartSongTask.QueueItem, nextSongToPrepare)) {
+			if (NextSongHandler.IsPreparingNextSong(task.StartSongTask.QueueItem)) {
 				Log.Trace($"Load for {task.StartSongTask.QueueItem.GetHashCode()} finished, clearing next song.");
-				ClearNextSong();
+				NextSongHandler.ClearNextSong();
 			}
 
 			return task;
