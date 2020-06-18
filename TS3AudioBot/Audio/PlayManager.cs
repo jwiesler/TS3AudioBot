@@ -270,7 +270,7 @@ namespace TS3AudioBot.Audio {
 				if (sender == null || !ReferenceEquals(sender, Current))
 					return;
 
-				Log.Info("Could not play song {0} (reason: {1})", Current.QueueItem.AudioResource, e.Error);
+				Log.Info("Could not play song {0} (reason: {1})", Current.StartSongTask.QueueItem.AudioResource, e.Error);
 
 				RemoveFinishedTask();
 				Next();
@@ -358,27 +358,27 @@ namespace TS3AudioBot.Audio {
 			return res;
 		}
 
-		protected override StartSongTask CreateTask(QueueItem value) {
-			return new StartSongTask(resourceResolver, playerConnection, confBot, Lock, value);
+		protected override StartSongTaskHandler CreateTask(QueueItem value) {
+			return new StartSongTaskHandler(new StartSongTask(resourceResolver, playerConnection, confBot, Lock, value));
 		}
 
-		protected override void StartTask(StartSongTask task) {
-			task.BeforeResourceStarted += OnBeforeResourceStarted;
-			task.AfterResourceStarted += OnAfterResourceStarted;
-			task.OnAudioResourceUpdated += OnAudioResourceUpdated;
-			task.OnLoadFailure += OnLoadFailure;
+		protected override void StartTask(StartSongTaskHandler task) {
+			task.StartSongTask.BeforeResourceStarted += OnBeforeResourceStarted;
+			task.StartSongTask.AfterResourceStarted += OnAfterResourceStarted;
+			task.StartSongTask.OnAudioResourceUpdated += OnAudioResourceUpdated;
+			task.StartSongTask.OnLoadFailure += OnLoadFailure;
 			
 			if(playerConnection.FfmpegProducer.Length != TimeSpan.Zero)
 				task.StartTask(GetAnalyzeTaskStartTime());
 		}
 
-		protected override void StopTask(StartSongTask task) {
+		protected override void StopTask(StartSongTaskHandler task) {
 			base.StopTask(task);
 
-			task.BeforeResourceStarted -= OnBeforeResourceStarted;
-			task.AfterResourceStarted -= OnAfterResourceStarted;
-			task.OnAudioResourceUpdated -= OnAudioResourceUpdated;
-			task.OnLoadFailure -= OnLoadFailure;
+			task.StartSongTask.BeforeResourceStarted -= OnBeforeResourceStarted;
+			task.StartSongTask.AfterResourceStarted -= OnAfterResourceStarted;
+			task.StartSongTask.OnAudioResourceUpdated -= OnAudioResourceUpdated;
+			task.StartSongTask.OnLoadFailure -= OnLoadFailure;
 		}
 
 		private const int MaxSecondsBeforeNextSong = 30;

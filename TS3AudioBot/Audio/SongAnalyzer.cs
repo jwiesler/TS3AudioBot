@@ -50,6 +50,7 @@ namespace TS3AudioBot.Audio {
 				Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			}
 
+			res.Meta = Source.MetaData;
 			return new SongAnalyzerResult {
 				Resource = res,
 				RestoredLink = restoredLink
