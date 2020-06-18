@@ -186,6 +186,7 @@ namespace TS3AudioBot.Audio {
 	}
 
 	public class NextSongHandler {
+		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		public QueueItem NextSongToPrepare { get; set; }
 		public QueueItem NextSongShadow { get; set; }
 
@@ -198,8 +199,11 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public bool ShouldCreateNewTask(QueueItem current, QueueItem newValue) {
-			return !ReferenceEquals(current, newValue) && // are we already preparing this song?
-			       ReferenceEquals(NextSongToPrepare, current); // are we preparing the next song? 
+			var res = !ReferenceEquals(current, newValue) && // are we already preparing this song?
+			       IsPreparingNextSong(current); // are we preparing the next song?
+
+			// Log.Trace($"Checking whether to create a new task for {newValue.AudioResource.ResourceTitle} ({newValue.GetHashCode()}) instead of {current.AudioResource.ResourceTitle} ({current.GetHashCode()}). Already preparing this song: {ReferenceEquals(current, newValue)}, preparing next song: {IsPreparingNextSong(current)}, create new task: {res}");
+			return res;
 		}
 
 		public void ClearNextSong() {
