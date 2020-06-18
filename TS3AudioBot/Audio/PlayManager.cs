@@ -335,11 +335,9 @@ namespace TS3AudioBot.Audio {
 
 		public void Stop() {
 			lock (Lock) {
-				Log.Debug("Song stopped");
-				ResourceStopped?.Invoke(this, new SongEndEventArgs(true));
-				playerConnection.Stop();
-
 				TryStopCurrentSong();
+				// Clear any task, the next one will be wrong anyways
+				taskHost.ClearTask();
 			}
 		}
 
