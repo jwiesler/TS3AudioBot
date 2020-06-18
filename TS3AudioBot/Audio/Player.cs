@@ -8,6 +8,7 @@
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
 using System;
+using System.Threading;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
 using TS3AudioBot.ResourceFactories;
@@ -17,7 +18,21 @@ using TSLib.Helper;
 
 namespace TS3AudioBot.Audio
 {
-	public class Player : IDisposable
+	public interface IVolumeDetector {
+		int RunVolumeDetection(string url, CancellationToken token);
+	}
+
+	public interface IPlayer : IVolumeDetector{
+		float Volume { get; set; }
+		TimeSpan Length { get; }
+		TimeSpan Position { get; }
+
+		E<string> Play(PlayResource res, int gain);
+
+		void Stop();
+	}
+
+	public class Player : IDisposable, IPlayer
 	{
 		private const Codec SendCodec = Codec.OpusMusic;
 
@@ -59,6 +74,8 @@ namespace TS3AudioBot.Audio
 			PlayerSink = target;
 			EncoderPipe.Chain(target);
 		}
+
+		public int RunVolumeDetection(string url, CancellationToken token) { return FfmpegProducer.VolumeDetect(url, token); }
 
 		private static int ScaleBitrate(int value) => Tools.Clamp(value, 1, 255) * 1000;
 

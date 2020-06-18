@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using TS3AudioBot.Config;
@@ -26,9 +25,9 @@ namespace TS3AudioBot.Audio {
 
 	public class StartSongTask {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		private readonly Player player;
-		private readonly ConfBot config;
-		private readonly ResolveContext resourceResolver;
+		private readonly IPlayer player;
+		private readonly ConfAudioVolume volumeConfig;
+		private readonly ILoaderContext loaderContext;
 		private readonly object playManagerLock;
 
 		public QueueItem QueueItem { get; }
@@ -38,19 +37,19 @@ namespace TS3AudioBot.Audio {
 		public event EventHandler<LoadFailureEventArgs> OnLoadFailure;
 		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
 
-		public StartSongTask(ResolveContext resourceResolver, Player player, ConfBot config, object playManagerLock, QueueItem queueItem) {
-			this.resourceResolver = resourceResolver;
+		public StartSongTask(ILoaderContext loaderContext, IPlayer player, ConfAudioVolume volumeConfig, object playManagerLock, QueueItem queueItem) {
+			this.loaderContext = loaderContext;
 			this.player = player;
-			this.config = config;
+			this.volumeConfig = volumeConfig;
 			this.playManagerLock = playManagerLock;
 			QueueItem = queueItem;
 		}
 
 		private R<SongAnalyzerResult, LocalStr> AnalyzeBackground(QueueItem queueItem, CancellationToken cancelled) {
-			return new SongAnalyzerTask(queueItem, resourceResolver, player.FfmpegProducer).Run(cancelled);
+			return new SongAnalyzerTask(queueItem, loaderContext, player).Run(cancelled);
 		}
 
-		private E<LocalStr> StartResource(PlayResource resource) {
+		public E<LocalStr> StartResource(PlayResource resource) {
 			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
 				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
 				return new LocalStr(strings.error_playmgr_internal_error);
@@ -65,11 +64,11 @@ namespace TS3AudioBot.Audio {
 				return new LocalStr(strings.error_playmgr_internal_error);
 			}
 
-			player.Volume = Tools.Clamp(player.Volume, config.Audio.Volume.Min, config.Audio.Volume.Max);
+			player.Volume = Tools.Clamp(player.Volume, volumeConfig.Min, volumeConfig.Max);
 			return R.Ok;
 		}
 
-		private E<LocalStr> StartResource(SongAnalyzerResult result) {
+		public E<LocalStr> StartResource(SongAnalyzerResult result) {
 			var resource = result.Resource;
 			var restoredLink = result.RestoredLink.OkOr(null);
 
@@ -85,14 +84,13 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private void InvokeOnResourceChanged(QueueItem queueItem, AudioResource resource) {
-			if (queueItem.MetaData.ContainingPlaylistId != null &&
-			    !ReferenceEquals(queueItem.AudioResource, resource)) {
+			if (!ReferenceEquals(queueItem.AudioResource, resource)) {
 				OnAudioResourceUpdated?.Invoke(this,
 					new AudioResourceUpdatedEventArgs(queueItem, resource));
 			}
 		}
 
-		private E<LocalStr> RunInternal(WaitHandle waitBeforePlayHandle, CancellationToken token) {
+		public E<LocalStr> RunInternal(WaitHandle waitBeforePlayHandle, CancellationToken token) {
 			var result = AnalyzeBackground(QueueItem, token);
 			if (!result.Ok)
 				return result;
@@ -220,10 +218,6 @@ namespace TS3AudioBot.Audio {
 			RunTaskFor(item, constructor);
 			NextSongHandler.NextSongToPrepare = item;
 		}
-
-//		protected override void StopTask(StartSongTaskHandler task) {
-//			task.Cancel();
-//		}
 
 		public override bool ShouldCreateNewTask(StartSongTaskHandler task, QueueItem newValue) {
 			return NextSongHandler.ShouldCreateNewTask(task.StartSongTask.QueueItem, newValue);

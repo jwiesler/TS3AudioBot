@@ -29,7 +29,7 @@ namespace TS3AudioBot.Audio {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 
 		private readonly ConfBot confBot;
-		private readonly Player playerConnection;
+		private readonly IPlayer playerConnection;
 		private readonly ResolveContext resourceResolver;
 		private readonly PlaylistManager playlistManager;
 		private readonly Stats stats;
@@ -256,7 +256,7 @@ namespace TS3AudioBot.Audio {
 
 		private void OnAudioResourceUpdated(object sender, AudioResourceUpdatedEventArgs e) {
 			lock (Lock) {
-				if (sender == null || !ReferenceEquals(sender, taskHost.Current))
+				if (sender == null || !ReferenceEquals(sender, taskHost.Current) || e.QueueItem.MetaData.ContainingPlaylistId == null)
 					return;
 
 				Log.Info("AudioResource was changed by loader, saving containing playlist");
@@ -366,7 +366,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		protected StartSongTaskHandler CreateTask(QueueItem value) {
-			return new StartSongTaskHandler(new StartSongTask(resourceResolver, playerConnection, confBot, Lock, value));
+			return new StartSongTaskHandler(new StartSongTask(resourceResolver, playerConnection, confBot.Audio.Volume, Lock, value));
 		}
 
 		private void OnTaskStart(object sender, StartSongTaskHandler task) {
@@ -376,7 +376,7 @@ namespace TS3AudioBot.Audio {
 			songTask.OnAudioResourceUpdated += OnAudioResourceUpdated;
 			songTask.OnLoadFailure += OnLoadFailure;
 			
-			if(playerConnection.FfmpegProducer.Length != TimeSpan.Zero)
+			if(playerConnection.Length != TimeSpan.Zero)
 				task.StartTask(GetAnalyzeTaskStartTime());
 		}
 

@@ -17,14 +17,14 @@ namespace TS3AudioBot.Audio {
 
 		public QueueItem Source { get; }
 
-		public FfmpegProducer FfmpegProducer { get; }
+		public IVolumeDetector VolumeDetector { get; }
 
-		public ResolveContext ResourceResolver { get; }
+		public ILoaderContext LoaderContext { get; }
 
-		public SongAnalyzerTask(QueueItem source, ResolveContext resourceResolver, FfmpegProducer ffmpegProducer) {
+		public SongAnalyzerTask(QueueItem source, ILoaderContext loaderContext, IVolumeDetector volumeDetector) {
 			Source = source;
-			FfmpegProducer = ffmpegProducer;
-			ResourceResolver = resourceResolver;
+			VolumeDetector = volumeDetector;
+			LoaderContext = loaderContext;
 		}
 
 		public R<SongAnalyzerResult, LocalStr> Run(CancellationToken cancellationToken) {
@@ -32,11 +32,11 @@ namespace TS3AudioBot.Audio {
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
 
-			var resource = ResourceResolver.Load(Source.AudioResource);
+			var resource = LoaderContext.Load(Source.AudioResource);
 			if (!resource.Ok)
 				return resource.Error;
 			var res = resource.Value;
-			var restoredLink = ResourceResolver.RestoreLink(res.BaseData);
+			var restoredLink = LoaderContext.RestoreLink(res.BaseData);
 			if (!restoredLink.Ok)
 				return restoredLink.Error;
 
@@ -45,7 +45,7 @@ namespace TS3AudioBot.Audio {
 			if(!(Source.AudioResource.Gain.HasValue || Source.AudioResource.AudioType != "youtube")) {
 				timer.Restart();
 
-				var gain = FfmpegProducer.VolumeDetect(res.PlayUri, cancellationToken);
+				var gain = VolumeDetector.RunVolumeDetection(res.PlayUri, cancellationToken);
 				res.BaseData = res.BaseData.WithGain(gain);
 				Log.Debug("Song volume detect took {0}ms", timer.ElapsedMilliseconds);
 			}

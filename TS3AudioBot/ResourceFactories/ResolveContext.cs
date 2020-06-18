@@ -17,7 +17,13 @@ using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
 {
-	public class ResolveContext
+	public interface ILoaderContext {
+		R<string, LocalStr> RestoreLink(AudioResource res);
+
+		R<PlayResource, LocalStr> Load(AudioResource resource);
+	}
+
+	public class ResolveContext : ILoaderContext
 	{
 		public ResourceResolver Resolver { get; }
 		public ConfBot Config { get; }
