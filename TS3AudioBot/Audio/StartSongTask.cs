@@ -37,7 +37,9 @@ namespace TS3AudioBot.Audio {
 		public event EventHandler<LoadFailureEventArgs> OnLoadFailure;
 		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
 
-		public StartSongTask(ILoaderContext loaderContext, IPlayer player, ConfAudioVolume volumeConfig, object playManagerLock, QueueItem queueItem) {
+		public StartSongTask(
+			ILoaderContext loaderContext, IPlayer player, ConfAudioVolume volumeConfig, object playManagerLock,
+			QueueItem queueItem) {
 			this.loaderContext = loaderContext;
 			this.player = player;
 			this.volumeConfig = volumeConfig;
@@ -105,6 +107,7 @@ namespace TS3AudioBot.Audio {
 					Log.Trace($"StartSongTask {GetHashCode()}: Cancelled.");
 					throw new TaskCanceledException();
 				}
+
 				Log.Trace($"StartSongTask {GetHashCode()}: Not cancelled, starting resource.");
 				return StartResource(result.Value);
 			}
@@ -125,7 +128,7 @@ namespace TS3AudioBot.Audio {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 
 		private readonly EventWaitHandle waitForStartPlayHandle = new EventWaitHandle(false, EventResetMode.AutoReset);
-		
+
 		private CancellationTokenSource TokenSource { get; } = new CancellationTokenSource();
 		private WaitTask waitTask;
 		private Task task;
@@ -172,7 +175,7 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void StartOrUpdateWaitTime(int ms) {
-			if(Running) {
+			if (Running) {
 				Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested.");
 				waitTask.UpdateWaitTime(ms);
 			} else {
@@ -180,51 +183,50 @@ namespace TS3AudioBot.Audio {
 			}
 		}
 
-		public void StartOrStopWaiting() {
-			StartOrUpdateWaitTime(0);
-		}
+		public void StartOrStopWaiting() { StartOrUpdateWaitTime(0); }
 	}
 
 	public class NextSongHandler {
-		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		public QueueItem NextSongToPrepare { get; set; }
+		public QueueItem NextSongPreparing { get; set; }
 		public QueueItem NextSongShadow { get; set; }
 
-		public bool IsPreparingNextSong(QueueItem current) {
-			return ReferenceEquals(current, NextSongToPrepare);
+		public bool IsPreparingNextSong(QueueItem current) { return ReferenceEquals(current, NextSongPreparing); }
+
+		public bool IsPreparingCurrentSong(QueueItem current) { return !ReferenceEquals(current, NextSongPreparing); }
+
+		public static bool ShouldBeReplaced(QueueItem current, QueueItem newValue) {
+			return !ReferenceEquals(current, newValue);
 		}
 
-		public bool IsPreparingCurrentSong(QueueItem current) {
-			return !IsPreparingNextSong(current);
-		}
-
-		public bool ShouldCreateNewTask(QueueItem current, QueueItem newValue) {
-			var res = !ReferenceEquals(current, newValue) && // are we already preparing this song?
-			       IsPreparingNextSong(current); // are we preparing the next song?
-
-			// Log.Trace($"Checking whether to create a new task for {newValue.AudioResource.ResourceTitle} ({newValue.GetHashCode()}) instead of {current.AudioResource.ResourceTitle} ({current.GetHashCode()}). Already preparing this song: {ReferenceEquals(current, newValue)}, preparing next song: {IsPreparingNextSong(current)}, create new task: {res}");
-			return res;
+		public bool ShouldBeReplacedNext(QueueItem current, QueueItem newValue) {
+			return ShouldBeReplaced(current, newValue) && IsPreparingNextSong(current);
 		}
 
 		public void ClearNextSong() {
-			NextSongToPrepare = null;
-			if(NextSongToPrepare == NextSongShadow)
+			NextSongPreparing = null;
+			// Keep next song shadow until it was prepared once
+			if (NextSongPreparing == NextSongShadow)
 				NextSongShadow = null;
 		}
 	}
 
-	public class StartSongTaskHost : UniqueTaskHost<StartSongTaskHandler, QueueItem> {
+	public class StartSongTaskHost : UniqueTaskHost<StartSongTaskHandler> {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		public NextSongHandler NextSongHandler { get; } = new NextSongHandler();
 
 		public void SetNextSong(QueueItem item, Func<QueueItem, StartSongTaskHandler> constructor) {
+			if (Current != null && !NextSongHandler.ShouldBeReplacedNext(Current.StartSongTask.QueueItem, item))
+				return;
 			Log.Trace($"Setting next song to {item.AudioResource.ResourceTitle} ({item.GetHashCode()}).");
-			RunTaskFor(item, constructor);
-			NextSongHandler.NextSongToPrepare = item;
+			RunTask(constructor(item));
+			NextSongHandler.NextSongPreparing = item;
 		}
 
-		public override bool ShouldCreateNewTask(StartSongTaskHandler task, QueueItem newValue) {
-			return NextSongHandler.ShouldCreateNewTask(task.StartSongTask.QueueItem, newValue);
+		public void SetCurrentSong(QueueItem item, Func<QueueItem, StartSongTaskHandler> constructor) {
+			NextSongHandler.ClearNextSong();
+			if (Current != null && !NextSongHandler.ShouldBeReplaced(Current.StartSongTask.QueueItem, item))
+				return;
+			RunTask(constructor(item));
 		}
 
 		public new StartSongTaskHandler RemoveFinishedTask() {

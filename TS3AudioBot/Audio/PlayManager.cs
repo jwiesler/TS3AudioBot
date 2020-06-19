@@ -286,12 +286,7 @@ namespace TS3AudioBot.Audio {
 		
 		private void StartAsync(QueueItem queueItem) {
 			Log.Info($"Starting {queueItem.AudioResource.ResourceTitle}...");
-
-			// Clear the next song to signal that this task is not the next song any more and mustn't get replaced by a next song preparation
-			// Do this only if the next song being prepared is actually the one we want to play now
-			if(ReferenceEquals(NextSongHandler.NextSongToPrepare, queueItem))
-				NextSongHandler.ClearNextSong();
-			taskHost.RunTaskFor(queueItem, CreateTask);
+			taskHost.SetCurrentSong(queueItem, CreateTask);
 			taskHost.Current.StartOrStopWaiting();
 			taskHost.Current.PlayWhenFinished();
 		}

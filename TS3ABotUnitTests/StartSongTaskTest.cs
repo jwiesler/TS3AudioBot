@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities.DataCollection;
 using NUnit.Framework;
 using TS3AudioBot.Audio;
 using TS3AudioBot.Config;
@@ -25,15 +23,15 @@ namespace TS3ABotUnitTests {
 			var queueItem1 = new QueueItem(Resource1AC, new MetaData(TestUid));
 			var queueItem2 = new QueueItem(Resource1AC, new MetaData(TestUid));
 			Assert.IsTrue(handler.IsPreparingCurrentSong(queueItem1));
-			Assert.IsFalse(handler.ShouldCreateNewTask(queueItem1, queueItem1)); // Same item
-			Assert.IsFalse(handler.ShouldCreateNewTask(queueItem1,
-				queueItem2)); // Preparing current song => no new task
+			Assert.IsFalse(handler.IsPreparingNextSong(queueItem1));
+			Assert.IsFalse(NextSongHandler.ShouldBeReplaced(queueItem1, queueItem1)); // Same item
 
-			handler.NextSongToPrepare = queueItem1;
+			handler.NextSongPreparing = queueItem1;
 			Assert.IsFalse(handler.IsPreparingCurrentSong(queueItem1));
-			Assert.IsFalse(handler.ShouldCreateNewTask(queueItem1,
+			Assert.IsTrue(handler.IsPreparingNextSong(queueItem1));
+			Assert.IsFalse(handler.ShouldBeReplacedNext(queueItem1,
 				queueItem1)); // Preparing next song and same QueueItem => no new task
-			Assert.IsTrue(handler.ShouldCreateNewTask(queueItem1,
+			Assert.IsTrue(handler.ShouldBeReplacedNext(queueItem1,
 				queueItem2)); // Preparing next song and new QueueItem => new task
 		}
 

@@ -16,11 +16,8 @@ namespace TS3AudioBot.Audio
 		}
 	}
 
-	public abstract class UniqueTaskHost<TTask, TValue> : UniqueHostBase<TTask>
-		where TTask : class
-		where TValue : class {
-		// protected abstract void StartTask(TTask task);
-
+	public abstract class UniqueTaskHost<TTask> : UniqueHostBase<TTask>
+		where TTask : class {
 		public event EventHandler<TTask> OnTaskStart;
 		public event EventHandler<TTask> OnTaskStop;
 
@@ -28,23 +25,15 @@ namespace TS3AudioBot.Audio
 
 		private void StopTask(TTask task) { OnTaskStop?.Invoke(this, task); }
 
-		public abstract bool ShouldCreateNewTask(TTask task, TValue newValue);
-
-		public void RunTaskFor(TValue value, Func<TValue, TTask> constructor) {
-			if(value == default)
+		public void RunTask(TTask task) {
+			if(task == default)
 				throw new NullReferenceException();
 
-			var task = Current;
-			if (task != default && !ShouldCreateNewTask(task, value))
-				return;
-			var newTask = constructor(value);
-			var ex = ExchangeTask(newTask, task);
+			var oldTask = ExchangeTask(task);
 			
-			if(ex != task)
-				throw new InvalidOperationException("Task was changed in the background");
-			if(task != null)
-				StopTask(task);
-			StartTask(newTask);
+			if(oldTask != null)
+				StopTask(oldTask);
+			StartTask(task);
 		}
 
 		public void ClearTask() {
