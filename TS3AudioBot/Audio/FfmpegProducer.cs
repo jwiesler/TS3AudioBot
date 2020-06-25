@@ -449,6 +449,8 @@ namespace TS3AudioBot.Audio
 
 			public Action<SongInfoChanged> OnMetaUpdated;
 
+			private readonly StringBuilder errorLogStringBuilder = new StringBuilder();
+
 			public FfmpegInstance(string url, PreciseAudioTimer timer, bool isIcyStream)
 			{
 				ReconnectUrl = url;
@@ -461,7 +463,8 @@ namespace TS3AudioBot.Audio
 			public void Close()
 			{
 				Closed = true;
-
+				Log.Trace($"Ffmpeg process {FfmpegProcess.Id} exited, output:\n{errorLogStringBuilder}");
+				errorLogStringBuilder.Clear();
 				try
 				{
 					if (!FfmpegProcess.HasExitedSafe())
@@ -483,6 +486,8 @@ namespace TS3AudioBot.Audio
 
 				if (sender != FfmpegProcess)
 					throw new InvalidOperationException("Wrong process associated to event");
+				
+				errorLogStringBuilder.AppendLine(e.Data);
 
 				if (!ParsedSongLength.HasValue)
 				{
