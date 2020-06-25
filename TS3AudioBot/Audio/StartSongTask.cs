@@ -25,10 +25,14 @@ namespace TS3AudioBot.Audio {
 
 	public class StartSongTask {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
+		private static int _nextId = -1;
+
 		private readonly IPlayer player;
 		private readonly ConfAudioVolume volumeConfig;
 		private readonly ILoaderContext loaderContext;
 		private readonly object playManagerLock;
+
+		public int Id { get; }
 
 		public QueueItem QueueItem { get; }
 
@@ -40,6 +44,7 @@ namespace TS3AudioBot.Audio {
 		public StartSongTask(
 			ILoaderContext loaderContext, IPlayer player, ConfAudioVolume volumeConfig, object playManagerLock,
 			QueueItem queueItem) {
+			Id = Interlocked.Increment(ref _nextId);
 			this.loaderContext = loaderContext;
 			this.player = player;
 			this.volumeConfig = volumeConfig;
@@ -53,16 +58,16 @@ namespace TS3AudioBot.Audio {
 
 		public E<LocalStr> StartResource(PlayResource resource) {
 			if (string.IsNullOrWhiteSpace(resource.PlayUri)) {
-				Log.Error("Internal resource error: link is empty (resource:{0})", resource);
+				Log.Error($"{this}: Internal resource error: link is empty (resource:{resource})");
 				return new LocalStr(strings.error_playmgr_internal_error);
 			}
 
 			var gain = resource.BaseData.Gain ?? 0;
-			Log.Debug("AudioResource start: {0} with gain {1}", resource, gain);
+			Log.Debug($"{this}: Starting {resource} with gain {gain}");
 			var result = player.Play(resource, gain);
 
 			if (!result) {
-				Log.Error("Error return from player: {0}", result.Error);
+				Log.Error($"{this}: Error return from player: {result.Error}");
 				return new LocalStr(strings.error_playmgr_internal_error);
 			}
 
@@ -99,16 +104,16 @@ namespace TS3AudioBot.Audio {
 
 			InvokeOnResourceChanged(QueueItem, result.Value.Resource.BaseData);
 
-			Log.Trace($"StartSongTask {GetHashCode()}: Finished analyze, waiting for play.");
+			Log.Trace($"{this}: Finished analyze, waiting for play.");
 			waitBeforePlayHandle.WaitOne();
-			Log.Trace($"StartSongTask {GetHashCode()}: Finished waiting for play, checking cancellation.");
+			Log.Trace($"{this}: Finished waiting for play, checking cancellation.");
 			lock (playManagerLock) {
 				if (token.IsCancellationRequested) {
-					Log.Trace($"StartSongTask {GetHashCode()}: Cancelled.");
+					Log.Trace($"{this}: Cancelled.");
 					throw new TaskCanceledException();
 				}
 
-				Log.Trace($"StartSongTask {GetHashCode()}: Not cancelled, starting resource.");
+				Log.Trace($"{this}: Not cancelled, starting resource.");
 				return StartResource(result.Value);
 			}
 		}
@@ -116,12 +121,14 @@ namespace TS3AudioBot.Audio {
 		public void Run(WaitHandle waitBeforePlayHandle, CancellationToken token) {
 			var res = RunInternal(waitBeforePlayHandle, token);
 			if (!res.Ok) {
-				Log.Trace($"StartSongTask {GetHashCode()}: Failed ({res.Error}).");
+				Log.Trace($"{this}: Failed ({res.Error}).");
 				OnLoadFailure?.Invoke(this, new LoadFailureEventArgs(res.Error));
 			} else {
-				Log.Trace($"StartSongTask {GetHashCode()}: Finished.");
+				Log.Trace($"{this}: Finished.");
 			}
 		}
+
+		public override string ToString() { return $"StartSongTask {Id}"; }
 	}
 
 	public class StartSongTaskHandler {
@@ -143,7 +150,7 @@ namespace TS3AudioBot.Audio {
 			if (task != null)
 				throw new InvalidOperationException("Task was already running");
 
-			Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested.");
+			Log.Trace($"{StartSongTask}: Run in {ms}ms requested.");
 
 			waitTask = new WaitTask(ms, TokenSource.Token);
 			task = Task.Run(() => { Run(TokenSource.Token); });
@@ -151,32 +158,32 @@ namespace TS3AudioBot.Audio {
 
 		private void Run(CancellationToken token) {
 			try {
-				Log.Trace($"StartSongTask {GetHashCode()}: Created, waiting.");
+				Log.Trace($"{StartSongTask}: Created, waiting.");
 				waitTask.Run();
-				Log.Trace($"StartSongTask {GetHashCode()}: Finished waiting, executing.");
+				Log.Trace($"{StartSongTask}: Finished waiting, executing.");
 				StartSongTask.Run(waitForStartPlayHandle, token);
 			} catch (OperationCanceledException) {
-				Log.Trace($"StartSongTask {GetHashCode()}: Cancelled by exception.");
+				Log.Trace($"{StartSongTask}: Cancelled by exception.");
 			}
 		}
 
 		public void Cancel() {
 			if (task == null)
 				return;
-			Log.Trace($"StartSongTask {GetHashCode()}: Cancellation requested.");
+			Log.Trace($"{StartSongTask}: Cancellation requested.");
 			TokenSource.Cancel();
 			waitTask.CancelCurrentWait();
 			waitForStartPlayHandle.Set();
 		}
 
 		public void PlayWhenFinished() {
-			Log.Trace($"StartSongTask {GetHashCode()}: Play requested.");
+			Log.Trace($"{StartSongTask}: Play requested.");
 			waitForStartPlayHandle.Set();
 		}
 
 		public void StartOrUpdateWaitTime(int ms) {
 			if (Running) {
-				Log.Trace($"StartSongTask {GetHashCode()}: Run in {ms}ms requested.");
+				Log.Trace($"{StartSongTask}: Run in {ms}ms requested.");
 				waitTask.UpdateWaitTime(ms);
 			} else {
 				StartTask(ms);
