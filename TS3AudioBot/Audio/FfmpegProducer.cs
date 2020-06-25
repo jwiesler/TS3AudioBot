@@ -113,8 +113,10 @@ namespace TS3AudioBot.Audio
 			}
 
 			StreamReader errorReader = ffmpegProcess.StandardError;
+			var errorLogStringBuilder = new StringBuilder();
 			string line;
 			while ((line = errorReader.ReadLine()) != null) {
+				errorLogStringBuilder.AppendLine(line);
 				var match = FindMaxVolumeMatcher.Match(line);
 				if (match.Success && float.TryParse(match.Groups[1].Value, out var maxVolume)) {
 					maxVolumeFloat = maxVolume;
@@ -125,6 +127,8 @@ namespace TS3AudioBot.Audio
 					meanVolumeFloat = meanVolume;
 				}
 			}
+
+			Log.Trace($"Ffmpeg process {ffmpegProcess.Id} exited, output:\n{errorLogStringBuilder}");
 
 			if (maxVolumeFloat < 0) {
 				gain += (int) Math.Round(Math.Abs(maxVolumeFloat));
@@ -464,7 +468,7 @@ namespace TS3AudioBot.Audio
 			{
 				Closed = true;
 				Log.Trace($"Ffmpeg process {FfmpegProcess.Id} exited, output:\n{errorLogStringBuilder}");
-				errorLogStringBuilder.Clear();
+				
 				try
 				{
 					if (!FfmpegProcess.HasExitedSafe())
