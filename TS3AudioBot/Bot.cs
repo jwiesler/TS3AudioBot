@@ -134,8 +134,6 @@ namespace TS3AudioBot
 			sessionManager = Injector.GetModule<SessionManager>();
 			stats = Injector.GetModule<Stats>();
 
-			player.OnSongEnd += playManager.SongEndedEvent;
-			player.OnSongUpdated += (s, e) => playManager.Update(e);
 			// Update idle status events
 			playManager.BeforeResourceStarted += (s, e) => DisableIdleTickWorker();
 			playManager.PlaybackStopped += (s, e) => EnableIdleTickWorker();

@@ -11,17 +11,12 @@ using TSLib;
 namespace TS3ABotUnitTests {
 	[TestFixture]
 	public class StartSongTaskTest {
-		private static readonly AudioResource Resource1AC = new AudioResource("1", "A", "C");
-		private static readonly AudioResource Resource1AYoutube = new AudioResource("1", "A", "youtube");
-		private static readonly AudioResource Resource1AYoutubeGain = Resource1AYoutube.WithGain(5);
-		private static readonly Uid TestUid = Uid.To("Test");
-
 		[Test]
 		public void ShouldCreateTaskTest() {
 			var handler = new NextSongHandler();
 
-			var queueItem1 = new QueueItem(Resource1AC, new MetaData(TestUid));
-			var queueItem2 = new QueueItem(Resource1AC, new MetaData(TestUid));
+			var queueItem1 = new QueueItem(Values.Resource1AC, new MetaData(Values.TestUid));
+			var queueItem2 = new QueueItem(Values.Resource1AC, new MetaData(Values.TestUid));
 			Assert.IsTrue(handler.IsPreparingCurrentSong(queueItem1));
 			Assert.IsFalse(handler.IsPreparingNextSong(queueItem1));
 			Assert.IsFalse(NextSongHandler.ShouldBeReplaced(queueItem1, queueItem1)); // Same item
@@ -33,58 +28,6 @@ namespace TS3ABotUnitTests {
 				queueItem1)); // Preparing next song and same QueueItem => no new task
 			Assert.IsTrue(handler.ShouldBeReplacedNext(queueItem1,
 				queueItem2)); // Preparing next song and new QueueItem => new task
-		}
-
-		private class LoaderContext : ILoaderContext {
-			public bool ShouldReturnNoRestoredLink { get; set; }
-			public bool ShouldFailLoad { get; set; }
-
-			public const string NoRestoredLinkMessage = "NoRestoredLinkMessage";
-			public const string LoadFailedMessage = "LoadFailedMessage";
-			public const string RestoredLink = "Restored link";
-
-			public R<string, LocalStr> RestoreLink(AudioResource res) {
-				if (ShouldReturnNoRestoredLink)
-					return new LocalStr(NoRestoredLinkMessage);
-				return RestoredLink;
-			}
-
-			public R<PlayResource, LocalStr> Load(AudioResource resource) {
-				if (ShouldFailLoad)
-					return new LocalStr(LoadFailedMessage);
-				return new PlayResource(resource.ResourceId, resource);
-			}
-		}
-
-		private class VolumeDetector : IVolumeDetector {
-			public const int VolumeSet = 10;
-
-			public int RunVolumeDetection(string url, CancellationToken token) {
-				if (token.IsCancellationRequested)
-					throw new TaskCanceledException();
-
-				return VolumeSet;
-			}
-		}
-
-		private class Player : VolumeDetector, IPlayer {
-			public float Volume { get; set; } = 70;
-			public TimeSpan Length { get; set; } = TimeSpan.Zero;
-			public TimeSpan Position { get; set; } = TimeSpan.Zero;
-
-			public bool ShouldFailPlay { get; set; }
-
-			public bool StopCalled { get; set; }
-			public (PlayResource res, int gain) PlayArgs { get; set; }
-
-			public E<string> Play(PlayResource res, int gain) {
-				PlayArgs = (res, gain);
-				if (ShouldFailPlay)
-					return "";
-				return R.Ok;
-			}
-
-			public void Stop() { StopCalled = true; }
 		}
 
 		public class InformingEventWaitHandle : EventWaitHandle {
@@ -130,8 +73,8 @@ namespace TS3ABotUnitTests {
 
 		[Test]
 		public void RunSongAnalyzerTaskTest() {
-			var queueItem = new QueueItem(Resource1AYoutube, new MetaData(null));
-			var queueItemGain = new QueueItem(Resource1AYoutubeGain, new MetaData(null));
+			var queueItem = new QueueItem(Values.Resource1AYoutube, new MetaData(null));
+			var queueItemGain = new QueueItem(Values.Resource1AYoutubeGain, new MetaData(null));
 
 			{
 				// Item without gain gets the gain set
@@ -190,13 +133,9 @@ namespace TS3ABotUnitTests {
 
 		[Test]
 		public void RunStartSongTaskTest() {
-			var volume = new ConfAudioVolume();
-			volume.Min.Value = 0;
-			volume.Max.Value = 10;
 			var lck = new object();
-			const string listId = "CoolPlaylist";
-			var queueItem = new QueueItem(Resource1AYoutube, new MetaData(TestUid, listId));
-			var queueItemGain = new QueueItem(Resource1AYoutubeGain, new MetaData(TestUid, listId));
+			var queueItem = new QueueItem(Values.Resource1AYoutube, new MetaData(Values.TestUid, Values.ListId));
+			var queueItemGain = new QueueItem(Values.Resource1AYoutubeGain, new MetaData(Values.TestUid, Values.ListId));
 			var playResource = new PlayResource(queueItem.AudioResource.ResourceId, queueItem.AudioResource, queueItem.MetaData);
 			var playResourceGain = new PlayResource(queueItemGain.AudioResource.ResourceId, queueItemGain.AudioResource, queueItemGain.MetaData);
 
@@ -205,7 +144,7 @@ namespace TS3ABotUnitTests {
 				var loaderContext = new LoaderContext();
 				var player = new Player();
 				
-				var task = new StartSongTask(loaderContext, player, volume, lck, queueItem);
+				var task = new StartSongTask(loaderContext, player, Values.VolumeConfig, lck, queueItem);
 
 				AudioResource changedResource = null;
 				QueueItem containingQueueItem = null;
@@ -241,7 +180,7 @@ namespace TS3ABotUnitTests {
 				var loaderContext = new LoaderContext();
 				var player = new Player();
 				
-				var task = new StartSongTask(loaderContext, player, volume, lck, queueItem);
+				var task = new StartSongTask(loaderContext, player, Values.VolumeConfig, lck, queueItem);
 
 				var waitHandle = new InformingEventWaitHandle(false, EventResetMode.AutoReset);
 				var tokenSource = new CancellationTokenSource();
@@ -263,13 +202,13 @@ namespace TS3ABotUnitTests {
 			{
 				var player = new Player();
 				
-				var task = new StartSongTask(null, player, volume, null, null);
+				var task = new StartSongTask(null, player, Values.VolumeConfig, null, null);
 				PlayInfoEventArgs argsBefore = null;
 				PlayInfoEventArgs argsAfter = null;
 				
 				task.BeforeResourceStarted += (sender, args) => {
 					Assert.IsNotNull(args);
-					Assert.AreEqual(args.Invoker, TestUid);
+					Assert.AreEqual(args.Invoker, Values.TestUid);
 					Assert.AreSame(args.MetaData, queueItemGain.MetaData);
 					Assert.AreSame(args.ResourceData, queueItemGain.AudioResource);
 					Assert.AreSame(args.SourceLink, LoaderContext.RestoredLink);
@@ -278,7 +217,7 @@ namespace TS3ABotUnitTests {
 
 				task.AfterResourceStarted += (sender, args) => {
 					Assert.IsNotNull(args);
-					Assert.AreEqual(args.Invoker, TestUid);
+					Assert.AreEqual(args.Invoker, Values.TestUid);
 					Assert.AreSame(args.MetaData, queueItemGain.MetaData);
 					Assert.AreSame(args.ResourceData, queueItemGain.AudioResource);
 					Assert.AreSame(args.SourceLink, LoaderContext.RestoredLink);
@@ -302,7 +241,7 @@ namespace TS3ABotUnitTests {
 			{
 				var player = new Player();
 				
-				var task = new StartSongTask(null, player, volume, null, null);
+				var task = new StartSongTask(null, player, Values.VolumeConfig, null, null);
 				var t = Task.Run(() => task.StartResource(new SongAnalyzerResult {Resource = playResource, RestoredLink = LoaderContext.RestoredLink}));
 
 				var res = t.Result;

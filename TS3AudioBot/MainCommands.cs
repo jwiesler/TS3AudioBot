@@ -71,9 +71,13 @@ namespace TS3AudioBot
 
 		// ReSharper disable UnusedMember.Global
 		[Command("add")]
-		public static void CommandAdd(PlayManager playManager, InvokerData invoker, string url, params string[] attributes)
-			=> playManager.Enqueue(url, new MetaData(invoker.ClientUid, null, PlayManager.ParseStartTime(attributes))).UnwrapThrow();
+		public static void CommandAdd(
+			ResolveContext resolveContext, PlayManager playManager, InvokerData invoker, string url, params string[] attributes) {
+			var result = resolveContext.Load(url).UnwrapThrow();
 
+			playManager.Enqueue(result.BaseData, new MetaData(invoker.ClientUid, null, PlayManager.ParseStartTime(attributes))).UnwrapThrow();
+		}
+		
 		[Command("add")]
 		public static void CommandAdd(PlayManager playManager, InvokerData invoker, IAudioResourceResult rsc, params string[] attributes)
 			=> playManager.Enqueue(rsc.AudioResource, new MetaData(invoker.ClientUid, null, PlayManager.ParseStartTime(attributes))).UnwrapThrow();

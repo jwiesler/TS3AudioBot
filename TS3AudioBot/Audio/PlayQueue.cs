@@ -30,13 +30,15 @@ namespace TS3AudioBot.Audio {
 
 		public int Index { get; private set; } = 0;
 
-		public QueueItem Current => Index < items.Count ? items[Index] : null;
+		public QueueItem Current => TryGetItem(Index);
 
-		public QueueItem Next => Index + 1 < items.Count ? items[Index + 1] : null;
+		public QueueItem Next => TryGetItem(Index + 1);
 
 		public IReadOnlyList<QueueItem> Items => items;
 
 		public PlayQueue() { items = new List<QueueItem>(); }
+
+		public QueueItem TryGetItem(int index) { return index < items.Count ? items[index] : null; }
 
 		public void Enqueue(QueueItem item) {
 			items.Add(item);

@@ -27,6 +27,10 @@ namespace TS3AudioBot.Audio
 		TimeSpan Length { get; }
 		TimeSpan Position { get; }
 
+		event EventHandler OnSongLengthParsed;
+		event EventHandler OnSongEnd;
+		event EventHandler<SongInfoChanged> OnSongUpdated;
+
 		E<string> Play(PlayResource res, int gain);
 
 		void Stop();
@@ -47,6 +51,7 @@ namespace TS3AudioBot.Audio
 		public EncoderPipe EncoderPipe { get; }
 		public EncoderPipe EncoderPipeHighQuality { get; }
 		public IAudioPassiveConsumer PlayerSink { get; private set; }
+		public event EventHandler OnSongLengthParsed;
 
 		public Player(ConfBot config, Id id)
 		{
@@ -67,6 +72,7 @@ namespace TS3AudioBot.Audio
 			MergePipe.Into(TimePipe).Chain<CheckActivePipe>().Chain(SplitterPipe);
 			SplitterPipe.Chain(EncoderPipeHighQuality).Chain(WebSocketPipe);
 			SplitterPipe.Chain(StallCheckPipe).Chain(VolumePipe).Chain(EncoderPipe);
+			FfmpegProducer.OnSongLengthParsed += (sender, args) => OnSongLengthParsed?.Invoke(sender, args);
 		}
 
 		public void SetTarget(IAudioPassiveConsumer target)
