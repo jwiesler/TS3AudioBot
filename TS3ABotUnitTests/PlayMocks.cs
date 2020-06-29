@@ -40,10 +40,15 @@ namespace TS3ABotUnitTests {
 			return RestoredLink;
 		}
 
+		public static string MakeResourceURI(string id, int index) {
+			return id + "_" + index;
+		}
+
+		public int LoadedResources { get; private set; }
 		public R<PlayResource, LocalStr> Load(AudioResource resource) {
 			if (ShouldFailLoad)
 				return new LocalStr(LoadFailedMessage);
-			return new PlayResource(resource.ResourceId, resource);
+			return new PlayResource(MakeResourceURI(resource.ResourceId, LoadedResources++), resource);
 		}
 	}
 
@@ -71,8 +76,23 @@ namespace TS3ABotUnitTests {
 		public bool StopCalled { get; set; }
 		public (PlayResource res, int gain) PlayArgs { get; set; }
 
+		public EventWaitHandle PlayWaitHandle { get; } = new EventWaitHandle(false, EventResetMode.AutoReset);
+
+		public void InvokeOnSongLengthParsed() {
+			OnSongLengthParsed?.Invoke(this, EventArgs.Empty);
+		}
+
+		public void InvokeOnSongEnd() {
+			OnSongEnd?.Invoke(this, EventArgs.Empty);
+		}
+
+		public void InvokeOnSongUpdated(string title) {
+			OnSongUpdated?.Invoke(this, new SongInfoChanged() {Title = title});
+		}
+
 		public E<string> Play(PlayResource res, int gain) {
 			PlayArgs = (res, gain);
+			PlayWaitHandle.Set();
 			if (ShouldFailPlay)
 				return "";
 			return R.Ok;
