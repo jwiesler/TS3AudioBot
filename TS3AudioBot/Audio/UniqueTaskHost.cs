@@ -21,9 +21,9 @@ namespace TS3AudioBot.Audio
 		public event EventHandler<TTask> OnTaskStart;
 		public event EventHandler<TTask> OnTaskStop;
 
-		private void StartTask(TTask task) { OnTaskStart?.Invoke(this, task); }
+		protected virtual void StartTask(TTask task) { OnTaskStart?.Invoke(this, task); }
 
-		private void StopTask(TTask task) { OnTaskStop?.Invoke(this, task); }
+		protected virtual void StopTask(TTask task) { OnTaskStop?.Invoke(this, task); }
 
 		public void RunTask(TTask task) {
 			if(task == default)

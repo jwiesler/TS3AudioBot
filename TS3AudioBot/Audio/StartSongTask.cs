@@ -221,6 +221,57 @@ namespace TS3AudioBot.Audio {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		public NextSongHandler NextSongHandler { get; } = new NextSongHandler();
 
+		public event EventHandler<PlayInfoEventArgs> BeforeResourceStarted;
+		public event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
+		public event EventHandler<LoadFailureEventArgs> OnLoadFailure;
+		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
+
+		private void InvokeBeforeResourceStarted(object sender, PlayInfoEventArgs e) {
+			if (Current == null || sender == null || !ReferenceEquals(sender, Current.StartSongTask))
+				return;
+			BeforeResourceStarted?.Invoke(sender, e);
+		}
+
+		private void InvokeAfterResourceStarted(object sender, PlayInfoEventArgs e) {
+			if (Current == null || sender == null || !ReferenceEquals(sender, Current.StartSongTask))
+				return;
+			AfterResourceStarted?.Invoke(sender, e);
+		}
+
+		private void InvokeOnLoadFailure(object sender, LoadFailureEventArgs e) {
+			if (Current == null || sender == null || !ReferenceEquals(sender, Current.StartSongTask))
+				return;
+			OnLoadFailure?.Invoke(sender, e);
+		}
+
+		private void InvokeOnAudioResourceUpdated(object sender, AudioResourceUpdatedEventArgs e) {
+			if (Current == null || sender == null || !ReferenceEquals(sender, Current.StartSongTask))
+				return;
+			OnAudioResourceUpdated?.Invoke(sender, e);
+		}
+
+		protected override void StartTask(StartSongTaskHandler task) {
+			var songTask = task.StartSongTask;
+			songTask.BeforeResourceStarted += InvokeBeforeResourceStarted;
+			songTask.AfterResourceStarted += InvokeAfterResourceStarted;
+			songTask.OnAudioResourceUpdated += InvokeOnAudioResourceUpdated;
+			songTask.OnLoadFailure += InvokeOnLoadFailure;
+
+			base.StartTask(task);
+		}
+
+		protected override void StopTask(StartSongTaskHandler task) {
+			task.Cancel();
+
+			var songTask = task.StartSongTask;
+			songTask.BeforeResourceStarted -= InvokeBeforeResourceStarted;
+			songTask.AfterResourceStarted -= InvokeAfterResourceStarted;
+			songTask.OnAudioResourceUpdated -= InvokeOnAudioResourceUpdated;
+			songTask.OnLoadFailure -= InvokeOnLoadFailure;
+
+			base.StopTask(task);
+		}
+
 		public void SetNextSong(QueueItem item, Func<QueueItem, StartSongTaskHandler> constructor) {
 			if (Current != null && !NextSongHandler.ShouldBeReplacedNext(Current.StartSongTask.QueueItem, item))
 				return;
@@ -242,6 +293,8 @@ namespace TS3AudioBot.Audio {
 				Log.Trace($"Load for {task.StartSongTask.QueueItem.GetHashCode()} finished, clearing next song.");
 				NextSongHandler.ClearNextSong();
 			}
+
+
 
 			return task;
 		}
