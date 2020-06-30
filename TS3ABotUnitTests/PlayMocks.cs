@@ -29,7 +29,8 @@ namespace TS3ABotUnitTests {
 	public class LoaderContext : ILoaderContext {
 		public bool ShouldReturnNoRestoredLink { get; set; }
 		public bool ShouldFailLoad { get; set; }
-
+		public event EventHandler AfterLoad;
+		
 		public const string NoRestoredLinkMessage = "NoRestoredLinkMessage";
 		public const string LoadFailedMessage = "LoadFailedMessage";
 		public const string RestoredLink = "Restored link";
@@ -46,9 +47,14 @@ namespace TS3ABotUnitTests {
 
 		public int LoadedResources { get; private set; }
 		public R<PlayResource, LocalStr> Load(AudioResource resource) {
-			if (ShouldFailLoad)
-				return new LocalStr(LoadFailedMessage);
-			return new PlayResource(MakeResourceURI(resource.ResourceId, LoadedResources++), resource);
+			try {
+				if (ShouldFailLoad)
+					return new LocalStr(LoadFailedMessage);
+				return new PlayResource(MakeResourceURI(resource.ResourceId, LoadedResources), resource);
+			} finally {
+				LoadedResources++;
+				AfterLoad?.Invoke(this, EventArgs.Empty);
+			}
 		}
 	}
 
@@ -64,12 +70,23 @@ namespace TS3ABotUnitTests {
 	}
 
 	public class Player : VolumeDetector, IPlayer {
+		public static readonly TimeSpan DefaultResourceLength = TimeSpan.FromSeconds(10);
 		public event EventHandler OnSongLengthParsed;
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
 		public float Volume { get; set; } = 70;
-		public TimeSpan Length { get; set; } = TimeSpan.Zero;
-		public TimeSpan Position { get; set; } = TimeSpan.Zero;
+
+		private TimeSpan? length;
+		public TimeSpan Length => length ?? TimeSpan.Zero;
+		public TimeSpan Position { get; } = TimeSpan.Zero;
+
+		public TimeSpan? Remaining {
+			get {
+				if (length == null)
+					return null;
+				return length.Value - Position;
+			}
+		}
 
 		public bool ShouldFailPlay { get; set; }
 
@@ -95,9 +112,57 @@ namespace TS3ABotUnitTests {
 			PlayWaitHandle.Set();
 			if (ShouldFailPlay)
 				return "";
+
+			length = DefaultResourceLength;
 			return R.Ok;
 		}
 
-		public void Stop() { StopCalled = true; }
+		public void Stop() {
+			StopCalled = true;
+			length = null;
+		}
+	}
+
+	public class StartSongTaskHost : IStartSongTaskHost {
+		public event EventHandler<PlayInfoEventArgs> BeforeResourceStarted;
+		public event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
+		public event EventHandler<LoadFailureTaskEventArgs> OnLoadFailure;
+		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
+
+		private QueueItem preparingItem;
+		private QueueItem nextItem;
+
+		public void InvokeOnAudioResourceUpdated(object sender, QueueItem item, AudioResource resource) {
+			OnAudioResourceUpdated?.Invoke(sender, new AudioResourceUpdatedEventArgs(item, resource));
+		}
+
+		public bool HasTask => preparingItem != null;
+		public bool IsCurrentResource => !IsNextResource;
+		public bool IsNextResource => ReferenceEquals(preparingItem, nextItem);
+
+		public void SetNextSong(QueueItem item, TimeSpan? remaining) {
+			nextItem = item;
+		}
+		public void SetCurrentSong(QueueItem item, TimeSpan? remaining) { throw new NotImplementedException(); }
+
+		public void PlayCurrentWhenFinished() {
+			var e = new PlayInfoEventArgs(preparingItem.MetaData.ResourceOwnerUid, new PlayResource("uri", preparingItem.AudioResource, preparingItem.MetaData), "link");
+			// We are always ready
+			BeforeResourceStarted?.Invoke(this, e);
+			AfterResourceStarted?.Invoke(this, e);
+		}
+
+		public void FailLoad() {
+			OnLoadFailure?.Invoke(this, new LoadFailureTaskEventArgs(new LocalStr("Error"), preparingItem, IsCurrentResource));
+		}
+
+		public void UpdateRemaining(TimeSpan remaining) {}
+
+		public void Clear() {
+			preparingItem = null;
+			nextItem = null;
+		}
+
+		public void ClearTask() { preparingItem = null; }
 	}
 }
