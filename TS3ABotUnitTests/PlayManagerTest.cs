@@ -235,5 +235,32 @@ namespace TS3ABotUnitTests {
 			helper.AssertAtEndOfPlay();
 			helper.CheckTasksCanceled(1);
 		}
+
+		[Test]
+		public void PlayTestWithShadowsPlaybackStopped() {
+			var helper = new PlayTestHelper();
+			helper.Manager.PlaybackStopped += (sender, args) => {
+				if (args.NextShadow == null)
+					return;
+				args.Item = args.NextShadow;
+				args.NextShadow = null;
+			};
+
+			// queue with one item, add shadow
+			helper.Enqueue(QueueItems[0]);
+			helper.Manager.NextSongShadow = QueueItems[1];
+			helper.Play(QueueItems[0], 0);
+
+			// first song is playing, check that the shadow is preparing
+			helper.CheckIsPreparing(QueueItems[1]);
+			helper.InvokeSongEnd();
+
+			// item gets filled in by event handler, is added to queue and plays now
+			helper.Play(QueueItems[1], 1);
+			helper.InvokeSongEnd();
+
+			helper.AssertAtEndOfPlay();
+			helper.CheckTasksCanceled(0);
+		}
 	}
 }

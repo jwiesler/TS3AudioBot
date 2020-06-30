@@ -7,13 +7,12 @@ namespace TS3AudioBot.Audio.Preparation {
 		public event EventHandler<LoadFailureTaskEventArgs> OnLoadFailure;
 		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
 
-		private readonly NextSongHandler nextSongHandler = new NextSongHandler();
-
 		public abstract QueueItem PreparingItem { get; }
+		private QueueItem nextPreparingItem;
 
 		public bool HasTask => PreparingItem != null;
 		public bool IsCurrentResource => !IsNextResource;
-		public bool IsNextResource => nextSongHandler.IsPreparingNextSong(PreparingItem);
+		public bool IsNextResource => ReferenceEquals(PreparingItem, nextPreparingItem);
 
 		protected void InvokeBeforeResourceStarted(object sender, PlayInfoEventArgs e) {
 			BeforeResourceStarted?.Invoke(sender, e);
@@ -34,18 +33,26 @@ namespace TS3AudioBot.Audio.Preparation {
 		}
 
 		public void SetNextSong(QueueItem item, TimeSpan? remaining) {
-			if (HasTask && !nextSongHandler.ShouldBeReplacedNext(PreparingItem, item))
+			if (HasTask && (IsCurrentResource || ReferenceEquals(PreparingItem, item))) {
+				if(ReferenceEquals(PreparingItem, item) && remaining.HasValue)
+					UpdateRemaining(remaining.Value);
 				return;
-			nextSongHandler.NextSongPreparing = item;
+			}
+
+			nextPreparingItem = item;
 			if (HasTask)
 				CancelTask();
 			SetTask(item, remaining);
 		}
 
 		public void SetCurrentSong(QueueItem item, TimeSpan? remaining) {
-			nextSongHandler.ClearNextSong();
-			if (HasTask && !nextSongHandler.ShouldBeReplacedNext(PreparingItem, item))
+			nextPreparingItem = null;
+			if (HasTask && ReferenceEquals(PreparingItem, item)) {
+				if(remaining.HasValue)
+					UpdateRemaining(remaining.Value);
 				return;
+			}
+
 			if (HasTask)
 				CancelTask();
 			SetTask(item, remaining);
@@ -53,7 +60,7 @@ namespace TS3AudioBot.Audio.Preparation {
 
 		public void Clear() {
 			ClearTask();
-			nextSongHandler.ClearNextSong();
+			nextPreparingItem = null;
 		}
 
 		public void ClearTask() {
