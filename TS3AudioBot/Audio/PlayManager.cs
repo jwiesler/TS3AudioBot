@@ -10,8 +10,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TS3AudioBot.Audio.Preparation;
 using TS3AudioBot.Config;
-using TS3AudioBot.Environment;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;

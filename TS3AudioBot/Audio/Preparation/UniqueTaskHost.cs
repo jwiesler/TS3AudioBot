@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 
-namespace TS3AudioBot.Audio
+namespace TS3AudioBot.Audio.Preparation
 {
 	public class UniqueHostBase<T> where T : class {
 		private T current;

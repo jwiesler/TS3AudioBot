@@ -1,17 +1,16 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
 
-namespace TS3AudioBot.Audio {
+namespace TS3AudioBot.Audio.Preparation {
 	public class SongAnalyzerResult {
 		public PlayResource Resource { get; set; }
 
 		public R<string, LocalStr> RestoredLink { get; set; }
 	}
-	
+
 	public class SongAnalyzerTask {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 
@@ -42,7 +41,7 @@ namespace TS3AudioBot.Audio {
 
 			Log.Debug("Song resolve took {0}ms", timer.ElapsedMilliseconds);
 
-			if(!(Source.AudioResource.Gain.HasValue || Source.AudioResource.AudioType != "youtube")) {
+			if (!(Source.AudioResource.Gain.HasValue || Source.AudioResource.AudioType != "youtube")) {
 				timer.Restart();
 
 				var gain = VolumeDetector.RunVolumeDetection(res.PlayUri, cancellationToken);

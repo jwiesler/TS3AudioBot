@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TS3AudioBot.Audio
+namespace TS3AudioBot.Audio.Preparation
 {
 	public class WaitTask {
 		private int waitMs;

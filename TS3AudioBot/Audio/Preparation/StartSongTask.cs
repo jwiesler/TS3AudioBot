@@ -1,13 +1,12 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using NLog;
 using TS3AudioBot.Config;
 using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
 using TSLib.Helper;
 
-namespace TS3AudioBot.Audio {
+namespace TS3AudioBot.Audio.Preparation {
 	public class LoadFailureEventArgs : EventArgs {
 		public LocalStr Error { get; }
 		public QueueItem QueueItem { get; }
@@ -196,167 +195,5 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public void StartOrStopWaiting() { StartOrUpdateWaitTime(0); }
-	}
-
-	public class NextSongHandler {
-		public QueueItem NextSongPreparing { get; set; }
-
-		public bool IsPreparingNextSong(QueueItem current) { return ReferenceEquals(current, NextSongPreparing); }
-
-		public bool IsPreparingCurrentSong(QueueItem current) { return !ReferenceEquals(current, NextSongPreparing); }
-
-		public static bool ShouldBeReplaced(QueueItem current, QueueItem newValue) {
-			return !ReferenceEquals(current, newValue);
-		}
-
-		public bool ShouldBeReplacedNext(QueueItem current, QueueItem newValue) {
-			return ShouldBeReplaced(current, newValue) && IsPreparingNextSong(current);
-		}
-
-		public void ClearNextSong() {
-			NextSongPreparing = null;
-		}
-	}
-
-	public class LoadFailureTaskEventArgs : LoadFailureEventArgs {
-		public bool IsCurrentResource { get; }
-
-		public LoadFailureTaskEventArgs(LocalStr error, QueueItem queueItem, bool isCurrentResource) : base(error, queueItem) { IsCurrentResource = isCurrentResource; }
-	}
-
-	public interface IStartSongTaskHost {
-		event EventHandler<PlayInfoEventArgs> BeforeResourceStarted;
-
-		// Current task is already removed if those two are called
-		event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
-		event EventHandler<LoadFailureTaskEventArgs> OnLoadFailure;
-
-		event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
-
-		bool HasTask { get; }
-		bool IsCurrentResource { get; }
-		bool IsNextResource { get; }
-
-		void SetNextSong(QueueItem item, TimeSpan? remaining);
-		void SetCurrentSong(QueueItem item, TimeSpan? remaining);
-
-		void PlayCurrentWhenFinished();
-		void UpdateRemaining(TimeSpan remaining);
-
-		void Clear();
-		void ClearTask();
-	}
-
-	public class StartSongTaskHost : UniqueTaskHost<StartSongTaskHandler>, IStartSongTaskHost {
-		private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-		private readonly Func<QueueItem, StartSongTaskHandler> constructor;
-
-		public bool HasTask => Current != null;
-		public bool IsCurrentResource => nextSongHandler.IsPreparingCurrentSong(Current.StartSongTask.QueueItem);
-		public bool IsNextResource => nextSongHandler.IsPreparingNextSong(Current.StartSongTask.QueueItem);
-		
-		private readonly NextSongHandler nextSongHandler = new NextSongHandler();
-
-		public event EventHandler<PlayInfoEventArgs> BeforeResourceStarted;
-		public event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
-		public event EventHandler<LoadFailureTaskEventArgs> OnLoadFailure;
-		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
-
-		public StartSongTaskHost(Func<QueueItem, StartSongTaskHandler> constructor) { this.constructor = constructor; }
-
-		private void InvokeBeforeResourceStarted(object sender, PlayInfoEventArgs e) {
-			if (!ReferenceEquals(sender, Current.StartSongTask))
-				return;
-			BeforeResourceStarted?.Invoke(sender, e);
-		}
-
-		private void InvokeAfterResourceStarted(object sender, PlayInfoEventArgs e) {
-			if (!ReferenceEquals(sender, Current.StartSongTask))
-				return;
-			RemoveFinishedTask();
-			AfterResourceStarted?.Invoke(sender, e);
-		}
-
-		private void InvokeOnLoadFailure(object sender, LoadFailureEventArgs e) {
-			if (!ReferenceEquals(sender, Current.StartSongTask))
-				return;
-			var isCurrent = IsCurrentResource;
-			RemoveFinishedTask();
-			OnLoadFailure?.Invoke(sender, new LoadFailureTaskEventArgs(e.Error, e.QueueItem, isCurrent));
-		}
-
-		private void InvokeOnAudioResourceUpdated(object sender, AudioResourceUpdatedEventArgs e) {
-			if (!ReferenceEquals(sender, Current.StartSongTask))
-				return;
-			OnAudioResourceUpdated?.Invoke(sender, e);
-		}
-
-		protected override void StartTask(StartSongTaskHandler task) {
-			var songTask = task.StartSongTask;
-			songTask.BeforeResourceStarted += InvokeBeforeResourceStarted;
-			songTask.AfterResourceStarted += InvokeAfterResourceStarted;
-			songTask.OnAudioResourceUpdated += InvokeOnAudioResourceUpdated;
-			songTask.OnLoadFailure += InvokeOnLoadFailure;
-
-			base.StartTask(task);
-		}
-
-		protected override void StopTask(StartSongTaskHandler task) {
-			task.Cancel();
-
-			var songTask = task.StartSongTask;
-			songTask.BeforeResourceStarted -= InvokeBeforeResourceStarted;
-			songTask.AfterResourceStarted -= InvokeAfterResourceStarted;
-			songTask.OnAudioResourceUpdated -= InvokeOnAudioResourceUpdated;
-			songTask.OnLoadFailure -= InvokeOnLoadFailure;
-
-			base.StopTask(task);
-		}
-
-		public void Clear() {
-			ClearTask();
-			nextSongHandler.ClearNextSong();
-		}
-
-		public void SetNextSong(QueueItem item, TimeSpan? remaining) {
-			if (Current != null && !nextSongHandler.ShouldBeReplacedNext(Current.StartSongTask.QueueItem, item))
-				return;
-			Log.Trace($"Setting next song to {item.AudioResource.ResourceTitle} ({item.GetHashCode()}).");
-			RunTask(constructor(item));
-			nextSongHandler.NextSongPreparing = item;
-			StartCurrentIfRemaining(remaining);
-		}
-
-		public void SetCurrentSong(QueueItem item, TimeSpan? remaining) {
-			nextSongHandler.ClearNextSong();
-			if (Current != null && !NextSongHandler.ShouldBeReplaced(Current.StartSongTask.QueueItem, item))
-				return;
-			RunTask(constructor(item));
-			StartCurrentIfRemaining(remaining);
-		}
-
-		public void UpdateRemaining(TimeSpan remaining) {
-			StartCurrentTaskIn((int)remaining.TotalMilliseconds);
-		}
-
-		private void StartCurrentIfRemaining(TimeSpan? remaining) {
-			if(remaining.HasValue)
-				StartCurrentTaskIn(GetTaskStartTimeMs(remaining.Value));
-		}
-
-		public void PlayCurrentWhenFinished() {
-			Current.PlayWhenFinished();
-		}
-
-		private void StartCurrentTaskIn(int ms) {
-			Current.StartOrUpdateWaitTime(ms);
-		}
-
-		private const int MaxMsBeforeNextSong = 30000;
-
-		public static int GetTaskStartTimeMs(TimeSpan remainingSongTime) {
-			int remainingTimeMs = (int) remainingSongTime.TotalMilliseconds;
-			return Math.Max(remainingTimeMs - MaxMsBeforeNextSong, 0);
-		}
 	}
 }

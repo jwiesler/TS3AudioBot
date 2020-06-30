@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using TS3AudioBot.Audio;
+using TS3AudioBot.Audio.Preparation;
 using TS3AudioBot.Config;
 using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
