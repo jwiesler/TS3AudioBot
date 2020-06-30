@@ -26,6 +26,7 @@ namespace TS3AudioBot.Audio
 		float Volume { get; set; }
 		TimeSpan Length { get; }
 		TimeSpan Position { get; }
+		TimeSpan? Remaining { get; }
 
 		event EventHandler OnSongLengthParsed;
 		event EventHandler OnSongEnd;
@@ -148,6 +149,14 @@ namespace TS3AudioBot.Audio
 		}
 
 		public TimeSpan Length => CurrentPlayerSource?.Length ?? TimeSpan.Zero;
+
+		public TimeSpan? Remaining {
+			get {
+				if (CurrentPlayerSource != null)
+					return CurrentPlayerSource.Length - CurrentPlayerSource.Position;
+				return null;
+			}
+		}
 
 		public TimeSpan Position
 		{

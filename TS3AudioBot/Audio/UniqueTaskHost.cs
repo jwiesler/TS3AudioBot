@@ -18,12 +18,10 @@ namespace TS3AudioBot.Audio
 
 	public abstract class UniqueTaskHost<TTask> : UniqueHostBase<TTask>
 		where TTask : class {
-		public event EventHandler<TTask> OnTaskStart;
-		public event EventHandler<TTask> OnTaskStop;
 
-		protected virtual void StartTask(TTask task) { OnTaskStart?.Invoke(this, task); }
+		protected virtual void StartTask(TTask task) {}
 
-		protected virtual void StopTask(TTask task) { OnTaskStop?.Invoke(this, task); }
+		protected virtual void StopTask(TTask task) {}
 
 		public void RunTask(TTask task) {
 			if(task == default)
