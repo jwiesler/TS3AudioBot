@@ -28,9 +28,7 @@ namespace TS3AudioBot.Audio {
 	public class PlayManager {
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 
-		private readonly ConfAudioVolume confAudioVolume;
 		private readonly IPlayer playerConnection;
-		private readonly ILoaderContext resourceResolver;
 		private readonly PlaylistManager playlistManager;
 
 		private readonly IStartSongTaskHost taskHost;
@@ -51,22 +49,23 @@ namespace TS3AudioBot.Audio {
 		// Needed for the injector cancer
 		public PlayManager(
 			ConfBot config, Player playerConnection, ResolveContext resourceResolver, PlaylistManager playlistManager)
-			: this(config.Audio.Volume, playerConnection, resourceResolver, playlistManager) {
-			taskHost = new StartSongTaskHost(CreateTask);
+			: this(playerConnection, playlistManager) {
+			taskHost = new StartSongTaskHost(
+				item =>
+					new StartSongTaskHandler(new StartSongTask(resourceResolver, playerConnection, config.Audio.Volume,
+						Lock, item))
+			);
 			Init();
 		}
 
-		public PlayManager(
-			ConfAudioVolume confAudioVolume, IPlayer playerConnection, ILoaderContext resourceResolver, PlaylistManager playlistManager, IStartSongTaskHost taskHost)
-			: this(confAudioVolume, playerConnection, resourceResolver, playlistManager) {
+		public PlayManager(IPlayer playerConnection, PlaylistManager playlistManager, IStartSongTaskHost taskHost)
+			: this(playerConnection, playlistManager) {
 			this.taskHost = taskHost;
 			Init();
 		}
 
-		private PlayManager(ConfAudioVolume confAudioVolume, IPlayer playerConnection, ILoaderContext resourceResolver, PlaylistManager playlistManager) {
-			this.confAudioVolume = confAudioVolume;
+		private PlayManager(IPlayer playerConnection, PlaylistManager playlistManager) {
 			this.playerConnection = playerConnection;
-			this.resourceResolver = resourceResolver;
 			this.playlistManager = playlistManager;
 		}
 
@@ -94,6 +93,8 @@ namespace TS3AudioBot.Audio {
 				TryStopCurrentSong();
 				OnPlaybackEnded();
 				taskHost.Clear();
+				NextSongIndex = 0;
+				nextSongShadow = null;
 			}
 		}
 
@@ -104,28 +105,34 @@ namespace TS3AudioBot.Audio {
 			}
 		}
 
-		public void OnQueueChanged() {
-			UpdateNextSong();
+		public void OnQueueChanged(int firstChangedIndex = 0) {
+			if(firstChangedIndex < Queue.Index)
+				throw new ArgumentOutOfRangeException("firstChangedIndex");
+
+			if (firstChangedIndex <= NextSongIndex) {
+				NextSongIndex = firstChangedIndex;
+				UpdateNextSong();
+			}
 		}
 
 		public void EnqueueAsNextSong(QueueItem item) {
 			lock (Lock) {
 				Queue.InsertAfter(item, Queue.Index);
-				OnQueueChanged();
+				OnQueueChanged(Queue.Index + 1);
 			}
 		}
 
 		public void RemoveAt(int index) {
 			lock (Lock) {
 				Queue.Remove(index);
-				OnQueueChanged();
+				OnQueueChanged(index);
 			}
 		}
 
 		public void RemoveRange(int from, int to) {
 			lock (Lock) {
 				Queue.RemoveRange(from, to);
-				OnQueueChanged();
+				OnQueueChanged(from);
 			}
 		}
 
@@ -137,18 +144,20 @@ namespace TS3AudioBot.Audio {
 
 		public E<LocalStr> Enqueue(QueueItem item) {
 			lock (Lock) {
+				var idx = Queue.Count;
 				Queue.Enqueue(item);
 				TryInitialStart();
-				OnQueueChanged();
+				OnQueueChanged(idx);
 				return R.Ok;
 			}
 		}
 
 		public E<LocalStr> Enqueue(IEnumerable<QueueItem> items) {
 			lock (Lock) {
+				var idx = Queue.Count;
 				Queue.Enqueue(items);
 				TryInitialStart();
-				OnQueueChanged();
+				OnQueueChanged(idx);
 				return R.Ok;
 			}
 		}
@@ -163,7 +172,9 @@ namespace TS3AudioBot.Audio {
 
 				TryStopCurrentSong();
 
-				if (!Queue.Skip(count)) {
+				var atEndOfQueue = !Queue.Skip(count);
+				NextSongIndex = Math.Max(NextSongIndex, Queue.Index);
+				if (atEndOfQueue) {
 					var e = OnPlaybackEnded();
 					if (e.Item == null) {
 						Log.Trace("Could not recover from queue end.");
@@ -176,7 +187,7 @@ namespace TS3AudioBot.Audio {
 					StartPlayingCurrent();
 					NextSongShadow = e.NextShadow;
 				} else {
-					StartPlayingCurrent();
+					StartPlayingNextGood();
 				}
 
 				return R.Ok;
@@ -229,12 +240,31 @@ namespace TS3AudioBot.Audio {
 			StartPlayingCurrent();
 		}
 
+		private void StartPlayingNextGood() {
+			if(Queue.Index < NextSongIndex)
+				Queue.Index = NextSongIndex;
+			var item = Queue.Current;
+			if (item == null)
+				return;
+
+			StartAsync(item);
+		}
+
 		private void StartPlayingCurrent() {
 			var item = Queue.Current;
 			if (item == null)
 				return;
 
 			StartAsync(item);
+		}
+
+		private void StartAsync(QueueItem queueItem) {
+			Log.Info($"Starting {queueItem.AudioResource.ResourceTitle}...");
+			if (nextSongShadow == queueItem)
+				nextSongShadow = null;
+
+			taskHost.SetCurrentSong(queueItem, TimeSpan.Zero);
+			taskHost.PlayCurrentWhenFinished();
 		}
 
 		private void OnBeforeResourceStarted(object sender, PlayInfoEventArgs e) {
@@ -247,6 +277,7 @@ namespace TS3AudioBot.Audio {
 			lock (Lock) {
 				CurrentPlayData = e;
 				AfterResourceStarted?.Invoke(this, e);
+				++NextSongIndex;
 				UpdateNextSong();
 			}
 		}
@@ -269,7 +300,7 @@ namespace TS3AudioBot.Audio {
 		private void OnLoadFailure(object sender, LoadFailureTaskEventArgs e) {
 			lock (Lock) {
 				Log.Info("Could not load song {0} (reason: {1})", e.QueueItem.AudioResource, e.Error);
-				
+
 				if (e.IsCurrentResource)
 					Next();
 				else
@@ -283,18 +314,9 @@ namespace TS3AudioBot.Audio {
 				NextSongShadow = null;
 			} else {
 				// Update next song index
-				++nextSongIndex;
+				++NextSongIndex;
 				UpdateNextSong();
 			}
-		}
-
-		private void StartAsync(QueueItem queueItem) {
-			Log.Info($"Starting {queueItem.AudioResource.ResourceTitle}...");
-			if (nextSongShadow == queueItem)
-				nextSongShadow = null;
-
-			taskHost.SetCurrentSong(queueItem, TimeSpan.Zero);
-			taskHost.PlayCurrentWhenFinished();
 		}
 
 		private QueueItem nextSongShadow;
@@ -311,13 +333,15 @@ namespace TS3AudioBot.Audio {
 			}
 		}
 
-		private int nextSongIndex;
+		public int NextSongIndex { get; private set; }
 
-		private QueueItem NextSong => Queue.TryGetItem(nextSongIndex);
+		public QueueItem NextSong => Queue.TryGetItem(NextSongIndex) ?? NextSongShadow;
 
 		private void UpdateNextSong() {
 			lock (Lock) {
-				var next = NextSong ?? NextSongShadow;
+				/*if (nextSongIndex < Queue.Index + 1)
+					nextSongIndex = Queue.Index + 1;*/
+				var next = NextSong;
 				UpdateNextSongInternal(next);
 			}
 		}
@@ -375,10 +399,6 @@ namespace TS3AudioBot.Audio {
 			}
 
 			return res;
-		}
-
-		protected StartSongTaskHandler CreateTask(QueueItem value) {
-			return new StartSongTaskHandler(new StartSongTask(resourceResolver, playerConnection, confAudioVolume, Lock, value));
 		}
 	}
 }

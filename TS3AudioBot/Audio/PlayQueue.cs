@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TS3AudioBot.ResourceFactories;
 using TSLib.Helper;
 
@@ -15,6 +12,8 @@ namespace TS3AudioBot.Audio {
 			AudioResource = audioResource;
 			MetaData = metaData;
 		}
+
+		public override string ToString() { return $"{AudioResource} ({MetaData})"; }
 	}
 
 	public class PlayQueueCurrentChangedEventArgs : EventArgs {
@@ -28,13 +27,15 @@ namespace TS3AudioBot.Audio {
 	public class PlayQueue {
 		private readonly List<QueueItem> items;
 
-		public int Index { get; private set; } = 0;
+		public int Index { get; set; } = 0;
 
 		public QueueItem Current => TryGetItem(Index);
 
 		public QueueItem Next => TryGetItem(Index + 1);
 
 		public IReadOnlyList<QueueItem> Items => items;
+
+		public int Count => Items.Count;
 
 		public PlayQueue() { items = new List<QueueItem>(); }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using TS3AudioBot.Audio;
 using TS3AudioBot.Audio.Preparation;
 using TS3AudioBot.Config;
@@ -124,46 +125,53 @@ namespace TS3ABotUnitTests {
 		}
 	}
 
-	public class StartSongTaskHost : IStartSongTaskHost {
-		public event EventHandler<PlayInfoEventArgs> BeforeResourceStarted;
-		public event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
-		public event EventHandler<LoadFailureTaskEventArgs> OnLoadFailure;
-		public event EventHandler<AudioResourceUpdatedEventArgs> OnAudioResourceUpdated;
-
+	public class StartSongTaskHost : StartSongTaskHostBase {
 		private QueueItem preparingItem;
-		private QueueItem nextItem;
 
-		public void InvokeOnAudioResourceUpdated(object sender, QueueItem item, AudioResource resource) {
-			OnAudioResourceUpdated?.Invoke(sender, new AudioResourceUpdatedEventArgs(item, resource));
+		public override QueueItem PreparingItem => preparingItem;
+		public int CanceledTasks { get; set; }
+		private bool PlayRequested { get; set; }
+
+		public bool GetPlayRequestedReset() {
+			var b = PlayRequested;
+			PlayRequested = false;
+			return b;
 		}
 
-		public bool HasTask => preparingItem != null;
-		public bool IsCurrentResource => !IsNextResource;
-		public bool IsNextResource => ReferenceEquals(preparingItem, nextItem);
-
-		public void SetNextSong(QueueItem item, TimeSpan? remaining) {
-			nextItem = item;
-		}
-		public void SetCurrentSong(QueueItem item, TimeSpan? remaining) { throw new NotImplementedException(); }
-
-		public void PlayCurrentWhenFinished() {
-			var e = new PlayInfoEventArgs(preparingItem.MetaData.ResourceOwnerUid, new PlayResource("uri", preparingItem.AudioResource, preparingItem.MetaData), "link");
-			// We are always ready
-			BeforeResourceStarted?.Invoke(this, e);
-			AfterResourceStarted?.Invoke(this, e);
+		public void Play() {
+			Assert.IsNotNull(preparingItem);
+			var e = new PlayInfoEventArgs(PreparingItem.MetaData.ResourceOwnerUid, new PlayResource("uri", PreparingItem.AudioResource, PreparingItem.MetaData), "link");
+			InvokeBeforeResourceStarted(this, e);
+			InvokeAfterResourceStarted(this, e);
 		}
 
 		public void FailLoad() {
-			OnLoadFailure?.Invoke(this, new LoadFailureTaskEventArgs(new LocalStr("Error"), preparingItem, IsCurrentResource));
+			Assert.IsNotNull(preparingItem);
+			PlayRequested = false;
+			var e = new LoadFailureTaskEventArgs(new LocalStr("Error"), PreparingItem, IsCurrentResource);
+			InvokeOnLoadFailure(this, e);
 		}
 
-		public void UpdateRemaining(TimeSpan remaining) {}
+		public override void PlayCurrentWhenFinished() {
+			Assert.IsNotNull(preparingItem);
+			Assert.IsFalse(PlayRequested);
+			PlayRequested = true;
+		}
 
-		public void Clear() {
+		public override void UpdateRemaining(TimeSpan remaining) {
+			Assert.IsNotNull(preparingItem);
+		}
+
+		protected override void RemoveFinishedTask() { preparingItem = null; }
+
+		protected override void CancelTask() {
+			++CanceledTasks;
 			preparingItem = null;
-			nextItem = null;
 		}
 
-		public void ClearTask() { preparingItem = null; }
+		protected override void SetTask(QueueItem item, TimeSpan? remaining) {
+			Assert.IsNotNull(item);
+			preparingItem = item;
+		}
 	}
 }
