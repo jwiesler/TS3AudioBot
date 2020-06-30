@@ -152,7 +152,7 @@ namespace TS3AudioBot.Audio
 
 		public TimeSpan? Remaining {
 			get {
-				if (CurrentPlayerSource != null)
+				if (CurrentPlayerSource != null && CurrentPlayerSource.Length != TimeSpan.Zero)
 					return CurrentPlayerSource.Length - CurrentPlayerSource.Position;
 				return null;
 			}

@@ -31,7 +31,7 @@ namespace TS3AudioBot.Audio.Preparation {
 		private new void InvokeAfterResourceStarted(object sender, PlayInfoEventArgs e) {
 			if (!ReferenceEquals(sender, currentTask.StartSongTask))
 				return;
-			base.InvokeBeforeResourceStarted(sender, e);
+			base.InvokeAfterResourceStarted(sender, e);
 		}
 
 		private void InvokeOnLoadFailure(object sender, LoadFailureEventArgs e) {
@@ -64,7 +64,7 @@ namespace TS3AudioBot.Audio.Preparation {
 			songTask.OnLoadFailure -= InvokeOnLoadFailure;
 		}
 
-		public override void UpdateRemaining(TimeSpan remaining) { StartCurrentTaskIn((int) remaining.TotalMilliseconds); }
+		public override void UpdateRemaining(TimeSpan remaining) { StartCurrentTask(remaining); }
 
 		protected override void RemoveFinishedTask() {
 			currentTask = null;
@@ -84,12 +84,14 @@ namespace TS3AudioBot.Audio.Preparation {
 
 		private void StartCurrentIfRemaining(TimeSpan? remaining) {
 			if (remaining.HasValue)
-				StartCurrentTaskIn(GetTaskStartTimeMs(remaining.Value));
+				StartCurrentTask(remaining.Value);
 		}
 
 		public override void PlayCurrentWhenFinished() { currentTask.PlayWhenFinished(); }
 
-		private void StartCurrentTaskIn(int ms) { currentTask.StartOrUpdateWaitTime(ms); }
+		private void StartCurrentTask(TimeSpan remaining) {
+			currentTask.StartOrUpdateWaitTime(GetTaskStartTimeMs(remaining));
+		}
 
 		private const int MaxMsBeforeNextSong = 30000;
 
