@@ -22,7 +22,7 @@ namespace TS3AudioBot.Audio
 		int RunVolumeDetection(string url, CancellationToken token);
 	}
 
-	public interface IPlayer : IVolumeDetector{
+	public interface IPlayer : IVolumeDetector {
 		float Volume { get; set; }
 		TimeSpan Length { get; }
 		TimeSpan Position { get; }

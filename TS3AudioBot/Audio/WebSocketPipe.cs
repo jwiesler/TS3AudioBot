@@ -26,7 +26,9 @@ namespace TS3AudioBot.Audio
 	public class WebSocketPipe : IAudioPassiveConsumer
 	{
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
+
 		public bool Active => OutStream?.Active ?? false;
+		public bool HasListeners => connectedClients.Count != 0;
 		public IAudioPassiveConsumer OutStream { get; set; }
 
 		private int clientCounter;
