@@ -57,7 +57,7 @@ namespace TS3AudioBot.Audio
 		public Player(ConfBot config, Id id)
 		{
 			FfmpegProducer = new FfmpegProducer(config.GetParent().Tools.Ffmpeg, id);
-			WebSocketPipe = new WebSocketPipe();
+			WebSocketPipe = new WebSocketPipe(config.WebSocket);
 			StallCheckPipe = new StallCheckPipe();
 			VolumePipe = new VolumePipe();
 			Volume = config.Audio.Volume.Default;

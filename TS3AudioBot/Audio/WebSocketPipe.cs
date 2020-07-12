@@ -11,6 +11,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -18,24 +19,38 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using JsonWebToken;
+using Newtonsoft.Json;
+using TS3AudioBot.Config;
 using TSLib.Audio;
 
 namespace TS3AudioBot.Audio
 {
 	public class WebSocketPipe : IAudioPassiveConsumer
 	{
+		private static int _clientCounter = 0;
+
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
+		private static readonly	byte[] AccessDeniedResponse = Encoding.UTF8.GetBytes(
+			"HTTP/1.1 401\r\n" +
+			"status: 401 Unauthorized\r\n" +
+			"content-length: 52\r\n\r\n" +
+			"You are not authorized to connect to this websocket."
+		);
+
+		private readonly ConfWebSocket confWebSocket;
 
 		public bool Active => OutStream?.Active ?? false;
 		public bool HasListeners => connectedClients.Count != 0;
 		public int NumListeners => connectedClients.Count;
+		public IList<string> Listeners => connectedClients.Select(kvPair => kvPair.Value.Uid).Distinct().ToList();
 		public IAudioPassiveConsumer OutStream { get; set; }
 
-		private int clientCounter;
 		private readonly ConcurrentDictionary<int, WebSocketConnection> connectedClients;
 
-		public WebSocketPipe() {
-			clientCounter = 0;
+		public WebSocketPipe(ConfWebSocket confWebSocket) {
+			this.confWebSocket = confWebSocket;
+
 			connectedClients = new ConcurrentDictionary<int, WebSocketConnection>();
 			var websocketServerThread = new Thread(NewConnectionHandler) {
 				IsBackground = true
@@ -54,7 +69,7 @@ namespace TS3AudioBot.Audio
 
 					foreach (var key in keysToRemove) {
 						connectedClients.TryRemove(key, out var client);
-						client.Stop();
+						client?.Stop();
 					}
 
 					Thread.Sleep(1000);
@@ -65,14 +80,30 @@ namespace TS3AudioBot.Audio
 			clientWatcherThread.Start();
 		}
 
+		private void InvalidMatchNumber(Match match, Stream stream) {
+			Log.Error("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
+			for (int i = 0; i < match.Groups.Count; i++) {
+				Log.Trace($"Group {i}: " + match.Groups[i]);
+			}
+			stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
+		}
+
 		private void NewConnectionHandler() {
 			TcpListener server = new TcpListener(IPAddress.Loopback, 2020);
 			server.Start();
+
+			var policy = new TokenValidationPolicyBuilder()
+				.RequireSignature(SymmetricJwk.FromBase64Url(confWebSocket.JwsKey), SignatureAlgorithm.HmacSha512)
+				.RequireIssuer("Leierkasten Backend")
+				.Build();
+			var reader = new JwtReader();
 
 			while (true) {
 				TcpClient client = server.AcceptTcpClient();
 
 				var stream = client.GetStream();
+				stream.WriteTimeout = 10;
+
 				while (client.Available < 3) {
 					Thread.Sleep(100);
 				}
@@ -85,6 +116,7 @@ namespace TS3AudioBot.Audio
 
 				// Check if this is a websocket handshake. If no, skip.
 				if (!new Regex("^GET").IsMatch(request)) {
+					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
 				}
 
@@ -96,14 +128,12 @@ namespace TS3AudioBot.Audio
 				if (!match.Success) {
 					Log.Error("Sec-WebSocket-Key was not found in request.");
 					Log.Trace("Request was (base64-encoded): " + Convert.ToBase64String(Encoding.ASCII.GetBytes(request)));
+					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
 				}
 
 				if (match.Groups.Count != 2) {
-					Log.Error("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
-					for (int i = 0; i < match.Groups.Count; i++) {
-						Log.Trace($"Group {i}: " + new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[i]);
-					}
+					InvalidMatchNumber(match, stream);
 					continue;
 				}
 				string key = match.Groups[1].Value.Trim();
@@ -126,14 +156,38 @@ namespace TS3AudioBot.Audio
 				                    + "Sec-WebSocket-Accept: " + base64AcceptKey + eol + eol;
 				byte[] response = Encoding.UTF8.GetBytes(responseStr);
 
+				// Get cookie
+				match = new Regex("lk-session=([^;\r\n]*)", RegexOptions.IgnoreCase).Match(request);
+				if (!match.Success) {
+					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
+					continue;
+				} else if (match.Groups.Count != 2) {
+					InvalidMatchNumber(match, stream);
+					continue;
+				}
+
+				// Validate session cookie of user
+				var sessionCookie = match.Groups[1].ToString();
+				var result = reader.TryReadToken(sessionCookie, policy);
+				if (!result.Succedeed) {
+					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
+					continue;
+				}
+
+				if (result.Token?.Payload == null) {
+					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
+					continue;
+				}
+
+				var uid = JsonConvert.DeserializeObject<Dictionary<string, string>>(result.Token.Payload.ToString())["uid"];
+
 				// Send handshake response
-				stream.WriteTimeout = 10;
 				stream.Write(response, 0, response.Length);
 
 				// Start handler for the connection
-				var handler = new WebSocketConnection(client);
+				var handler = new WebSocketConnection(client, uid);
 
-				if (!connectedClients.TryAdd(clientCounter++, handler)) {
+				if (!connectedClients.TryAdd(_clientCounter++, handler)) {
 					handler.Stop();
 				}
 			}
@@ -148,6 +202,8 @@ namespace TS3AudioBot.Audio
 		private class WebSocketConnection {
 			private const int KeepaliveTimeout = 5; // in seconds
 
+			public readonly string Uid;
+
 			private readonly Thread receivedMessageHandlerThread;
 			private readonly Thread keepaliveThread;
 			private bool running;
@@ -157,7 +213,8 @@ namespace TS3AudioBot.Audio
 
 			private readonly string logPrefix;
 
-			public WebSocketConnection(TcpClient client) {
+			public WebSocketConnection(TcpClient client, string uid) {
+				Uid = uid;
 				running = true;
 
                 this.client = client;

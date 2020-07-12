@@ -33,6 +33,11 @@ namespace TS3AudioBot.Config
 		//public ConfigValue<bool> ActiveDocumentation { get; } = new ConfigValue<bool>("_active_doc", true);
 	}
 
+	public class ConfWebSocket : ConfigTable {
+		public ConfigValue<string> JwsKey { get; } = new ConfigValue<string>("jwskey", null,
+			"JWS signature key. SECURE THE CONFIG FILE WITH CORRECT PERMISSIONS, THIS HAS TO STAY SECRET!");
+	}
+
 	public class ConfConfigs : ConfigTable
 	{
 		//public ConfigValue<string> RootPath { get; } = new ConfigValue<string>("root_path", "."); // TODO enable when done
@@ -153,6 +158,7 @@ namespace TS3AudioBot.Config
 		public ConfPlaylists Playlists { get; } = Create<ConfPlaylists>("playlists");
 		public ConfHistory History { get; } = Create<ConfHistory>("history");
 		public ConfEvents Events { get; } = Create<ConfEvents>("events");
+		public ConfWebSocket WebSocket { get; } = Create<ConfWebSocket>("websocket");
 	}
 
 	public class ConfCommands : ConfigTable
