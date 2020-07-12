@@ -77,7 +77,7 @@ namespace TS3AudioBot
 
 			playManager.Enqueue(result.BaseData, new MetaData(invoker.ClientUid, null, PlayManager.ParseStartTime(attributes))).UnwrapThrow();
 		}
-		
+
 		[Command("add")]
 		public static void CommandAdd(PlayManager playManager, InvokerData invoker, IAudioResourceResult rsc, params string[] attributes)
 			=> playManager.Enqueue(rsc.AudioResource, new MetaData(invoker.ClientUid, null, PlayManager.ParseStartTime(attributes))).UnwrapThrow();

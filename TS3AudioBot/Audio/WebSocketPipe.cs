@@ -11,7 +11,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -29,6 +28,7 @@ namespace TS3AudioBot.Audio
 
 		public bool Active => OutStream?.Active ?? false;
 		public bool HasListeners => connectedClients.Count != 0;
+		public int NumListeners => connectedClients.Count;
 		public IAudioPassiveConsumer OutStream { get; set; }
 
 		private int clientCounter;
@@ -83,56 +83,58 @@ namespace TS3AudioBot.Audio
 				// This is a textual request, decode it
 				var request = Encoding.UTF8.GetString(bytes);
 
-				// Check if this is a websocket handshake. If yes, respond.
-				if (new Regex("^GET").IsMatch(request)) {
-					const string eol = "\r\n";
-					const string guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+				// Check if this is a websocket handshake. If no, skip.
+				if (!new Regex("^GET").IsMatch(request)) {
+					continue;
+				}
 
-					// HTML headers are case insensitive
-					var match = new Regex("Sec-WebSocket-Key: (.*)", RegexOptions.IgnoreCase).Match(request);
-					if (!match.Success) {
-						Log.Error("Sec-WebSocket-Key was not found in request.");
-						Log.Trace("Request was (base64-encoded): " + Convert.ToBase64String(Encoding.ASCII.GetBytes(request)));
-						continue;
+				const string eol = "\r\n";
+				const string guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+				// HTML headers are case insensitive
+				var match = new Regex("Sec-WebSocket-Key: (.*)", RegexOptions.IgnoreCase).Match(request);
+				if (!match.Success) {
+					Log.Error("Sec-WebSocket-Key was not found in request.");
+					Log.Trace("Request was (base64-encoded): " + Convert.ToBase64String(Encoding.ASCII.GetBytes(request)));
+					continue;
+				}
+
+				if (match.Groups.Count != 2) {
+					Log.Error("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
+					for (int i = 0; i < match.Groups.Count; i++) {
+						Log.Trace($"Group {i}: " + new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[i]);
 					}
+					continue;
+				}
+				string key = match.Groups[1].Value.Trim();
+				byte[] hashedAcceptKey = SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(key + guid));
+				string base64AcceptKey = Convert.ToBase64String(hashedAcceptKey);
 
-					if (match.Groups.Count != 2) {
-						Log.Error("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
-						for (int i = 0; i < match.Groups.Count; i++) {
-							Log.Trace($"Group {i}: " + new Regex("Sec-WebSocket-Key: (.*)").Match(request).Groups[i]);
-						}
-						continue;
+				Log.Trace("Received Sec-WebSocket-Key: " + key);
+				if (Log.IsTraceEnabled) {
+					StringBuilder hex = new StringBuilder(hashedAcceptKey.Length * 2);
+					foreach (byte b in hashedAcceptKey) {
+						hex.AppendFormat("{0:x2}", b);
 					}
-					string key = match.Groups[1].Value.Trim();
-					byte[] hashedAcceptKey = SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(key + guid));
-					string base64AcceptKey = Convert.ToBase64String(hashedAcceptKey);
+					Log.Trace("Hashed Sec-WebSocket-Key: " + hex);
+				}
 
-					Log.Trace("Received Sec-WebSocket-Key: " + key);
-					if (Log.IsTraceEnabled) {
-						StringBuilder hex = new StringBuilder(hashedAcceptKey.Length * 2);
-						foreach (byte b in hashedAcceptKey) {
-							hex.AppendFormat("{0:x2}", b);
-						}
-						Log.Trace("Hashed Sec-WebSocket-Key: " + hex);
-					}
+				Log.Trace("Base64 if Sec-WebSocket-Key Hash: " + base64AcceptKey);
+				string responseStr = "HTTP/1.1 101 Switching Protocols" + eol
+				                    + "Connection: Upgrade" + eol
+				                    + "Upgrade: websocket" + eol
+				                    + "Sec-WebSocket-Accept: " + base64AcceptKey + eol + eol;
+				byte[] response = Encoding.UTF8.GetBytes(responseStr);
 
-					Log.Trace("Base64 if Sec-WebSocket-Key Hash: " + base64AcceptKey);
-					string responseStr = "HTTP/1.1 101 Switching Protocols" + eol
-											+ "Connection: Upgrade" + eol
-	                                        + "Upgrade: websocket" + eol
-	                                        + "Sec-WebSocket-Accept: " + base64AcceptKey + eol + eol;
-					byte[] response = Encoding.UTF8.GetBytes(responseStr);
+				// Send handshake response
+				stream.WriteTimeout = 10;
+				stream.Write(response, 0, response.Length);
 
-					// Send handshake response
-					stream.WriteTimeout = 10;
-					stream.Write(response, 0, response.Length);
+				// Start handler for the connection
+				var handler = new WebSocketConnection(client);
 
-					// Start handler for the connection
-					var handler = new WebSocketConnection(client);
-
-					if (!connectedClients.TryAdd(clientCounter++, handler)) {
-						handler.Stop();
-					}
+				if (!connectedClients.TryAdd(clientCounter++, handler)) {
+					handler.Stop();
 				}
 			}
 		}
