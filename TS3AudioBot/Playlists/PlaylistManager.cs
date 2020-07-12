@@ -122,7 +122,12 @@ namespace TS3AudioBot.Playlists
 		}
 
 		public bool ChangeAllOccurences(UniqueResource resource, AudioResource with) {
-			return playlistPool.ChangeAllOccurences(resource, with);
+			if (playlistPool.ChangeAllOccurences(resource, with)) {
+				ResourceSearch?.Rebuild();
+				return true;
+			}
+
+			return false;
 		}
 
 		public void ReloadFromDisk() {
