@@ -50,6 +50,9 @@ namespace TS3AudioBot.Audio
 
 		public WebSocketPipe(ConfWebSocket confWebSocket) {
 			this.confWebSocket = confWebSocket;
+			if (this.confWebSocket.JwsKey == "") {
+				throw new Exception("JWS Key not set for WebSocket.");
+			}
 
 			connectedClients = new ConcurrentDictionary<int, WebSocketConnection>();
 			var websocketServerThread = new Thread(NewConnectionHandler) {

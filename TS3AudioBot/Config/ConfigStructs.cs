@@ -34,7 +34,7 @@ namespace TS3AudioBot.Config
 	}
 
 	public class ConfWebSocket : ConfigTable {
-		public ConfigValue<string> JwsKey { get; } = new ConfigValue<string>("jwskey", null,
+		public ConfigValue<string> JwsKey { get; } = new ConfigValue<string>("jwskey", "",
 			"JWS signature key. SECURE THE CONFIG FILE WITH CORRECT PERMISSIONS, THIS HAS TO STAY SECRET!");
 	}
 
