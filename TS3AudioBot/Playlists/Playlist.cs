@@ -29,7 +29,10 @@ namespace TS3AudioBot.Playlists
 		private readonly List<PlaylistItem> items;
 		public IReadOnlyList<PlaylistItem> Items => items;
 
-		public PlaylistItem this[int i] => items[i];
+		public PlaylistItem this[int i] {
+			get => items[i];
+			set => items[i] = value;
+		}
 
 		public Playlist(string title, Uid owner) :
 			this(title, owner, Enumerable.Empty<Uid>())

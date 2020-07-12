@@ -121,6 +121,10 @@ namespace TS3AudioBot.Playlists
 			return playlistPool.TryGetUniqueItem(resource, out info);
 		}
 
+		public bool ChangeAllOccurences(UniqueResource resource, AudioResource with) {
+			return playlistPool.ChangeAllOccurences(resource, with);
+		}
+
 		public void ReloadFromDisk() {
 			playlistPool.ReloadFolder();
 		}

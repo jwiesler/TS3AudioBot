@@ -67,24 +67,32 @@ namespace TS3AudioBot.Playlists {
 			return false;
 		}
 
+		private UniqueResourceInfo GetOrCreate(UniqueResource resource) {
+			if (!uniqueSongs.TryGetValue(resource, out var info)) {
+				info = new UniqueResourceInfo(resource);
+				uniqueSongs.Add(resource, info);
+			}
+
+			return info;
+		}
+
 		private List<UniqueResourceInfo> CreateSongsInfo(string id, Playlist list) {
 			List<UniqueResourceInfo> res = new List<UniqueResourceInfo>();
 
 			for (var i = 0; i < list.Items.Count; i++) {
 				var item = list.Items[i];
-				var unique = (UniqueResource)item.AudioResource;
-				if (uniqueSongs.TryGetValue(unique, out var info)) {
-					info.AddInstance(id, i);
-				} else {
-					info = new UniqueResourceInfo(unique);
-					info.Add(id, i);
-					uniqueSongs.Add(unique, info);
-				}
-
+				var info = GetOrCreate(item.AudioResource);
+				info.AddInstance(id, i);
 				res.Add(info);
 			}
 
 			return res;
+		}
+
+		private void RemoveResourceFromList(UniqueResourceInfo info, string listId) {
+			info.RemoveList(listId);
+			if (!info.IsContainedInAList)
+				uniqueSongs.Remove(info.Resource);
 		}
 
 		public void Add(string id, Playlist list, PlaylistMeta meta) {
@@ -118,7 +126,7 @@ namespace TS3AudioBot.Playlists {
 		public bool Remove(string id) {
 			if (playlistCache.TryGetValue(id, out var data)) {
 				foreach (var s in data.Songs) {
-					s.RemoveList(id);
+					RemoveResourceFromList(s, id);
 				}
 
 				playlistCache.Remove(id);
@@ -140,14 +148,36 @@ namespace TS3AudioBot.Playlists {
 			data.Update(list);
 			if (!wasNull) {
 				foreach (var s in data.Songs) {
-					s.RemoveList(id);
-					if (!s.IsContainedInAList)
-						uniqueSongs.Remove(s.Resource);
+					RemoveResourceFromList(s, id);
 				}
 			}
 			data.Songs = CreateSongsInfo(id, list);
 
 			return data.Meta;
+		}
+
+		public bool ChangeAllOccurences(UniqueResource resource, AudioResource with) {
+			if (!UniqueResourcesDictionary.TryGetValue(resource, out var info))
+				return false;
+
+			var withInfo = GetOrCreate(with);
+
+			foreach (var listKeyValuePair in info.ContainingLists) {
+				var listId = listKeyValuePair.Key;
+				var indices = listKeyValuePair.Value;
+				if (!playlistCache.TryGetValue(listId, out var playlistData))
+					continue;
+
+				foreach (var index in indices) {
+					var songs = playlistData.Songs;
+					RemoveResourceFromList(songs[index], listId);
+					withInfo.Add(listId, index);
+					songs[index] = withInfo;
+					
+					playlistData.Playlist[index] = new PlaylistItem(with);
+				}
+			}
+			return true;
 		}
 
 		public void Clear() {

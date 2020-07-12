@@ -349,6 +349,12 @@ namespace TS3AudioBot.Playlists
 			}
 		}
 
+		public bool ChangeAllOccurences(UniqueResource resource, AudioResource with) {
+			lock (playlistCache) {
+				return playlistCache.ChangeAllOccurences(resource, with);
+			}
+		}
+
 		public void LoadAll() {
 			var res = new List<PlaylistSearchItemInfo>();
 
