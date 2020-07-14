@@ -192,13 +192,12 @@ namespace TS3AudioBot.ResourceFactories
 				try
 				{
 					var di = new DirectoryInfo(url);
-					var plist = new Playlist(di.Name, owner);
+					var plist = new Playlist(owner);
 					var resources = from file in di.EnumerateFiles()
 									select ValidateFromString(ctx.Config, file.FullName) into result
 									where result.Ok
 									select result.Value into val
-									select new AudioResource(val.FullUri, string.IsNullOrWhiteSpace(val.Title) ? val.FullUri : val.Title, ResolverFor) into res
-									select new PlaylistItem(res);
+									select new AudioResource(val.FullUri, string.IsNullOrWhiteSpace(val.Title) ? val.FullUri : val.Title, ResolverFor);
 					plist.AddRange(resources);
 
 					return plist;
@@ -247,7 +246,7 @@ namespace TS3AudioBot.ResourceFactories
 		private R<Playlist, LocalStr> GetPlaylistContent(Stream stream, string url, Uid owner, string mime = null)
 		{
 			string name = null;
-			List<PlaylistItem> items;
+			List<AudioResource> items;
 			mime = mime.ToLowerInvariant();
 			url = url.ToLowerInvariant();
 			string anyId = mime ?? url;
@@ -259,9 +258,9 @@ namespace TS3AudioBot.ResourceFactories
 					var parser = new M3uContent();
 					var list = parser.GetFromStream(stream);
 
-					items = new List<PlaylistItem>(
+					items = new List<AudioResource>(
 						from e in list.PlaylistEntries
-						select new PlaylistItem(new AudioResource(e.Path, e.Title, ResolverFor)));
+						select new AudioResource(e.Path, e.Title, ResolverFor));
 					break;
 				}
 			case ".m3u8":
@@ -275,9 +274,9 @@ namespace TS3AudioBot.ResourceFactories
 					var parser = new M3u8Content();
 					var list = parser.GetFromStream(stream);
 
-					items = new List<PlaylistItem>(
+					items = new List<AudioResource>(
 						from e in list.PlaylistEntries
-						select new PlaylistItem(new AudioResource(e.Path, e.Title, ResolverFor)));
+						select new AudioResource(e.Path, e.Title, ResolverFor));
 					break;
 				}
 			case ".pls":
@@ -288,9 +287,9 @@ namespace TS3AudioBot.ResourceFactories
 					var parser = new PlsContent();
 					var list = parser.GetFromStream(stream);
 
-					items = new List<PlaylistItem>(
+					items = new List<AudioResource>(
 						from e in list.PlaylistEntries
-						select new PlaylistItem(new AudioResource(e.Path, e.Title, ResolverFor)));
+						select new AudioResource(e.Path, e.Title, ResolverFor));
 					break;
 				}
 			case ".wpl":
@@ -298,9 +297,9 @@ namespace TS3AudioBot.ResourceFactories
 					var parser = new WplContent();
 					var list = parser.GetFromStream(stream);
 
-					items = new List<PlaylistItem>(
+					items = new List<AudioResource>(
 						from e in list.PlaylistEntries
-						select new PlaylistItem(new AudioResource(e.Path, e.TrackTitle, ResolverFor)));
+						select new AudioResource(e.Path, e.TrackTitle, ResolverFor));
 					name = list.Title;
 					break;
 				}
@@ -309,9 +308,9 @@ namespace TS3AudioBot.ResourceFactories
 					var parser = new ZplContent();
 					var list = parser.GetFromStream(stream);
 
-					items = new List<PlaylistItem>(
+					items = new List<AudioResource>(
 						from e in list.PlaylistEntries
-						select new PlaylistItem(new AudioResource(e.Path, e.TrackTitle, ResolverFor)));
+						select new AudioResource(e.Path, e.TrackTitle, ResolverFor));
 					name = list.Title;
 					break;
 				}
@@ -329,7 +328,7 @@ namespace TS3AudioBot.ResourceFactories
 				var index = url.LastIndexOfAny(new[] { '\\', '/' });
 				name = index >= 0 ? url.Substring(index) : url;
 			}
-			return new Playlist(name, owner, Enumerable.Empty<Uid>(), items);
+			return new Playlist(owner, Enumerable.Empty<Uid>(), items);
 		}
 
 		private static R<Stream, LocalStr> GetStreamFromUriUnsafe(Uri uri)

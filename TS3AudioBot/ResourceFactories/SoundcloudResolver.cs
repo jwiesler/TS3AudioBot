@@ -139,14 +139,14 @@ namespace TS3AudioBot.ResourceFactories
 				return new LocalStr(strings.error_media_internal_missing + " (playlist)");
 			}
 
-			var plist = new Playlist(playlist.title, owner);
+			var plist = new Playlist(owner);
 			plist.AddRange(
 				playlist.tracks.Select(track =>
 				{
 					var resource = CheckAndGet(track);
 					if (resource is null)
 						return null;
-					return new PlaylistItem(resource);
+					return resource;
 				})
 				.Where(track => track != null)
 			);

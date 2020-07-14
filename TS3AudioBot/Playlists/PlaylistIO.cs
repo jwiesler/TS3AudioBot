@@ -82,6 +82,8 @@ namespace TS3AudioBot.Playlists
 
 		private static List<PlaylistItem> ReadListItems(StreamReader reader) {
 			List<PlaylistItem> items = new List<PlaylistItem>();
+		private static List<AudioResource> ReadListItems(StreamReader reader) {
+			var items = new List<AudioResource>();
 
 			string line;
 			while ((line = reader.ReadLine()) != null)
@@ -109,10 +111,14 @@ namespace TS3AudioBot.Playlists
 					var rsSplit = content.Split(new[] { ',' }, 3);
 					if (rsSplit.Length < 3)
 						goto default;
-					if (!string.IsNullOrWhiteSpace(rsSplit[0]))
-						items.Add(new PlaylistItem(new AudioResource(Uri.UnescapeDataString(rsSplit[1]), StringNormalize.Normalize(Uri.UnescapeDataString(rsSplit[2])), rsSplit[0])));
-					else
+					if (!string.IsNullOrWhiteSpace(rsSplit[0])) {
+						var resource = new AudioResource(Uri.UnescapeDataString(rsSplit[1]),
+							StringNormalize.Normalize(Uri.UnescapeDataString(rsSplit[2])), rsSplit[0]);
+						items.Add(resource);
+					} else {
 						goto default;
+					}
+
 					break;
 				}
 
@@ -120,7 +126,7 @@ namespace TS3AudioBot.Playlists
 					var res = JsonConvert.DeserializeObject<AudioResource>(value);
 					// This can be commented out if all playlist have been written once
 					res = res.WithTitle(StringNormalize.Normalize(res.ResourceTitle));
-					items.Add(new PlaylistItem(res));
+					items.Add(res);
 					break;
 
 				case "id":
@@ -152,7 +158,6 @@ namespace TS3AudioBot.Playlists
 				var meta = metaRes.Value;
 				meta.Count = items.Count;
 				var plist = new Playlist(
-					meta.Title,
 					meta.OwnerId == null ? Uid.Null : new Uid(meta.OwnerId),
 					meta.AdditionalEditors == null
 						? Enumerable.Empty<Uid>()
@@ -207,7 +212,6 @@ namespace TS3AudioBot.Playlists
 		}
 
 		public static void UpdateMeta(PlaylistMeta meta, IReadOnlyPlaylist list) {
-			meta.Title = list.Title;
 			meta.Count = list.Items.Count;
 			meta.OwnerId = list.Owner.Value;
 			meta.Version = FileVersion;
@@ -234,10 +238,9 @@ namespace TS3AudioBot.Playlists
 
 				sw.WriteLine();
 
-				foreach (var pli in items)
-				{
+				for (int i = 0; i < list.Count; ++i) {
 					sw.Write("rsj:");
-					serializer.Serialize(sw, pli.AudioResource);
+					serializer.Serialize(sw, list[i]);
 					sw.WriteLine();
 				}
 			}
@@ -391,8 +394,8 @@ namespace TS3AudioBot.Playlists
 	{
 		[JsonProperty(PropertyName = "count")]
 		public int Count { get; set; }
-		[JsonProperty(PropertyName = "title")]
-		public string Title { get; set; }
+		[JsonProperty(PropertyName = "id")]
+		public string Id { get; set; }
 		[JsonProperty(PropertyName = "owner")]
 		public string OwnerId { get; set; }
 		[JsonProperty(PropertyName = "additional-editors")]

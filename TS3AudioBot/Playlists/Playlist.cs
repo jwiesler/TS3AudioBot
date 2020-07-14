@@ -10,63 +10,37 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TS3AudioBot.Algorithm;
 using TS3AudioBot.Localization;
+using TS3AudioBot.ResourceFactories;
 using TSLib;
 
 namespace TS3AudioBot.Playlists
 {
-	public class Playlist : IReadOnlyPlaylist
-	{
-		private const int MaxSongs = 2500;
-		private string title;
-		public string Title { get => title; set => SetTitle(value); }
-		public bool Modifiable { get; set; } = false;
+	public interface IPlaylistEditors {
+		Uid Owner { get; }
+		IReadOnlyCollection<Uid> AdditionalEditors { get; }
+		bool ToggleAdditionalEditor(Uid uid);
+	}
+
+	public interface IPlaylist : IPlaylistEditors {
+		AudioResource this[int i] { get; }
+		int Count { get; }
+		IEnumerable<AudioResource> Items { get; }
+	}
+
+	public class PlaylistEditorsBase : IPlaylistEditors {
+		public Uid Owner { get; }
 
 		private readonly HashSet<Uid> additionalEditors;
 		public IReadOnlyCollection<Uid> AdditionalEditors => additionalEditors;
-		public Uid Owner { get; }
-
-		private readonly List<PlaylistItem> items;
-		public IReadOnlyList<PlaylistItem> Items => items;
-
-		public PlaylistItem this[int i] {
-			get => items[i];
-			set => items[i] = value;
-		}
-
-		public Playlist(string title, Uid owner) :
-			this(title, owner, Enumerable.Empty<Uid>())
-		{ }
-
-		public Playlist(string title, Uid owner, IEnumerable<Uid> editors) :
-			this(title, owner, editors, new List<PlaylistItem>())
-		{ }
-
-		public Playlist(string title, Uid owner, IEnumerable<Uid> editors, List<PlaylistItem> items)
-		{
-			this.title = TransformTitleString(title);
+		
+		public PlaylistEditorsBase(Uid owner, HashSet<Uid> additionalEditors) {
 			Owner = owner;
-			additionalEditors = new HashSet<Uid>(editors);
-			this.items = items ?? throw new ArgumentNullException(nameof(items));
+			this.additionalEditors = additionalEditors;
 		}
 
-		public static string TransformTitleString(string title)
-		{
-			title = title.Replace("\r", "").Replace("\n", "");
-			return title.Substring(0, Math.Min(title.Length, 256));
-		}
-
-		public Playlist SetTitle(string newTitle)
-		{
-			title = TransformTitleString(newTitle);
-			return this;
-		}
-
-		private int GetMaxAdd(int amount)
-		{
-			int remainingSlots = Math.Max(MaxSongs - items.Count, 0);
-			return Math.Min(amount, remainingSlots);
-		}
+		public PlaylistEditorsBase(Uid owner, IEnumerable<Uid> additionalEditors) : this(owner, new HashSet<Uid>(additionalEditors)) {}
 
 		// Returns true if the specified editor is now an additional editor
 		public bool ToggleAdditionalEditor(Uid editor) {
@@ -79,60 +53,73 @@ namespace TS3AudioBot.Playlists
 		}
 
 		public bool HasAdditionalEditor(Uid editor) { return additionalEditors.Contains(editor); }
+	}
 
-		public bool SongExists(PlaylistItem song) {
-			return items.Any(item => song.AudioResource.Equals(item.AudioResource));
+	public class Playlist : PlaylistEditorsBase, IPlaylist
+	{
+		private const int MaxSongs = 2500;
+
+		public List<AudioResource> ItemsW { get; }
+		public IEnumerable<AudioResource> Items => ItemsW;
+		public AudioResource this[int i] => ItemsW[i];
+		public int Count => ItemsW.Count;
+
+		public Playlist(Uid owner) :
+			this(owner, Enumerable.Empty<Uid>())
+		{ }
+
+		public Playlist(Uid owner, IEnumerable<Uid> editors) :
+			this(owner, editors, new List<AudioResource>())
+		{ }
+
+		public Playlist(Uid owner, IEnumerable<Uid> editors, List<AudioResource> items)  : base(owner, editors)
+		{
+			ItemsW = items ?? throw new ArgumentNullException(nameof(items));
 		}
 
-		public E<LocalStr> Add(PlaylistItem song)
+		private int GetMaxAdd(int amount)
 		{
-			if (SongExists(song)) {
-				return new LocalStr("The song '" + song.AudioResource.ResourceTitle + "' already exists in this playlist.");
-			}
+			int remainingSlots = Math.Max(MaxSongs - Count, 0);
+			return Math.Min(amount, remainingSlots);
+		}
 
+		public E<LocalStr> Add(AudioResource song)
+		{
 			if (GetMaxAdd(1) > 0)
 			{
-				items.Add(song);
+				ItemsW.Add(song);
 				return R.Ok;
 			}
 			return ErrorFull;
 		}
 
-		public E<LocalStr> AddRange(IEnumerable<PlaylistItem> songs)
+		public E<LocalStr> AddRange(IEnumerable<AudioResource> songs)
 		{
 			var maxAddCount = GetMaxAdd(MaxSongs);
 			if (maxAddCount > 0)
 			{
-				items.AddRange(songs.Take(maxAddCount));
+				ItemsW.AddRange(songs.Take(maxAddCount));
 				return R.Ok;
 			}
 			return ErrorFull;
 		}
 
-		public void RemoveAt(int index) => items.RemoveAt(index);
+		public void RemoveAt(int index) => ItemsW.RemoveAt(index);
 
-		public E<LocalStr> Insert(int index, PlaylistItem song)
+		public void RemoveIndices(IList<int> indices) => Collections.RemoveIndices(ItemsW, indices);
+
+		public void RemoveIndices(IList<int> indices, int ibegin, int iend) => Collections.RemoveIndices(ItemsW, indices, ibegin, iend);
+
+		public E<LocalStr> Insert(int index, AudioResource song)
 		{
 			if (GetMaxAdd(1) > 0)
 			{
-				items.Insert(index, song);
+				ItemsW.Insert(index, song);
 				return R.Ok;
 			}
 			return ErrorFull;
 		}
 
-		public void Clear() => items.Clear();
-
 		private static readonly E<LocalStr> ErrorFull = new LocalStr("Playlist is full");
-	}
-
-	public interface IReadOnlyPlaylist
-	{
-		PlaylistItem this[int i] { get; }
-		string Title { get; }
-		Uid Owner { get; }
-		bool Modifiable { get; }
-		IReadOnlyCollection<Uid> AdditionalEditors { get; }
-		IReadOnlyList<PlaylistItem> Items { get; }
 	}
 }

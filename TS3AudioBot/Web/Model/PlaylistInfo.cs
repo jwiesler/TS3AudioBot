@@ -18,8 +18,6 @@ namespace TS3AudioBot.Web.Model
 		// TODO better names
 		[JsonProperty(PropertyName = "Id")]
 		public string Id { get; set; }
-		[JsonProperty(PropertyName = "Title")]
-		public string Title { get; set; }
 		[JsonProperty(PropertyName = "Owner")]
 		public string OwnerId { get; set; }
 		[JsonProperty(PropertyName = "Modifiable")]

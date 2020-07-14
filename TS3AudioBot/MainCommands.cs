@@ -837,7 +837,6 @@ namespace TS3AudioBot
 			var plInfo = new QueueInfo
 			{
 				Id = ".mix",
-				Title = "Now playing",
 				SongCount = plist.Count,
 				DisplayOffset = offsetV,
 				Items = items,
@@ -853,7 +852,7 @@ namespace TS3AudioBot
 
 				string CurLine(int i) => $"{x.DisplayOffset + i}: {x.Items[i].Title}";
 
-				tmb.AppendFormat(strings.cmd_info_header, x.Title.Mod().Bold(), x.SongCount.ToString()).Append("\n");
+				tmb.AppendFormat(strings.cmd_info_header, x.Id.Mod().Bold(), x.SongCount.ToString()).Append("\n");
 
 				for (int i = 0; i < x.Items.Length; i++)
 				{

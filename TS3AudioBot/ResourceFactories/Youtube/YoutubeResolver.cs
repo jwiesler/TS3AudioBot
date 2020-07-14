@@ -309,7 +309,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 
 		private R<Playlist, LocalStr> GetPlaylistYoutubeApi(string id, Uid owner)
 		{
-			var plist = new Playlist(id, owner);
+			var plist = new Playlist(owner);
 
 			string nextToken = null;
 			do
@@ -329,12 +329,10 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				var videoItems = parsed.items;
 				if (!plist.AddRange(
 					videoItems.Select(item =>
-						new PlaylistItem(
-							new AudioResource(
-								item.contentDetails.videoId,
-								StringNormalize.Normalize(item.snippet.title),
-								ResolverFor
-							)
+						new AudioResource(
+							item.contentDetails.videoId,
+							StringNormalize.Normalize(item.snippet.title),
+							ResolverFor
 						)
 					)
 				)) break;
@@ -352,15 +350,14 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 				return result.Error;
 
 			var plistData = result.Value;
-			var plist = new Playlist(plistData.title, owner);
+			var plist = new Playlist(owner);
 			plist.AddRange(plistData.entries.Select(entry =>
-				new PlaylistItem(
-					new AudioResource(
+				new AudioResource(
 						entry.id,
 						StringNormalize.Normalize(entry.title),
 						ResolverFor
 					)
-				)));
+				));
 
 			return plist;
 		}
