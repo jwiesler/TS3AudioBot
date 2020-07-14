@@ -10,78 +10,72 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using TS3AudioBot.Algorithm;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
-using TS3AudioBot.Web.Model;
 using TSLib;
 using TSLib.Helper;
 
 namespace TS3AudioBot.Playlists
 {
-	public class PlaylistIO : IDisposable
+	public interface IPlaylistIO {
+		bool TryGetRealId(string listId, out string id);
+		void Write(string listId, IPlaylist list);
+		E<LocalStr> Delete(string id);
+		void Clear();
+		List<(string, IPlaylist)> ReloadFolder();
+	}
+
+	public class PlaylistLowerIdToId {
+		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
+		private readonly Dictionary<string, string> lowerIdToId = new Dictionary<string, string>();
+
+		protected bool RegisterPlaylistId(string listId) {
+			var lower = listId.ToLowerInvariant();
+			if (lowerIdToId.ContainsKey(lower)) {
+				Log.Warn($"A file with the lowercase name \"{lower}\" already exists, \"{listId}\" will be ignored.");
+				return false;
+			}
+
+			lowerIdToId.Add(lower, listId);
+			return true;
+		}
+
+		protected void UnregisterPlaylistId(string listId) {
+			var lower = listId.ToLowerInvariant();
+			lowerIdToId.Remove(lower);
+		}
+
+		public bool TryGetRealId(string listId, out string id) {
+			var lower = listId.ToLower();
+			return lowerIdToId.TryGetValue(lower, out id);
+		}
+
+		public void Clear() {
+			lowerIdToId.Clear();
+		}
+	}
+
+	public class PlaylistIO : PlaylistLowerIdToId, IPlaylistIO
 	{
 		private readonly ConfBot confBot;
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		private readonly PlaylistDatabase playlistCache = new PlaylistDatabase();
-		private readonly Dictionary<string, string> lowerIdToId = new Dictionary<string, string>();
+		
 		private const int FileVersion = 3;
 		private readonly object ioLock = new object();
 
 		public PlaylistIO(ConfBot confBot)
 		{
 			this.confBot = confBot;
-			ReloadFolder();
 		}
 
 		private FileInfo IdToFile(string realId) {
 			return new FileInfo(Path.Combine(confBot.LocalConfigDir, BotPaths.Playlists, realId));
 		}
 
-		private string ToRealId(string listId) {
-			string lower = listId.ToLower();
-			return lowerIdToId.TryGetValue(lower, out var id) ? id : listId;
-		}
-
-		public R<(Playlist list, string id), LocalStr> ReadFull(string listId) {
-			lock (ioLock) {
-				var id = ToRealId(listId);
-				
-				if (playlistCache.TryGet(id, out Playlist list))
-					return (list, id);
-
-				var result = ReadFullFromFile(IdToFile(id));
-
-				if (!result.Ok)
-					return result.Error;
-
-				playlistCache.Update(id, result.Value.list);
-				return (result.Value.list, id);
-			}
-		}
-
-		private static R<PlaylistMeta, LocalStr> ReadMetaFromFile(FileInfo fi) {
-			if (!fi.Exists)
-				return new LocalStr(strings.error_playlist_not_found);
-
-			using (var sr = new StreamReader(fi.Open(FileMode.Open, FileAccess.Read, FileShare.Read), Tools.Utf8Encoder)) {
-				var metaRes = ReadHeadStream(sr);
-				if (!metaRes.Ok)
-					return metaRes.Error;
-				var meta = metaRes.Value;
-
-				return meta;
-			}
-		}
-
-		private static List<PlaylistItem> ReadListItems(StreamReader reader) {
-			List<PlaylistItem> items = new List<PlaylistItem>();
 		private static List<AudioResource> ReadListItems(StreamReader reader) {
 			var items = new List<AudioResource>();
 
@@ -143,7 +137,7 @@ namespace TS3AudioBot.Playlists
 			return items;
 		}
 
-		private static R<(Playlist list, PlaylistMeta meta), LocalStr> ReadFullFromFile(FileInfo fi) {
+		private static R<Playlist, LocalStr> ReadFullFromFile(FileInfo fi) {
 			if (!fi.Exists)
 				return new LocalStr(strings.error_playlist_not_found);
 
@@ -163,7 +157,7 @@ namespace TS3AudioBot.Playlists
 						? Enumerable.Empty<Uid>()
 						: meta.AdditionalEditors.Select(e => new Uid(e)),
 					items);
-				return (plist, meta);
+				return plist;
 			}
 		}
 
@@ -198,30 +192,33 @@ namespace TS3AudioBot.Playlists
 				}
 			}
 
-			return new PlaylistMeta { Title = "", Count = 0, Version = version };
+			return new LocalStr("Could not find the header.");
 		}
 
-		public E<LocalStr> Write(string listId, Playlist list)
+		public void Write(string listId, IPlaylist list)
 		{
 			lock (ioLock) {
-				var id = ToRealId(listId);
-
-				var meta = playlistCache.Update(id, list);
-				return WriteToFile(IdToFile(id), meta, list.Items);
+				WriteToFile(listId, list);
 			}
 		}
 
-		public static void UpdateMeta(PlaylistMeta meta, IReadOnlyPlaylist list) {
-			meta.Count = list.Items.Count;
-			meta.OwnerId = list.Owner.Value;
-			meta.Version = FileVersion;
-			meta.AdditionalEditors = new List<string>(list.AdditionalEditors.Select(uid => uid.Value));
+		public static PlaylistMeta CreateMeta(IPlaylist list) {
+			return new PlaylistMeta {
+				Count = list.Count,
+				OwnerId = list.Owner.Value,
+				AdditionalEditors = new List<string>(list.AdditionalEditors.Select(uid => uid.Value)),
+				Version = FileVersion
+			};
 		}
 
-		private static E<LocalStr> WriteToFile(FileInfo fi, PlaylistMeta meta, IReadOnlyCollection<PlaylistItem> items)
+		private void WriteToFile(string id, IPlaylist list) {
+			WriteToFile(IdToFile(id), list);
+		}
+
+		private static void WriteToFile(FileInfo fi, IPlaylist list)
 		{
 			var dir = fi.Directory;
-			if (!dir.Exists)
+			if (dir != null && !dir.Exists)
 				dir.Create();
 
 			using (var sw = new StreamWriter(fi.Open(FileMode.Create, FileAccess.Write, FileShare.Read), Tools.Utf8Encoder))
@@ -233,7 +230,7 @@ namespace TS3AudioBot.Playlists
 
 				sw.WriteLine("version:" + FileVersion);
 				sw.Write("meta:");
-				serializer.Serialize(sw, meta);
+				serializer.Serialize(sw, CreateMeta(list));
 				sw.WriteLine();
 
 				sw.WriteLine();
@@ -244,15 +241,13 @@ namespace TS3AudioBot.Playlists
 					sw.WriteLine();
 				}
 			}
-			return R.Ok;
 		}
 
-		public E<LocalStr> Delete(string listId)
+		public E<LocalStr> Delete(string id)
 		{
 			lock (ioLock) {
-				var id = ToRealId(listId);
 				var file = IdToFile(id);
-				if(!playlistCache.Remove(id) && !file.Exists)
+				if(!file.Exists)
 					return new LocalStr(strings.error_playlist_not_found);
 
 				return DeleteFile(file);
@@ -270,39 +265,35 @@ namespace TS3AudioBot.Playlists
 			catch (System.Security.SecurityException) { return new LocalStr(strings.error_io_missing_permission); }
 		}
 
-		public void ReloadFolder() {
+		public List<(string, IPlaylist)> ReloadFolder() {
 			lock (ioLock) {
-				ReloadFolderInternal();
-				LoadAll();
+				Clear();
+				return ReloadFolderInternal();
 			}
 		}
 
-		private void ReloadFolderInternal() {
+		private List<(string, IPlaylist)> ReloadFolderInternal() {
 			var di = new DirectoryInfo(Path.Combine(confBot.LocalConfigDir, BotPaths.Playlists));
 			if (!di.Exists)
-				return;
+				return null;
 
 			var fileEnu = di.EnumerateFiles();
 
-			playlistCache.Clear();
-			lowerIdToId.Clear();
+			var result = new List<(string, IPlaylist)>();
 			foreach (var fi in fileEnu) {
-				var meta = ReadMetaFromFile(IdToFile(fi.Name));
-				if (!meta.Ok)
+				var list = ReadFullFromFile(IdToFile(fi.Name));
+				if (!list.Ok)
 					continue;
 
-				var lower = fi.Name.ToLower();
-				if (lowerIdToId.ContainsKey(lower)) {
-					Log.Warn($"A file with the lowercase name \"{lower}\" already exists, \"{fi.Name}\" will be ignored.");
-					continue;
-				}
-
-				lowerIdToId.Add(lower, fi.Name);
-				playlistCache.Add(fi.Name, meta.Value);
+				if(RegisterPlaylistId(fi.Name))
+					result.Add((fi.Name, list.Value));
+				
 			}
+
+			return result;
 		}
 
-		public R<PlaylistInfo[], LocalStr> ListPlaylists()
+		/*public R<PlaylistInfo[], LocalStr> ListPlaylists()
 		{
 			if (confBot.LocalConfigDir is null)
 				return new LocalStr("Temporary bots cannot have playlists"); // TODO do this for all other methods too
@@ -324,52 +315,52 @@ namespace TS3AudioBot.Playlists
 				outId = id;
 				return true;
 			}
-		}
+		}*/
 
-		public void Dispose()
-		{
-		}
-
-		public bool Exists(string listId) {
+		/*public bool Exists(string listId) {
 			lock (ioLock) {
 				var id = ToRealId(listId);
 				return playlistCache.Contains(id);
 			}
-		}
+		}*/
 
-		public List<UniqueResourceInfo> ListItems() {
+		/*public List<UniqueResourceInfo> ListItems() {
 			List<UniqueResourceInfo> items;
 			lock (playlistCache) {
 				items = new List<UniqueResourceInfo>(playlistCache.GetUniqueResources());
 			}
 
 			return items;
-		}
+		}*/
 
-		public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
+		/*public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
 			lock (playlistCache) {
 				return playlistCache.UniqueResourcesDictionary.TryGetValue(resource, out info);
 			}
 		}
 
-		public bool ChangeAllOccurences(UniqueResource resource, AudioResource with) {
+		public bool GetAllOccurences(UniqueResource resource, out IReadOnlyCollection<KeyValuePair<string, List<int>>> list) {
 			lock (playlistCache) {
-				return playlistCache.ChangeAllOccurences(resource, with);
+				return playlistCache.GetAllOccurences(resource, out list);
 			}
 		}
 
-		public void LoadAll() {
-			var res = new List<PlaylistSearchItemInfo>();
-
-			List<string> ids;
+		public void ChangeAllOccurences(UniqueResource resource, AudioResource with) {
 			lock (playlistCache) {
-				ids = new List<string>(playlistCache.Ids);
-			}
+				if (!GetAllOccurences(resource, out var occurences))
+					return;
+				var copy = occurences.Select(kv => kv.Key).ToList();
+				playlistCache.ChangeAllOccurences(resource, with);
 
-			foreach (var id in ids) {
-				ReadFull(id);
+				foreach (var listId in copy) {
+					var r = WriteInternal(listId);
+					if (r.Ok)
+						continue;
+					Log.Error($"Failed to write playlist {listId}");
+				}
+					
 			}
-		}
+		}*/
 	}
 
 	public class ContainingListInfo {

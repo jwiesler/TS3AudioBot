@@ -19,8 +19,8 @@ namespace TS3AudioBot.Playlists
 {
 	public sealed class PlaylistManager
 	{
-		private readonly PlaylistIO playlistPool;
-		public ResourceSearch ResourceSearch { get; set; }
+		private readonly PlaylistDatabase database;
+		private readonly ResourceSearch resourceSearch;
 		private readonly object listLock = new object();
 
 		public bool Random
@@ -34,22 +34,26 @@ namespace TS3AudioBot.Playlists
 		/// <summary>Loop mode for the current playlist.</summary>
 		public LoopMode Loop { get; set; } = LoopMode.Off;
 
-		public PlaylistManager(PlaylistIO playlistPool)
-		{
-			this.playlistPool = playlistPool;
+		public PlaylistManager(IPlaylistIO playlistPool, ResourceSearch resourceSearch) {
+			database = new PlaylistDatabase(playlistPool);
+			this.resourceSearch = resourceSearch;
 		}
 
-		public R<(IReadOnlyPlaylist list, string id), LocalStr> LoadPlaylist(string listId)
+		public PlaylistManager(PlaylistIO playlistPool, ResourceSearch resourceSearch) : this((IPlaylistIO) playlistPool, resourceSearch) {}
+
+		private static LocalStr ErrorListNotFound(string list) {
+			return new LocalStr($"Could not find playlist {list}");
+		}
+
+		public R<(IPlaylist list, string id), LocalStr> GetPlaylist(string listId)
 		{
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return checkName.Error;
 
-			var res = playlistPool.ReadFull(listId);
-
-			if (!res.Ok)
-				return res.Error;
-			return res.Value;
+			if (!database.TryGet(listId, out var id, out var list))
+				return ErrorListNotFound(listId);
+			return (list, id);
 		}
 
 		public E<LocalStr> CreatePlaylist(string listId, Uid owner, string title = null)
@@ -57,12 +61,10 @@ namespace TS3AudioBot.Playlists
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return checkName;
-			if (playlistPool.Exists(listId))
-				return new LocalStr("Already exists");
+			if (!database.CreatePlaylist(listId, owner))
+				return new LocalStr($"Playlist {listId} already exists");
 			
-			var ret = playlistPool.Write(listId, new Playlist(title ?? listId, owner));
-			ResourceSearch?.Rebuild();
-			return ret;
+			return R.Ok;
 		}
 
 		public bool ExistsPlaylist(string listId)
@@ -70,28 +72,32 @@ namespace TS3AudioBot.Playlists
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return false;
-			return playlistPool.Exists(listId);
+			return database.ContainsPlaylist(listId);
 		}
 
-		public E<LocalStr> ModifyPlaylist(string listId, Action<Playlist, string> action)
+		public E<LocalStr> ModifyPlaylist(string listId, Action<PlaylistDatabase.PlaylistEditor> action)
 		{
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
 				return checkName.Error;
-			var res = playlistPool.ReadFull(listId);
-			if (!res.Ok) {
-				return res.Error;
-			}
 
-			var (list, id) = res.Value;
 			lock (listLock)
 			{
-				action(list, id);
+				if(!database.EditPlaylist(listId, action))
+					return ErrorListNotFound(listId);
 			}
 
-			var ret = playlistPool.Write(id, list);
-			ResourceSearch?.Rebuild();
-			return ret;
+			resourceSearch?.Rebuild();
+			return E<LocalStr>.OkR;
+		}
+
+		public E<LocalStr> ModifyPlaylistEditors(string listId, Action<string, IPlaylistEditors> action) {
+			lock (listLock)
+			{
+				if(!database.EditPlaylistEditorsBase(listId, action))
+					return ErrorListNotFound(listId);
+			}
+			return E<LocalStr>.OkR;
 		}
 
 		public E<LocalStr> DeletePlaylist(string listId)
@@ -100,38 +106,44 @@ namespace TS3AudioBot.Playlists
 			if (!checkName.Ok)
 				return checkName.Error;
 
-			var ret = playlistPool.Delete(listId);
-			ResourceSearch?.Rebuild();
-			return ret;
+			if (!database.Remove(listId))
+				return new LocalStr($"Failed to delete list {listId}");
+			resourceSearch?.Rebuild();
+			return R.Ok;
 		}
 
-		public R<PlaylistInfo[], LocalStr> GetAvailablePlaylists(string pattern = null) => playlistPool.ListPlaylists();
+		public PlaylistInfo[] GetAvailablePlaylists() => database.GetInfos();
 
-		public bool TryGetPlaylistId(string listId, out string id) {
+		/*public bool TryGetPlaylistId(string listId, out string id) {
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok) {
 				id = null;
 				return false;
 			}
 
-			return playlistPool.TryGetPlaylistId(listId, out id);
-		}
+			return database.TryGetPlaylistId(listId, out id);
+		}*/
 
-		public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
+		/*public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
 			return playlistPool.TryGetUniqueItem(resource, out info);
 		}
 
-		public bool ChangeAllOccurences(UniqueResource resource, AudioResource with) {
-			if (playlistPool.ChangeAllOccurences(resource, with)) {
-				ResourceSearch?.Rebuild();
-				return true;
-			}
+		public bool GetAllOccurences(UniqueResource resource, out IReadOnlyCollection<KeyValuePair<string, List<int>>> list) {
+			return playlistPool.GetAllOccurences(resource, out list);
+		}*/
 
-			return false;
+		// Replaces all occurences of `resource` with `with` or removes `resource` if `with` is already in the playlist
+		/*public void ChangeAllOccurences(UniqueResource resource, AudioResource with) {
+			playlistPool.ChangeAllOccurences(resource, with);
+			resourceSearch?.Rebuild();
+		}*/
+
+		public bool TryGetUniqueResourceInfo(AudioResource resource, out IReadonlyUniqueResourceInfo info) {
+			return database.TryGetUniqueResourceInfo(resource, out info);
 		}
 
 		public void ReloadFromDisk() {
-			playlistPool.ReloadFolder();
+			database.Reload();
 		}
 	}
 }

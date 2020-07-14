@@ -14,15 +14,15 @@ namespace TS3AudioBot.Search {
 		private readonly SuffixArray sa;
 		private readonly List<PlaylistSearchItemInfo> items;
 
-		public static PlaylistSearchItemInfo Convert(UniqueResourceInfo info) {
+		public static PlaylistSearchItemInfo Convert(IReadonlyUniqueResourceInfo info) {
 			var r = new PlaylistSearchItemInfo();
 			r.ResourceTitle = info.Resource.ResourceTitle;
 			r.ResourceId = info.Resource.ResourceId;
-			r.ContainingLists = info.ContainingLists.Select(kv => new ContainingListInfo {Id = kv.Key, Index = kv.Value.First()}).ToList();
+			r.ContainingLists = info.ContainingLists.Select(kv => new ContainingListInfo {Id = kv.Key, Index = kv.Value}).ToList();
 			return r;
 		}
 
-		public ResourceSearchInstance(List<UniqueResourceInfo> uniqueItems) {
+		public ResourceSearchInstance(IEnumerable<IReadonlyUniqueResourceInfo> uniqueItems) {
 			items = uniqueItems.Select(Convert).ToList();
 			sa = new SuffixArray(items.Select(i => i.ResourceTitle.ToLowerInvariant()).ToList());
 		}
@@ -78,17 +78,17 @@ namespace TS3AudioBot.Search {
 		private ResourceSearchInstance Instance { get; set; }
 		private Task CurrentUpdateTask { get; set; }
 		private int Version { get; set; }
-		private PlaylistIO PlaylistIO { get; }
+		private PlaylistDatabase Database { get; }
 
-		public ResourceSearch(PlaylistIO playlistIO) {
-			PlaylistIO = playlistIO;
-			Instance = Build(playlistIO);
+		public ResourceSearch(PlaylistDatabase database) {
+			Database = database;
+			Instance = Build(database);
 		}
 
-		private static ResourceSearchInstance Build(PlaylistIO io) {
+		private static ResourceSearchInstance Build(PlaylistDatabase database) {
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
-			var items = io.ListItems();
+			var items = database.UniqueResources;
 			var loadMs = timer.ElapsedMilliseconds;
 			timer.Restart();
 			var inst = new ResourceSearchInstance(items);
@@ -105,7 +105,7 @@ namespace TS3AudioBot.Search {
 				while (true) {
 					Log.Info($"Rebuilding suffix array (version {version})...");
 					
-					var inst = Build(PlaylistIO);
+					var inst = Build(Database);
 					lock (this) {
 						if (version < Version) {
 							// Rebuild was called in the background, rebuild

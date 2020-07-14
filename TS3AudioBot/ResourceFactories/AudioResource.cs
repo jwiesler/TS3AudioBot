@@ -108,5 +108,26 @@ namespace TS3AudioBot.ResourceFactories
 		public AudioResource WithGain(int? gain) {
 			return new AudioResource(ResourceId, ResourceTitle, AudioType, AdditionalData, TitleIsUserSet, gain);
 		}
+
+		protected bool Equals(AudioResource other) {
+			return base.Equals(other) && TitleIsUserSet == other.TitleIsUserSet && Gain == other.Gain && Equals(AdditionalData, other.AdditionalData);
+		}
+
+		public override bool Equals(object obj) {
+			if (ReferenceEquals(null, obj)) return false;
+			if (ReferenceEquals(this, obj)) return true;
+			if (obj.GetType() != this.GetType()) return false;
+			return Equals((AudioResource) obj);
+		}
+
+		public override int GetHashCode() {
+			unchecked {
+				int hashCode = base.GetHashCode();
+				hashCode = (hashCode * 397) ^ TitleIsUserSet.GetHashCode();
+				hashCode = (hashCode * 397) ^ Gain.GetHashCode();
+				hashCode = (hashCode * 397) ^ (AdditionalData != null ? AdditionalData.GetHashCode() : 0);
+				return hashCode;
+			}
+		}
 	}
 }

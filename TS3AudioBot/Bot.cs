@@ -88,6 +88,8 @@ namespace TS3AudioBot
 			builder.AddModule(Injector);
 			builder.AddModule(config.Playlists);
 			builder.RequestModule<PlaylistIO>();
+			builder.RequestModule<PlaylistDatabase>();
+			builder.RequestModule<ResourceSearch>();
 			builder.RequestModule<PlaylistManager>();
 			builder.AddModule(Id);
 			builder.AddModule(new TsFullClient());
@@ -112,14 +114,6 @@ namespace TS3AudioBot
 			{
 				Log.Error("Missing bot module dependency");
 				return "Could not load all bot modules";
-			}
-
-			{
-				var io = Injector.GetModule<PlaylistIO>();
-				var resourceSearch = new ResourceSearch(io);
-				Injector.AddModule(resourceSearch);
-				var playlistManager = Injector.GetModule<PlaylistManager>();
-				playlistManager.ResourceSearch = resourceSearch;
 			}
 
 			resourceResolver = Injector.GetModule<ResolveContext>();
