@@ -23,17 +23,6 @@ namespace TS3AudioBot.Playlists
 		private readonly ResourceSearch resourceSearch;
 		private readonly object listLock = new object();
 
-		public bool Random
-		{
-			get;
-			set;
-		}
-
-		public int Seed { get; set; }
-
-		/// <summary>Loop mode for the current playlist.</summary>
-		public LoopMode Loop { get; set; } = LoopMode.Off;
-
 		public PlaylistManager(IPlaylistIO playlistPool, ResourceSearch resourceSearch) {
 			database = new PlaylistDatabase(playlistPool);
 			this.resourceSearch = resourceSearch;
@@ -56,7 +45,7 @@ namespace TS3AudioBot.Playlists
 			return (list, id);
 		}
 
-		public E<LocalStr> CreatePlaylist(string listId, Uid owner, string title = null)
+		public E<LocalStr> CreatePlaylist(string listId, Uid owner)
 		{
 			var checkName = Util.IsSafeFileName(listId);
 			if (!checkName.Ok)
