@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using TS3ABotUnitTests.Mocks;
 using TS3AudioBot.Audio;
 using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories;
@@ -6,31 +7,14 @@ using TS3AudioBot.ResourceFactories;
 namespace TS3ABotUnitTests {
 	[TestFixture]
 	public class PlayManagerTest {
-		public const int QueueItemGain = 10;
 		private const int Iterations = 50;
 
-		public static readonly QueueItem[] QueueItems = GenerateQueueItems(Iterations);
-
-		public static QueueItem QueueItemWithIndex(int index, MetaData meta) {
-			return new QueueItem(new AudioResource("id_" + index, "Title " + index, "youtube", null, null, QueueItemGain), meta);
-		}
-
-		public static QueueItem[] GenerateQueueItems(int count) {
-			var queueItems = new QueueItem[count];
-
-			var meta = new MetaData(Values.TestUid, Values.ListId);
-			for (var i = 0; i < count; ++i) {
-				var item = QueueItemWithIndex(i, meta);
-				queueItems[i] = item;
-			}
-
-			return queueItems;
-		}
+		public static readonly QueueItem[] QueueItems = Constants.GenerateQueueItems(Iterations);
 
 		public static PlayManager CreateDefaultPlayManager() {
-			var player = new Player();
-			var playlistManager = new PlaylistManager(null);
-			var taskHost = new StartSongTaskHost();
+			var player = new PlayerMock();
+			var playlistManager = new PlaylistManager(null, null);
+			var taskHost = new StartSongTaskHostMock();
 			return new PlayManager(player, playlistManager, taskHost);
 		}
 

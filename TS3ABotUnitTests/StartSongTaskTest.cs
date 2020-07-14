@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using TS3ABotUnitTests.Mocks;
 using TS3AudioBot.Audio;
 using TS3AudioBot.Audio.Preparation;
 using TS3AudioBot.Config;
@@ -16,8 +17,8 @@ namespace TS3ABotUnitTests {
 		public void ShouldCreateTaskTest() {
 			var handler = new NextSongHandler();
 
-			var queueItem1 = new QueueItem(Values.Resource1AC, new MetaData(Values.TestUid));
-			var queueItem2 = new QueueItem(Values.Resource1AC, new MetaData(Values.TestUid));
+			var queueItem1 = new QueueItem(Constants.Resource1AC, new MetaData(Constants.TestUid));
+			var queueItem2 = new QueueItem(Constants.Resource1AC, new MetaData(Constants.TestUid));
 			Assert.IsTrue(handler.IsPreparingCurrentSong(queueItem1));
 			Assert.IsFalse(handler.IsPreparingNextSong(queueItem1));
 			Assert.IsFalse(NextSongHandler.ShouldBeReplaced(queueItem1, queueItem1)); // Same item
@@ -50,7 +51,7 @@ namespace TS3ABotUnitTests {
 		}
 
 		private static void TestSongAnalyzerExpectErrorMessage(QueueItem queueItem, ILoaderContext loaderContext, string message) {
-			var volumeDetector = new VolumeDetector();
+			var volumeDetector = new VolumeDetectorMock();
 
 			var task = new SongAnalyzerTask(queueItem, loaderContext, volumeDetector);
 
@@ -61,8 +62,8 @@ namespace TS3ABotUnitTests {
 		}
 
 		private static SongAnalyzerResult TestSongAnalyzerExpectOk(QueueItem queueItem) {
-			var loaderContext = new LoaderContext();
-			var volumeDetector = new VolumeDetector();
+			var loaderContext = new LoaderContextMock();
+			var volumeDetector = new VolumeDetectorMock();
 			
 			var task = new SongAnalyzerTask(queueItem, loaderContext, volumeDetector);
 
@@ -74,8 +75,8 @@ namespace TS3ABotUnitTests {
 
 		[Test]
 		public void RunSongAnalyzerTaskTest() {
-			var queueItem = new QueueItem(Values.Resource1AYoutube, new MetaData(null));
-			var queueItemGain = new QueueItem(Values.Resource1AYoutubeGain, new MetaData(null));
+			var queueItem = new QueueItem(Constants.Resource1AYoutube, new MetaData(null));
+			var queueItemGain = new QueueItem(Constants.Resource1AYoutubeGain, new MetaData(null));
 
 			{
 				// Item without gain gets the gain set
@@ -83,7 +84,7 @@ namespace TS3ABotUnitTests {
 				var resource = res.Resource.BaseData;
 				var gain = resource.Gain;
 				Assert.IsTrue(gain.HasValue);
-				Assert.AreEqual(gain.Value, VolumeDetector.VolumeSet);
+				Assert.AreEqual(gain.Value, VolumeDetectorMock.VolumeSet);
 			}
 
 			{
@@ -95,20 +96,20 @@ namespace TS3ABotUnitTests {
 
 			{
 				// Failing load gets propagated
-				var loaderContext = new LoaderContext {ShouldFailLoad = true};
-				TestSongAnalyzerExpectErrorMessage(queueItem, loaderContext, LoaderContext.LoadFailedMessage);
+				var loaderContext = new LoaderContextMock {ShouldFailLoad = true};
+				TestSongAnalyzerExpectErrorMessage(queueItem, loaderContext, LoaderContextMock.LoadFailedMessage);
 			}
 
 			{
 				// No restored link gets propagated
-				var loaderContext = new LoaderContext {ShouldReturnNoRestoredLink = true};
-				TestSongAnalyzerExpectErrorMessage(queueItem, loaderContext, LoaderContext.NoRestoredLinkMessage);
+				var loaderContext = new LoaderContextMock {ShouldReturnNoRestoredLink = true};
+				TestSongAnalyzerExpectErrorMessage(queueItem, loaderContext, LoaderContextMock.NoRestoredLinkMessage);
 			}
 
 			{
 				// Cancelling throws cancelled exception of volume detector
-				var loaderContext = new LoaderContext();
-				var volumeDetector = new VolumeDetector();
+				var loaderContext = new LoaderContextMock();
+				var volumeDetector = new VolumeDetectorMock();
 
 				var task = new SongAnalyzerTask(queueItem, loaderContext, volumeDetector);
 
@@ -135,17 +136,17 @@ namespace TS3ABotUnitTests {
 		[Test]
 		public void RunStartSongTaskTest() {
 			var lck = new object();
-			var queueItem = new QueueItem(Values.Resource1AYoutube, new MetaData(Values.TestUid, Values.ListId));
-			var queueItemGain = new QueueItem(Values.Resource1AYoutubeGain, new MetaData(Values.TestUid, Values.ListId));
+			var queueItem = new QueueItem(Constants.Resource1AYoutube, new MetaData(Constants.TestUid, Constants.ListId));
+			var queueItemGain = new QueueItem(Constants.Resource1AYoutubeGain, new MetaData(Constants.TestUid, Constants.ListId));
 			var playResource = new PlayResource(queueItem.AudioResource.ResourceId, queueItem.AudioResource, queueItem.MetaData);
 			var playResourceGain = new PlayResource(queueItemGain.AudioResource.ResourceId, queueItemGain.AudioResource, queueItemGain.MetaData);
 
 			{
 				// Queue item without gain gets it set and update gets invoked
-				var loaderContext = new LoaderContext();
-				var player = new Player();
+				var loaderContext = new LoaderContextMock();
+				var player = new PlayerMock();
 				
-				var task = new StartSongTask(loaderContext, player, Values.VolumeConfig, lck, queueItem);
+				var task = new StartSongTask(loaderContext, player, Constants.VolumeConfig, lck, queueItem);
 
 				AudioResource changedResource = null;
 				QueueItem containingQueueItem = null;
@@ -174,14 +175,14 @@ namespace TS3ABotUnitTests {
 				
 				var gain = changedResource.Gain;
 				Assert.IsTrue(gain.HasValue);
-				Assert.AreEqual(gain.Value, VolumeDetector.VolumeSet);
+				Assert.AreEqual(gain.Value, VolumeDetectorMock.VolumeSet);
 			}
 
 			{
-				var loaderContext = new LoaderContext();
-				var player = new Player();
+				var loaderContext = new LoaderContextMock();
+				var player = new PlayerMock();
 				
-				var task = new StartSongTask(loaderContext, player, Values.VolumeConfig, lck, queueItem);
+				var task = new StartSongTask(loaderContext, player, Constants.VolumeConfig, lck, queueItem);
 
 				var waitHandle = new InformingEventWaitHandle(false, EventResetMode.AutoReset);
 				var tokenSource = new CancellationTokenSource();
@@ -201,31 +202,31 @@ namespace TS3ABotUnitTests {
 			}
 
 			{
-				var player = new Player();
+				var player = new PlayerMock();
 				
-				var task = new StartSongTask(null, player, Values.VolumeConfig, null, null);
+				var task = new StartSongTask(null, player, Constants.VolumeConfig, null, null);
 				PlayInfoEventArgs argsBefore = null;
 				PlayInfoEventArgs argsAfter = null;
 				
 				task.BeforeResourceStarted += (sender, args) => {
 					Assert.IsNotNull(args);
-					Assert.AreEqual(args.Invoker, Values.TestUid);
+					Assert.AreEqual(args.Invoker, Constants.TestUid);
 					Assert.AreSame(args.MetaData, queueItemGain.MetaData);
 					Assert.AreSame(args.ResourceData, queueItemGain.AudioResource);
-					Assert.AreSame(args.SourceLink, LoaderContext.RestoredLink);
+					Assert.AreSame(args.SourceLink, LoaderContextMock.RestoredLink);
 					argsBefore = args;
 				};
 
 				task.AfterResourceStarted += (sender, args) => {
 					Assert.IsNotNull(args);
-					Assert.AreEqual(args.Invoker, Values.TestUid);
+					Assert.AreEqual(args.Invoker, Constants.TestUid);
 					Assert.AreSame(args.MetaData, queueItemGain.MetaData);
 					Assert.AreSame(args.ResourceData, queueItemGain.AudioResource);
-					Assert.AreSame(args.SourceLink, LoaderContext.RestoredLink);
+					Assert.AreSame(args.SourceLink, LoaderContextMock.RestoredLink);
 					argsAfter = args;
 				};
 				
-				var t = Task.Run(() => task.StartResource(new SongAnalyzerResult {Resource = playResourceGain, RestoredLink = LoaderContext.RestoredLink}));
+				var t = Task.Run(() => task.StartResource(new SongAnalyzerResult {Resource = playResourceGain, RestoredLink = LoaderContextMock.RestoredLink}));
 
 				var res = t.Result;
 
@@ -240,10 +241,10 @@ namespace TS3ABotUnitTests {
 			}
 
 			{
-				var player = new Player();
+				var player = new PlayerMock();
 				
-				var task = new StartSongTask(null, player, Values.VolumeConfig, null, null);
-				var t = Task.Run(() => task.StartResource(new SongAnalyzerResult {Resource = playResource, RestoredLink = LoaderContext.RestoredLink}));
+				var task = new StartSongTask(null, player, Constants.VolumeConfig, null, null);
+				var t = Task.Run(() => task.StartResource(new SongAnalyzerResult {Resource = playResource, RestoredLink = LoaderContextMock.RestoredLink}));
 
 				var res = t.Result;
 
