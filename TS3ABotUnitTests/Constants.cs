@@ -15,8 +15,10 @@ namespace TS3ABotUnitTests
 		public static readonly AudioResource Resource1AYoutubeGain = Resource1AYoutube.WithGain(5);
 		public static readonly AudioResource Resource2BYoutubeGain = Resource2BYoutube.WithGain(10);
 		public static readonly Uid TestUid = Uid.To("Test");
+		public static readonly Uid UidA = Uid.To("A");
 		public static readonly ConfAudioVolume VolumeConfig = CreateAudioVolume();
 		public const string ListId = "CoolPlaylist";
+		public const string AnotherListId = "AnotherCoolPlaylist";
 		public const string ListIdMixedCase = "CoOlPlAyLiSt";
 		public const int QueueItemGain = 10;
 
@@ -27,20 +29,35 @@ namespace TS3ABotUnitTests
 			return config;
 		}
 
-		public static QueueItem[] GenerateQueueItems(int count) {
-			var queueItems = new QueueItem[count];
+		public static AudioResource ResourceWithIndex(int index, string salt) {
+			return new AudioResource("id_" + index + '_' + salt, "Title " + index, "youtube", null, null, QueueItemGain);
+		}
 
-			var meta = new MetaData(Constants.TestUid, Constants.ListId);
+		public static List<AudioResource> GenerateAudioResources(int count, string salt = "0") {
+			var items = new List<AudioResource>(count);
+
 			for (var i = 0; i < count; ++i) {
-				var item = QueueItemWithIndex(i, meta);
-				queueItems[i] = item;
+				var item = ResourceWithIndex(i, salt);
+				items.Add(item);
+			}
+
+			return items;
+		}
+
+		public static QueueItem QueueItemWithIndex(int index, MetaData meta, string salt) {
+			return new QueueItem(ResourceWithIndex(index, salt), meta);
+		}
+
+		public static List<QueueItem> GenerateQueueItems(int count, string salt = "0") {
+			var queueItems = new List<QueueItem>(count);
+
+			var meta = new MetaData(TestUid, ListId);
+			for (var i = 0; i < count; ++i) {
+				var item = QueueItemWithIndex(i, meta, salt);
+				queueItems.Add(item);
 			}
 
 			return queueItems;
-		}
-
-		public static QueueItem QueueItemWithIndex(int index, MetaData meta) {
-			return new QueueItem(new AudioResource("id_" + index, "Title " + index, "youtube", null, null, QueueItemGain), meta);
 		}
 	}
 }

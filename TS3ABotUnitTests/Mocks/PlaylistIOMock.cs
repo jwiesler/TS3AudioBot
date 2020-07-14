@@ -10,14 +10,17 @@ namespace TS3ABotUnitTests.Mocks {
 		public Dictionary<string, IPlaylist> Playlists { get; } = new Dictionary<string, IPlaylist>();
 
 		public void Write(string listId, IPlaylist list) {
-			Assert.IsTrue(Playlists.ContainsKey(listId));
+			if (!TryGetRealId(listId, out _))
+				RegisterPlaylistId(listId);
 			Playlists[listId] = list;
 		}
 
 		public E<LocalStr> Delete(string id) {
 			if(!Playlists.ContainsKey(id))
 				return new LocalStr();
-			Playlists.Remove(id);
+			Assert.IsTrue(TryGetRealId(id, out var real));
+			UnregisterPlaylistId(real);
+			Assert.IsTrue(Playlists.Remove(id));
 			return R.Ok;
 		}
 

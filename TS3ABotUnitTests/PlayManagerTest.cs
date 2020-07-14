@@ -1,15 +1,15 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using TS3ABotUnitTests.Mocks;
 using TS3AudioBot.Audio;
 using TS3AudioBot.Playlists;
-using TS3AudioBot.ResourceFactories;
 
 namespace TS3ABotUnitTests {
 	[TestFixture]
 	public class PlayManagerTest {
 		private const int Iterations = 50;
 
-		public static readonly QueueItem[] QueueItems = Constants.GenerateQueueItems(Iterations);
+		public static readonly List<QueueItem> QueueItems = Constants.GenerateQueueItems(Iterations);
 
 		public static PlayManager CreateDefaultPlayManager() {
 			var player = new PlayerMock();
