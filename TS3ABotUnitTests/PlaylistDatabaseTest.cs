@@ -201,9 +201,8 @@ namespace TS3ABotUnitTests
 
 			helper.EditPlaylist(Constants.ListId, editor => {
 				for (var i = 0; i < count; ++i) {
-					var res = editor.IndexOf(resources[i]);
-					Assert.IsTrue(res.Ok);
-					Assert.AreEqual(i, res.Value);
+					Assert.IsTrue(editor.TryGetIndexOf(resources[i], out var index));
+					Assert.AreEqual(i, index);
 				}
 			});
 		}

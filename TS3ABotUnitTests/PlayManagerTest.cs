@@ -13,7 +13,7 @@ namespace TS3ABotUnitTests {
 
 		public static PlayManager CreateDefaultPlayManager() {
 			var player = new PlayerMock();
-			var playlistManager = new PlaylistManager(null, null);
+			var playlistManager = new PlaylistManager(new PlaylistDatabase(new PlaylistIOMock()), null);
 			var taskHost = new StartSongTaskHostMock();
 			return new PlayManager(player, playlistManager, taskHost);
 		}

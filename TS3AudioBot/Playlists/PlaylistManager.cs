@@ -23,12 +23,10 @@ namespace TS3AudioBot.Playlists
 		private readonly ResourceSearch resourceSearch;
 		private readonly object listLock = new object();
 
-		public PlaylistManager(IPlaylistIO playlistPool, ResourceSearch resourceSearch) {
-			database = new PlaylistDatabase(playlistPool);
+		public PlaylistManager(PlaylistDatabase database, ResourceSearch resourceSearch) {
+			this.database = database;
 			this.resourceSearch = resourceSearch;
 		}
-
-		public PlaylistManager(PlaylistIO playlistPool, ResourceSearch resourceSearch) : this((IPlaylistIO) playlistPool, resourceSearch) {}
 
 		private static LocalStr ErrorListNotFound(string list) {
 			return new LocalStr($"Could not find playlist {list}");
@@ -44,6 +42,10 @@ namespace TS3AudioBot.Playlists
 				return ErrorListNotFound(listId);
 			return (list, id);
 		}
+
+		public bool ContainsPlaylist(string listId) { return database.ContainsPlaylist(listId); }
+
+		public bool TryGetPlaylistId(string listId, out string id) { return database.TryGet(listId, out id, out _); }
 
 		public E<LocalStr> CreatePlaylist(string listId, Uid owner)
 		{

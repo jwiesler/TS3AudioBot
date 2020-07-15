@@ -13,7 +13,7 @@ namespace TS3ABotUnitTests
 		public PlayManager Manager { get; }
 
 		public PlayTestHelper() {
-			PlaylistManager = new PlaylistManager(new PlaylistIOMock(), null);
+			PlaylistManager = new PlaylistManager(new PlaylistDatabase(new PlaylistIOMock()), null);
 			Manager = new PlayManager(Player,  PlaylistManager, TaskHost);
 		}
 

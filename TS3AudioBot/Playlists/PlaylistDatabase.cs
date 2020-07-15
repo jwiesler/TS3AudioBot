@@ -124,6 +124,8 @@ namespace TS3AudioBot.Playlists {
 				this.database = database;
 			}
 
+			// Adds an item, returns false if the item is already contained
+			// O(log d)
 			public bool Add(AudioResource resource) {
 				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, Id, playlist.Count, out var info))
 					return false;
@@ -131,12 +133,14 @@ namespace TS3AudioBot.Playlists {
 				return true;
 			}
 
+			// Adds every item in the list blindly, i.e. does not check whether the item was actually added
 			public void AddRange(IEnumerable<AudioResource> items) {
 				foreach (var item in items)
 					Add(item);
 			}
 
 			// Moves and updates the moved items' index, ignores values at target
+			// O(n)
 			private int Move(int begin, int end, int target) {
 				while (begin != end) {
 					var item = playlist.InfoItems[target] = playlist.InfoItems[begin];
@@ -149,6 +153,7 @@ namespace TS3AudioBot.Playlists {
 			}
 
 			// Moves and updates the moved items' index, ignores values at target
+			// O(n)
 			private int MoveBackwards(int begin, int end, int targetEnd) {
 				while (begin != end) {
 					var item = playlist.InfoItems[--targetEnd] = playlist.InfoItems[--end];
@@ -158,7 +163,9 @@ namespace TS3AudioBot.Playlists {
 				return targetEnd;
 			}
 
-			public bool ChangeItem(int index, AudioResource resource) {
+			// Replaces the item at `index`, returns false if the item at `index` is not equal to resource afterwards (i.e. already contained)
+			// O(log d)
+			public bool ChangeItemAt(int index, AudioResource resource) {
 				var item = playlist.InfoItems[index];
 				if (Equals(item.Resource, resource))
 					return true;
@@ -170,7 +177,9 @@ namespace TS3AudioBot.Playlists {
 				return true;
 			}
 
-			public AudioResource RemoveItem(int index) {
+			// Removes the item at `index` and returns it. Shifts all items with a higher index down
+			// O(n), O(1) if last, additionally O(log d) if this was the last list containing this item
+			public AudioResource RemoveItemAt(int index) {
 				var resource = playlist.InfoItems[index].Resource;
 				database.resourcesDatabase.RemoveListFromItem(Id, playlist.InfoItems[index]);
 				Move(index + 1, playlist.Count, index);
@@ -178,6 +187,8 @@ namespace TS3AudioBot.Playlists {
 				return resource;
 			}
 
+			// Moves an item from `index` to `to`, shifting other items to make/fill space
+			// O(n)
 			public void MoveItem(int index, int to) {
 				if (index == to)
 					return;
@@ -193,10 +204,15 @@ namespace TS3AudioBot.Playlists {
 				playlist.InfoItems[to] = item;
 			}
 
-			public R<int> IndexOf(AudioResource resource) {
-				if (!database.resourcesDatabase.TryGetUniqueResourceInfo(resource, out var info) || !info.ContainingLists.TryGetValue(Id, out var index))
-					return R.Err;
-				return index;
+			// Returns the index of the resource in the list
+			// O(log d)
+			public bool TryGetIndexOf(AudioResource resource, out int index) {
+				if (database.resourcesDatabase.TryGetUniqueResourceInfo(resource, out var info) &&
+				    info.ContainingLists.TryGetValue(Id, out index))
+					return true;
+				index = 0;
+				return false;
+
 			}
 		}
 

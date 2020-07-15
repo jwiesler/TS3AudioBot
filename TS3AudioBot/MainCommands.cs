@@ -990,26 +990,16 @@ namespace TS3AudioBot
 		}
 
 		public static R<int> ListAddItem(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, AudioResource resource) {
-			var index = -1;
+			int? index = null;
 			ModifyPlaylist(playlistManager, userProvidedId, info, editor => {
-				editor.Add(resource);
-				index = editor.Playlist.Count - 1;
+				if(editor.Add(resource))
+					index = editor.Playlist.Count - 1;
 			}).UnwrapThrow();
-			if (index == -1)
-				return R.Err;
-			return index;
+			if(index.HasValue)
+				return index.Value;
+			return R.Err;
 		}
-
-		// [Command("list add")]
-		public static JsonValue<PlaylistItemGetData> CommandListAddInternal(ResolveContext resourceFactory, PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, string link /* TODO param */)
-		{
-			var playResource = resourceFactory.Load(link).UnwrapThrow();
-			var resource = playResource.BaseData;
-			var item = ListAddItem(playlistManager, info, userProvidedId, resource);
-			PlaylistItemGetData getData = resourceFactory.ToApiFormat(resource);
-			return JsonValue.Create(getData, strings.info_ok);
-		}
-
+		
 		[Command("list create", "_undocumented")]
 		public static void CommandListCreate(PlaylistManager playlistManager, InvokerData invoker, string listId)
 			=> playlistManager.CreatePlaylist(listId, invoker.ClientUid).UnwrapThrow();
@@ -1094,8 +1084,7 @@ namespace TS3AudioBot
 			string id = null;
 			ModifyPlaylist(playlistManager, listId, info, editor => {
 				id = editor.Id;
-				foreach (var item in addList.Items)
-					editor.Add(item);
+				editor.AddRange(addList.Items);
 			}).UnwrapThrow();
 
 			return CommandListShow(client, playlistManager, resolver, id, null, null);
@@ -1139,13 +1128,17 @@ namespace TS3AudioBot
 
 		[Command("list item gain set")]
 		public static JsonValue<GainValue> CommandListItemGainSet(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, int index, int? value = null) {
+			int? gain = null;
 			ModifyPlaylist(playlistManager, userProvidedId, info, editor => {
 				DoBoundsCheck(editor.Playlist, index);
 				var res = editor.Playlist[index];
-				editor.ChangeItem(index, res.WithGain(value));
+				if (editor.ChangeItem(index, res.WithGain(value)))
+					gain = value;
+				else
+					gain = res.Gain;
 			}).UnwrapThrow();
 
-			return new JsonValue<GainValue>(new GainValue(value), g => g.Value.HasValue ? $"Set the gain to {g.Value.Value}." : "Reset the gain.");
+			return new JsonValue<GainValue>(new GainValue(gain), g => g.Value.HasValue ? $"Set the gain to {g.Value.Value}." : "Reset the gain.");
 		}
 
 		[Command("list item info")]
