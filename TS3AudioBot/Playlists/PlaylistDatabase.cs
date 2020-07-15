@@ -141,10 +141,10 @@ namespace TS3AudioBot.Playlists {
 
 			// Moves and updates the moved items' index, ignores values at target
 			// O(n)
-			private int Move(int begin, int end, int target) {
+			private static int Move(string id, List<UniqueResourceInfo> items, int begin, int end, int target) {
 				while (begin != end) {
-					var item = playlist.InfoItems[target] = playlist.InfoItems[begin];
-					item.UpdateIndex(Id, target);
+					var item = items[target] = items[begin];
+					item.UpdateIndex(id, target);
 					target++;
 					begin++;
 				}
@@ -154,10 +154,10 @@ namespace TS3AudioBot.Playlists {
 
 			// Moves and updates the moved items' index, ignores values at target
 			// O(n)
-			private int MoveBackwards(int begin, int end, int targetEnd) {
+			private static int MoveBackwards(string id, List<UniqueResourceInfo> items, int begin, int end, int targetEnd) {
 				while (begin != end) {
-					var item = playlist.InfoItems[--targetEnd] = playlist.InfoItems[--end];
-					item.UpdateIndex(Id, targetEnd);
+					var item = items[--targetEnd] = items[--end];
+					item.UpdateIndex(id, targetEnd);
 				}
 
 				return targetEnd;
@@ -182,9 +182,32 @@ namespace TS3AudioBot.Playlists {
 			public AudioResource RemoveItemAt(int index) {
 				var resource = playlist.InfoItems[index].Resource;
 				database.resourcesDatabase.RemoveListFromItem(Id, playlist.InfoItems[index]);
-				Move(index + 1, playlist.Count, index);
+				Move(Id, playlist.InfoItems, index + 1, playlist.Count, index);
 				playlist.InfoItems.RemoveAt(playlist.Count - 1);
 				return resource;
+			}
+
+			private static void RemoveIndices(string id, List<UniqueResourceInfo> items, IList<int> indices, int ibegin, int iend) {
+				if(iend == ibegin)
+					return;
+
+				int count = items.Count;
+				int it = indices[ibegin];
+				for (int iit = ibegin; iit < iend; iit++) {
+					int next = (iit + 1 == iend ? count : indices[iit + 1]);
+					int moveBegin = indices[iit] + 1;
+					int moveEnd = next;
+
+					it = Move(id, items, moveBegin, moveEnd, it);
+				}
+
+				items.RemoveRange(it, items.Count - it);
+			}
+
+			// Removes all items specified by `indices`. Shifts the remaining items. Indices has to be sorted in ascending order.
+			// O(n), additionally for every item O(log d) if this was the last list containing this item
+			public void RemoveIndices(IList<int> indices) {
+				RemoveIndices(Id, playlist.InfoItems, indices, 0, indices.Count);
 			}
 
 			// Moves an item from `index` to `to`, shifting other items to make/fill space
@@ -195,9 +218,9 @@ namespace TS3AudioBot.Playlists {
 
 				var item = playlist.InfoItems[index];
 				if (index < to) {
-					Move(index + 1, to + 1, index);
+					Move(Id, playlist.InfoItems, index + 1, to + 1, index);
 				} else {
-					MoveBackwards(to, index, index + 1);
+					MoveBackwards(Id, playlist.InfoItems, to, index, index + 1);
 				}
 
 				item.UpdateIndex(Id, to);

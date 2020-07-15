@@ -1091,7 +1091,7 @@ namespace TS3AudioBot
 		}
 
 		public static void DoBoundsCheck(IPlaylist playlist, int index) {
-			if (Tools.IsBetweenExcludingUpper(index, 0, playlist.Count))
+			if (!Tools.IsBetweenExcludingUpper(index, 0, playlist.Count))
 				throw new CommandException(strings.error_playlist_item_index_out_of_range, CommandExceptionReason.CommandError);
 		}
 
@@ -1241,7 +1241,7 @@ namespace TS3AudioBot
 
 				deletedItem = editor.RemoveItemAt(index);
 			}).UnwrapThrow();
-			return new JsonEmpty(string.Format(strings.info_removed, deletedItem));
+			return new JsonEmpty(string.Format(strings.info_removed, deletedItem.ResourceTitle));
 		}
 
 		[Command("list item name")] // TODO return modified elements
