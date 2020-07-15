@@ -46,14 +46,24 @@ namespace TS3AudioBot.ResourceFactories
 		}
 
 		public override bool Equals(object obj) {
-			if (!(obj is UniqueResource other))
-				return false;
-
-			return AudioType == other.AudioType
-			       && ResourceId == other.ResourceId && ResourceTitle == other.ResourceTitle;
+			if (ReferenceEquals(null, obj)) return false;
+			if (ReferenceEquals(this, obj)) return true;
+			if (obj.GetType() != this.GetType()) return false;
+			return Equals((UniqueResource) obj);
 		}
 
-		public override int GetHashCode() => (AudioType, ResourceId, ResourceTitle).GetHashCode();
+		protected bool Equals(UniqueResource other) {
+			return AudioType == other.AudioType && ResourceId == other.ResourceId && ResourceTitle == other.ResourceTitle;
+		}
+
+		public override int GetHashCode() {
+			unchecked {
+				var hashCode = (AudioType != null ? AudioType.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (ResourceId != null ? ResourceId.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (ResourceTitle != null ? ResourceTitle.GetHashCode() : 0);
+				return hashCode;
+			}
+		}
 
 		public override string ToString() { return $"{AudioType} ID:{ResourceId}"; }
 	}
@@ -110,7 +120,7 @@ namespace TS3AudioBot.ResourceFactories
 		}
 
 		protected bool Equals(AudioResource other) {
-			return base.Equals(other) && TitleIsUserSet == other.TitleIsUserSet && Gain == other.Gain && Equals(AdditionalData, other.AdditionalData);
+			return base.Equals(other) && Gain == other.Gain && Equals(AdditionalData, other.AdditionalData);
 		}
 
 		public override bool Equals(object obj) {
@@ -123,7 +133,6 @@ namespace TS3AudioBot.ResourceFactories
 		public override int GetHashCode() {
 			unchecked {
 				int hashCode = base.GetHashCode();
-				hashCode = (hashCode * 397) ^ TitleIsUserSet.GetHashCode();
 				hashCode = (hashCode * 397) ^ Gain.GetHashCode();
 				hashCode = (hashCode * 397) ^ (AdditionalData != null ? AdditionalData.GetHashCode() : 0);
 				return hashCode;

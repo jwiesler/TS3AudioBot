@@ -228,7 +228,7 @@ namespace TS3ABotUnitTests
 				var i1 = indices[i];
 				helper.EditPlaylist(Constants.ListId, editor => {
 					var resource = resources[i1];
-					Assert.AreEqual(resource, editor.RemoveItem(i1));
+					Assert.AreEqual(resource, editor.RemoveItemAt(i1));
 					resources.RemoveAt(i1);
 				});
 
@@ -272,10 +272,10 @@ namespace TS3ABotUnitTests
 					var resource = replacementResources[index];
 					if (i1 > 0) {
 						var lastResource = replacementResources[indices[i1 - 1]];
-						Assert.IsFalse(editor.ChangeItem(index, lastResource));
+						Assert.IsFalse(editor.ChangeItemAt(index, lastResource));
 					}
 
-					Assert.IsTrue(editor.ChangeItem(index, resource));
+					Assert.IsTrue(editor.ChangeItemAt(index, resource));
 					resources[index] = resource;
 				});
 

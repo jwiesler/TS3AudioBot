@@ -1132,7 +1132,7 @@ namespace TS3AudioBot
 			ModifyPlaylist(playlistManager, userProvidedId, info, editor => {
 				DoBoundsCheck(editor.Playlist, index);
 				var res = editor.Playlist[index];
-				if (editor.ChangeItem(index, res.WithGain(value)))
+				if (editor.ChangeItemAt(index, res.WithGain(value)))
 					gain = value;
 				else
 					gain = res.Gain;
@@ -1239,7 +1239,7 @@ namespace TS3AudioBot
 			{
 				DoBoundsCheck(editor.Playlist, index);
 
-				deletedItem = editor.RemoveItem(index);
+				deletedItem = editor.RemoveItemAt(index);
 			}).UnwrapThrow();
 			return new JsonEmpty(string.Format(strings.info_removed, deletedItem));
 		}
@@ -1249,7 +1249,7 @@ namespace TS3AudioBot
 		{
 			ModifyPlaylist(playlistManager, userProvidedId, info, editor => {
 				DoBoundsCheck(editor.Playlist, index);
-				editor.ChangeItem(index, editor.Playlist[index].WithUserTitle(title));
+				editor.ChangeItemAt(index, editor.Playlist[index].WithUserTitle(title));
 			}).UnwrapThrow();
 		}
 
