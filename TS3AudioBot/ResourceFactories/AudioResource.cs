@@ -120,8 +120,10 @@ namespace TS3AudioBot.ResourceFactories
 		}
 
 		protected bool Equals(AudioResource other) {
-			return base.Equals(other) && Gain == other.Gain && Equals(AdditionalData, other.AdditionalData);
+			return base.Equals(other) && Equals(AdditionalData, other.AdditionalData);
 		}
+
+		public bool ReallyEquals(AudioResource other) { return Equals(other) && Gain == other.Gain && TitleIsUserSet == other.TitleIsUserSet; }
 
 		public override bool Equals(object obj) {
 			if (ReferenceEquals(null, obj)) return false;
@@ -133,7 +135,6 @@ namespace TS3AudioBot.ResourceFactories
 		public override int GetHashCode() {
 			unchecked {
 				int hashCode = base.GetHashCode();
-				hashCode = (hashCode * 397) ^ Gain.GetHashCode();
 				hashCode = (hashCode * 397) ^ (AdditionalData != null ? AdditionalData.GetHashCode() : 0);
 				return hashCode;
 			}
