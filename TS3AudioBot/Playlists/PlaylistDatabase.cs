@@ -128,7 +128,7 @@ namespace TS3AudioBot.Playlists {
 		private readonly Dictionary<string, DatabasePlaylist> playlistCache = new Dictionary<string, DatabasePlaylist>(16);
 		private readonly PlaylistResourcesDatabase resourcesDatabase = new PlaylistResourcesDatabase();
 		
-		private readonly object myLock = new object();
+		public object Lock { get; } = new object();
 
 		public class PlaylistEditor {
 			private readonly DatabasePlaylist playlist;
@@ -280,7 +280,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public bool EditPlaylistEditorsBase(string listId, Action<string, IPlaylistEditors> editors) {
-			lock (myLock) {
+			lock (Lock) {
 				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
 					return false;
 
@@ -384,7 +384,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public bool TryGet(string listId, out string id, out IPlaylist value) {
-			lock (myLock) {
+			lock (Lock) {
 				if (!io.TryGetRealId(listId, out id) || !TryGetInternal(id, out var list)) {
 					value = null;
 					return false;
@@ -396,7 +396,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public PlaylistInfo[] GetInfos() {
-			lock (myLock) {
+			lock (Lock) {
 				return playlistCache.Select(kvp => new PlaylistInfo {
 					Id = kvp.Key,
 					SongCount = kvp.Value.Count,
@@ -407,7 +407,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public bool CreatePlaylist(string listId, Uid owner) {
-			lock (myLock) {
+			lock (Lock) {
 				var list = new DatabasePlaylist(owner);
 				if (io.TryGetRealId(listId, out _))
 					return false;
@@ -419,7 +419,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public bool ContainsPlaylist(string id) {
-			lock (myLock) {
+			lock (Lock) {
 				return playlistCache.ContainsKey(id);
 			}
 		}
@@ -436,7 +436,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public bool Remove(string id) {
-			lock (myLock) {
+			lock (Lock) {
 				if (!playlistCache.TryGetValue(id, out var list))
 					return false;
 
@@ -503,7 +503,7 @@ namespace TS3AudioBot.Playlists {
 		}*/
 
 		public void Clear() {
-			lock (myLock) {
+			lock (Lock) {
 				playlistCache.Clear();
 				resourcesDatabase.Clear();
 				io.Clear();
@@ -511,7 +511,7 @@ namespace TS3AudioBot.Playlists {
 		}
 
 		public void Reload() {
-			lock (myLock) {
+			lock (Lock) {
 				Clear();
 				ReloadFromIo();
 			}
@@ -540,7 +540,7 @@ namespace TS3AudioBot.Playlists {
 
 		public IEnumerable<IReadonlyUniqueResourceInfo> UniqueResources {
 			get {
-				lock (myLock) {
+				lock (Lock) {
 					return resourcesDatabase.UniqueResources;
 				}
 			}

@@ -250,6 +250,7 @@ namespace TS3AudioBot.Playlists
 				if(!file.Exists)
 					return new LocalStr(strings.error_playlist_not_found);
 
+				UnregisterPlaylistId(id);
 				return DeleteFile(file);
 			}
 		}

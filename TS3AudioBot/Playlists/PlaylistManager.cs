@@ -21,7 +21,7 @@ namespace TS3AudioBot.Playlists
 	{
 		private readonly PlaylistDatabase database;
 		private readonly ResourceSearch resourceSearch;
-		private readonly object listLock = new object();
+		public object Lock => database.Lock;
 
 		public PlaylistManager(PlaylistDatabase database, ResourceSearch resourceSearch) {
 			this.database = database;
@@ -72,22 +72,16 @@ namespace TS3AudioBot.Playlists
 			if (!checkName.Ok)
 				return checkName.Error;
 
-			lock (listLock)
-			{
-				if(!database.EditPlaylist(listId, action))
-					return ErrorListNotFound(listId);
-			}
+			if(!database.EditPlaylist(listId, action))
+				return ErrorListNotFound(listId);
 
 			resourceSearch?.Rebuild();
 			return E<LocalStr>.OkR;
 		}
 
 		public E<LocalStr> ModifyPlaylistEditors(string listId, Action<string, IPlaylistEditors> action) {
-			lock (listLock)
-			{
-				if(!database.EditPlaylistEditorsBase(listId, action))
-					return ErrorListNotFound(listId);
-			}
+			if(!database.EditPlaylistEditorsBase(listId, action))
+				return ErrorListNotFound(listId);
 			return E<LocalStr>.OkR;
 		}
 
@@ -105,29 +99,13 @@ namespace TS3AudioBot.Playlists
 
 		public PlaylistInfo[] GetAvailablePlaylists() => database.GetInfos();
 
-		/*public bool TryGetPlaylistId(string listId, out string id) {
-			var checkName = Util.IsSafeFileName(listId);
-			if (!checkName.Ok) {
-				id = null;
-				return false;
-			}
-
-			return database.TryGetPlaylistId(listId, out id);
-		}*/
-
-		/*public bool TryGetUniqueItem(UniqueResource resource, out UniqueResourceInfo info) {
-			return playlistPool.TryGetUniqueItem(resource, out info);
-		}
-
-		public bool GetAllOccurences(UniqueResource resource, out IReadOnlyCollection<KeyValuePair<string, List<int>>> list) {
-			return playlistPool.GetAllOccurences(resource, out list);
-		}*/
-
-		// Replaces all occurences of `resource` with `with` or removes `resource` if `with` is already in the playlist
-		/*public void ChangeAllOccurences(UniqueResource resource, AudioResource with) {
-			playlistPool.ChangeAllOccurences(resource, with);
+		// Replaces all occurences of the resource in `listId` at `index` with `with` or removes `resource` if `with` is already in the playlist
+		public E<LocalStr> ChangeItemAtDeep(string listId, int index, AudioResource with) {
+			if (!database.ChangeItemAtDeep(listId, index, with))
+				return ErrorListNotFound(listId);
 			resourceSearch?.Rebuild();
-		}*/
+			return R.Ok;
+		}
 
 		public bool TryGetUniqueResourceInfo(AudioResource resource, out IReadonlyUniqueResourceInfo info) {
 			return database.TryGetUniqueResourceInfo(resource, out info);
