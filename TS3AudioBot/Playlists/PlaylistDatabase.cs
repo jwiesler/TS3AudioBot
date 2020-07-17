@@ -12,7 +12,7 @@ namespace TS3AudioBot.Playlists {
 	}
 
 	public class UniqueResourceInfo : IReadonlyUniqueResourceInfo {
-		public AudioResource Resource { get; }
+		public AudioResource Resource { get; set; }
 
 		private Dictionary<string, int> ContainingListInstances { get; } = new Dictionary<string, int>();
 
@@ -29,6 +29,16 @@ namespace TS3AudioBot.Playlists {
 
 		public bool RemoveList(string id) {
 			return ContainingListInstances.Remove(id);
+		}
+
+		// Partitions ContainingListInstances into contained and not contained
+		public (List<KeyValuePair<string, int>> contained, List<KeyValuePair<string, int>> notContained) PartitionContainingLists(UniqueResourceInfo o) {
+			var contained = new List<KeyValuePair<string, int>>();
+			var notContained = new List<KeyValuePair<string, int>>();
+			foreach (var containingListInstance in ContainingListInstances) {
+				(o.IsContainedIn(containingListInstance.Key) ? contained : notContained).Add(containingListInstance);
+			}
+			return (contained, notContained);
 		}
 
 		public void UpdateIndex(string id, int offset) {
@@ -79,6 +89,10 @@ namespace TS3AudioBot.Playlists {
 			return false;
 		}
 
+		public bool TryGet(AudioResource resource, out UniqueResourceInfo info) {
+			return uniqueSongs.TryGetValue(resource, out info);
+		}
+
 		public bool GetOrCreateForListItem(AudioResource resource, string id, int index, out UniqueResourceInfo info) {
 			if (uniqueSongs.TryGetValue(resource, out info)) {
 				return info.TryAdd(id, index);
@@ -96,6 +110,10 @@ namespace TS3AudioBot.Playlists {
 
 			if (!info.IsContainedInAList)
 				uniqueSongs.Remove(info.Resource);
+		}
+
+		public bool Remove(UniqueResourceInfo info) {
+			return uniqueSongs.Remove(info.Resource);
 		}
 
 		public void Clear() {
@@ -163,7 +181,7 @@ namespace TS3AudioBot.Playlists {
 				return targetEnd;
 			}
 
-			// Replaces the item at `index`, returns false if the item at `index` is not equal to resource afterwards (i.e. already contained)
+			// Replaces the item at `index`, returns false if the item at `index` is not equal to `resource` afterwards (i.e. already contained)
 			// O(log d)
 			public bool ChangeItemAt(int index, AudioResource resource) {
 				var item = playlist.InfoItems[index];
@@ -246,13 +264,17 @@ namespace TS3AudioBot.Playlists {
 			Reload();
 		}
 
+		private void EditPlaylistAndWriteInteral(string id, DatabasePlaylist list, Action<PlaylistEditor> editor) {
+			editor(new PlaylistEditor(id, list, this));
+			AfterPlaylistChanged(id, list);
+		}
+
 		public bool EditPlaylist(string listId, Action<PlaylistEditor> editor) {
-			lock (myLock) {
+			lock (Lock) {
 				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
 					return false;
 
-				editor(new PlaylistEditor(id, list, this));
-				AfterPlaylistChanged(id, list);
+				EditPlaylistAndWriteInteral(id, list, editor);
 				return true;
 			}
 		}
@@ -264,6 +286,85 @@ namespace TS3AudioBot.Playlists {
 
 				editors(id, list);
 				AfterPlaylistChanged(id, list);
+				return true;
+			}
+		}
+
+		private void LogPlaylistIdNotFoundThatShouldExist(string id) {
+			Log.Error($"Not existing playlist with id {id} that should exist contained in a PlaylistDatabase object");
+		}
+
+		private void SaveAll(IEnumerable<string> lists) {
+			foreach (var listId in lists) {
+				if (TryGetInternal(listId, out var containingList)) {
+					AfterPlaylistChanged(listId, containingList);
+				} else {
+					LogPlaylistIdNotFoundThatShouldExist(listId);
+				}
+			}
+		}
+
+		// Replaces the item at `index` and all its occurences, returns false if the item at `index` is not exactly the same as `resource` afterwards
+		// O(1) + io time for each containing playlist if the replacement does not produce duplicates
+		// Higher else
+		public bool ChangeItemAtDeep(string listId, int index, AudioResource resource) {
+			lock (Lock) {
+				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
+					return false;
+
+				var item = list.InfoItems[index];
+				if (item.Resource.ReallyEquals(resource))
+					return true;
+
+				if (!resourcesDatabase.TryGet(resource, out var resourceInfo) || ReferenceEquals(item, resourceInfo)) {
+					// Replacement is not contained or will be mapped to the same item
+					// Replacement will not produce a duplicate if added to all already containing playlists
+					// => just change the item we got
+					item.Resource = resource;
+					SaveAll(item.ContainingLists.Keys);
+				} else {
+					// Replacement is contained and will not be mapped to the same item
+					// Replacement might produce a duplicate if added to all already containing playlists
+					// => remove from all playlists that already contain the duplicate and add to the rest, remove the old item from the database
+
+					var (contained, notContained) = item.PartitionContainingLists(resourceInfo);
+
+					// Replacement is different from the version we have stored => change the other instances as well
+					if (!resourceInfo.Resource.ReallyEquals(resource)) {
+						resourceInfo.Resource = resource;
+
+						// Save only the ones that don't contain the initial item as the rest will be saved later
+						var containedMap = new Dictionary<string, int>(contained.Count);
+						foreach(var c in contained)
+							containedMap.Add(c.Key, c.Value);
+
+						SaveAll(resourceInfo.ContainingLists.Where(x => !containedMap.ContainsKey(x.Key)).Select(x => x.Key));
+					}
+
+					// remove from all playlists that already contain the replacement
+					foreach (var kvp in contained) {
+						if (TryGetInternal(kvp.Key, out var containingList)) {
+							EditPlaylistAndWriteInteral(kvp.Key, containingList, editor => {
+								editor.RemoveItemAt(kvp.Value);
+							});
+						} else {
+							LogPlaylistIdNotFoundThatShouldExist(kvp.Key);
+						}
+					}
+
+					// add to the rest
+					foreach (var kvp in notContained) {
+						if (TryGetInternal(kvp.Key, out var containingList)) {
+							resourceInfo.TryAdd(kvp.Key, kvp.Value);
+							containingList.InfoItems[kvp.Value] = resourceInfo;
+							AfterPlaylistChanged(kvp.Key, containingList);
+						} else {
+							LogPlaylistIdNotFoundThatShouldExist(kvp.Key);
+						}
+					}
+					resourcesDatabase.Remove(item);
+				}
+
 				return true;
 			}
 		}
