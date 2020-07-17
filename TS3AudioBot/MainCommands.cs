@@ -1128,15 +1128,23 @@ namespace TS3AudioBot
 
 		[Command("list item gain set")]
 		public static JsonValue<GainValue> CommandListItemGainSet(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, int index, int? value = null) {
-			int? gain = null;
-			ModifyPlaylist(playlistManager, userProvidedId, info, editor => {
-				DoBoundsCheck(editor.Playlist, index);
-				var res = editor.Playlist[index];
-				if (editor.ChangeItemAt(index, res.WithGain(value)))
+			int? gain;
+			lock (playlistManager.Lock) {
+				var (list, id) = playlistManager.GetPlaylist(userProvidedId).UnwrapThrow();
+				DoBoundsCheck(list, index);
+				var resource = list[index];
+				if (playlistManager.TryGetUniqueResourceInfo(resource, out var resInfo)) {
+					foreach (var resInfoContainingList in resInfo.ContainingLists) {
+						var (containingList, _) = playlistManager.GetPlaylist(userProvidedId).UnwrapThrow();
+						CheckPlaylistModifiable(resInfoContainingList.Key, containingList, info);
+					}
+
+					playlistManager.ChangeItemAtDeepSane(id, index, resource.WithGain(value)).UnwrapThrow();
 					gain = value;
-				else
-					gain = res.Gain;
-			}).UnwrapThrow();
+				} else {
+					gain = resource.Gain;
+				}
+			}
 
 			return new JsonValue<GainValue>(new GainValue(gain), g => g.Value.HasValue ? $"Set the gain to {g.Value.Value}." : "Reset the gain.");
 		}
@@ -1245,12 +1253,16 @@ namespace TS3AudioBot
 		}
 
 		[Command("list item name")] // TODO return modified elements
-		public static void CommandListItemName(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, int index, string title)
-		{
+		public static string CommandListItemName(PlaylistManager playlistManager, ExecutionInformation info, string userProvidedId, int index, string title) {
+			bool success = false;
 			ModifyPlaylist(playlistManager, userProvidedId, info, editor => {
 				DoBoundsCheck(editor.Playlist, index);
-				editor.ChangeItemAt(index, editor.Playlist[index].WithUserTitle(title));
+				success = editor.ChangeItemAt(index, editor.Playlist[index].WithUserTitle(title));
 			}).UnwrapThrow();
+
+			if (!success)
+				return $"Failed to set the name because this resource is already contained in {userProvidedId} with this name.";
+			return $"Changed the name of the item at position {index} in {userProvidedId} to {title}";
 		}
 
 		[Command("list list")]

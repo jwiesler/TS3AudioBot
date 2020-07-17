@@ -245,15 +245,8 @@ namespace TS3AudioBot.Playlists {
 				playlist.InfoItems[to] = item;
 			}
 
-			// Returns the index of the resource in the list
-			// O(log d)
 			public bool TryGetIndexOf(AudioResource resource, out int index) {
-				if (database.resourcesDatabase.TryGetUniqueResourceInfo(resource, out var info) &&
-				    info.ContainingLists.TryGetValue(Id, out index))
-					return true;
-				index = 0;
-				return false;
-
+				return database.TryGetIndexOfInternal(Id, resource, out index);
 			}
 		}
 
@@ -290,6 +283,25 @@ namespace TS3AudioBot.Playlists {
 			}
 		}
 
+		// Returns the index of the resource in the list
+		// O(log d)
+		private bool TryGetIndexOfInternal(string id, AudioResource resource, out int index) {
+			if (resourcesDatabase.TryGetUniqueResourceInfo(resource, out var info) &&
+			    info.ContainingLists.TryGetValue(id, out index))
+				return true;
+			index = 0;
+			return false;
+		}
+
+		public bool TryGetIndexOf(string listId, AudioResource resource, out int index) {
+			lock (Lock) {
+				if (io.TryGetRealId(listId, out var id))
+					return TryGetIndexOfInternal(id, resource, out index);
+				index = 0;
+				return false;
+			}
+		}
+
 		private void LogPlaylistIdNotFoundThatShouldExist(string id) {
 			Log.Error($"Not existing playlist with id {id} that should exist contained in a PlaylistDatabase object");
 		}
@@ -301,6 +313,31 @@ namespace TS3AudioBot.Playlists {
 				} else {
 					LogPlaylistIdNotFoundThatShouldExist(listId);
 				}
+			}
+		}
+
+		// Replaces the item at `index` and all its occurences, returns false if the item at `index` is not exactly the same as `resource` afterwards
+		// Fails if the change would introduce a duplicate.
+		// O(1) + io time for each containing playlist if the replacement does not produce duplicates
+		// Higher else
+		public bool ChangeItemAtDeepSane(string listId, int index, AudioResource resource) {
+			lock (Lock) {
+				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
+					return false;
+
+				var item = list.InfoItems[index];
+				if (item.Resource.ReallyEquals(resource))
+					return true;
+
+				if (resourcesDatabase.TryGet(resource, out var resourceInfo) && !ReferenceEquals(item, resourceInfo))
+					return false;
+
+				// Replacement is not contained or will be mapped to the same item
+				// Replacement will not produce a duplicate if added to all already containing playlists
+				// => just change the item we got
+				item.Resource = resource;
+				SaveAll(item.ContainingLists.Keys);
+				return true;
 			}
 		}
 

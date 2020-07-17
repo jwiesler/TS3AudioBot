@@ -47,6 +47,10 @@ namespace TS3AudioBot.Playlists
 
 		public bool TryGetPlaylistId(string listId, out string id) { return database.TryGet(listId, out id, out _); }
 
+		public bool TryGetIndexOf(string listId, AudioResource resource, out int index) {
+			return database.TryGetIndexOf(listId, resource, out index);
+		}
+
 		public E<LocalStr> CreatePlaylist(string listId, Uid owner)
 		{
 			var checkName = Util.IsSafeFileName(listId);
@@ -102,6 +106,13 @@ namespace TS3AudioBot.Playlists
 		// Replaces all occurences of the resource in `listId` at `index` with `with` or removes `resource` if `with` is already in the playlist
 		public E<LocalStr> ChangeItemAtDeep(string listId, int index, AudioResource with) {
 			if (!database.ChangeItemAtDeep(listId, index, with))
+				return ErrorListNotFound(listId);
+			resourceSearch?.Rebuild();
+			return R.Ok;
+		}
+
+		public E<LocalStr> ChangeItemAtDeepSane(string listId, int index, AudioResource resource) {
+			if (!database.ChangeItemAtDeep(listId, index, resource))
 				return ErrorListNotFound(listId);
 			resourceSearch?.Rebuild();
 			return R.Ok;

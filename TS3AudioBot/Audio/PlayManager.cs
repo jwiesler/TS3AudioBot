@@ -286,14 +286,18 @@ namespace TS3AudioBot.Audio {
 			lock (Lock) {
 				Log.Info("AudioResource was changed by loader, saving containing playlist");
 
-				var modifyR = playlistManager.ModifyPlaylist(e.QueueItem.MetaData.ContainingPlaylistId, editor => {
-					if (editor.TryGetIndexOf(e.QueueItem.AudioResource, out var index)) {
-						if (!editor.ChangeItemAt(index, e.Resource))
-							Log.Error($"Could not change resource {e.Resource} in playlist {editor.Id} at index {index}");
+				E<LocalStr> modifyR;
+				lock (playlistManager.Lock) {
+					var listId = e.QueueItem.MetaData.ContainingPlaylistId;
+					var newResource = e.Resource;
+					var oldResource = e.QueueItem.AudioResource;
+					if (playlistManager.TryGetIndexOf(listId, oldResource, out var index)) {
+						modifyR = playlistManager.ChangeItemAtDeep(listId, index, newResource);
 					} else {
-						Log.Error($"Could not find resource {e.Resource} in playlist {editor.Id}");
+						Log.Error($"Could not find resource {e.Resource} in playlist {listId}");
+						modifyR = new LocalStr("See above");
 					}
-				});
+				}
 				if (!modifyR.Ok)
 					Log.Warn($"Failed to save playlist {e.QueueItem.MetaData.ContainingPlaylistId}: {modifyR.Error}");
 			}
