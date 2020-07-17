@@ -8,11 +8,13 @@ using TS3AudioBot.Playlists;
 namespace TS3ABotUnitTests.Mocks {
 	public class PlaylistIOMock : PlaylistLowerIdToId, IPlaylistIO {
 		public Dictionary<string, IPlaylist> Playlists { get; } = new Dictionary<string, IPlaylist>();
-
+		public int ChangeCount { get; private set; }
+		
 		public void Write(string listId, IPlaylist list) {
 			if (!TryGetRealId(listId, out _))
 				RegisterPlaylistId(listId);
 			Playlists[listId] = list;
+			++ChangeCount;
 		}
 
 		public E<LocalStr> Delete(string id) {
@@ -21,6 +23,7 @@ namespace TS3ABotUnitTests.Mocks {
 			Assert.IsTrue(TryGetRealId(id, out var real));
 			UnregisterPlaylistId(real);
 			Assert.IsTrue(Playlists.Remove(id));
+			++ChangeCount;
 			return R.Ok;
 		}
 
