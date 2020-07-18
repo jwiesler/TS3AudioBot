@@ -112,8 +112,14 @@ namespace TS3AudioBot.Playlists {
 				uniqueSongs.Remove(info.Resource);
 		}
 
-		public bool Remove(UniqueResourceInfo info) {
-			return uniqueSongs.Remove(info.Resource);
+		public void ReplaceResource(UniqueResourceInfo info, AudioResource resource) {
+			uniqueSongs.Remove(info.Resource);
+			info.Resource = resource;
+			uniqueSongs.Add(resource, info);
+		}
+
+		public bool Remove(AudioResource resource) {
+			return uniqueSongs.Remove(resource);
 		}
 
 		public void Clear() {
@@ -316,48 +322,37 @@ namespace TS3AudioBot.Playlists {
 			}
 		}
 
-		// Replaces the item at `index` and all its occurences, returns false if the item at `index` is not exactly the same as `resource` afterwards
-		// Fails if the change would introduce a duplicate.
-		// O(1) + io time for each containing playlist if the replacement does not produce duplicates
-		// Higher else
-		public bool ChangeItemAtDeepSane(string listId, int index, AudioResource resource) {
-			lock (Lock) {
-				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
-					return false;
+		public enum ChangeItemResult {
+			Success,
+			ErrorListNotFound,
+			ErrorIntroducesDuplicate
+		}
 
-				var item = list.InfoItems[index];
-				if (item.Resource.ReallyEquals(resource))
-					return true;
-
-				if (resourcesDatabase.TryGet(resource, out var resourceInfo) && !ReferenceEquals(item, resourceInfo))
-					return false;
-
-				// Replacement is not contained or will be mapped to the same item
-				// Replacement will not produce a duplicate if added to all already containing playlists
-				// => just change the item we got
-				item.Resource = resource;
-				SaveAll(item.ContainingLists.Keys);
-				return true;
-			}
+		public enum ChangeItemReplacement {
+			Database,
+			Input
 		}
 
 		// Replaces the item at `index` and all its occurences, returns false if the item at `index` is not exactly the same as `resource` afterwards
+		// `replacement` handles the replacement priority if `resource` is already contained in the database but not exactly equal. ChangeItemReplacement.Input may involve changing unrelated playlists!!
+		// `shouldHandleDuplicates` if false fails if the change would introduce a duplicate
 		// O(1) + io time for each containing playlist if the replacement does not produce duplicates
 		// Higher else
-		public bool ChangeItemAtDeep(string listId, int index, AudioResource resource) {
+		public ChangeItemResult ChangeItemAtDeep(string listId, int index, AudioResource resource, ChangeItemReplacement replacement = ChangeItemReplacement.Database, bool shouldHandleDuplicates = false) {
 			lock (Lock) {
 				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
-					return false;
+					return ChangeItemResult.ErrorListNotFound;
 
 				var item = list.InfoItems[index];
 				if (item.Resource.ReallyEquals(resource))
-					return true;
+					return ChangeItemResult.Success;
 
 				if (!resourcesDatabase.TryGet(resource, out var resourceInfo) || ReferenceEquals(item, resourceInfo)) {
 					// Replacement is not contained or will be mapped to the same item
 					// Replacement will not produce a duplicate if added to all already containing playlists
 					// => just change the item we got
-					item.Resource = resource;
+					resourcesDatabase.ReplaceResource(item, resource);
+
 					SaveAll(item.ContainingLists.Keys);
 				} else {
 					// Replacement is contained and will not be mapped to the same item
@@ -366,16 +361,20 @@ namespace TS3AudioBot.Playlists {
 
 					var (contained, notContained) = item.PartitionContainingLists(resourceInfo);
 
+					if (!shouldHandleDuplicates && contained.Count > 0)
+						return ChangeItemResult.ErrorIntroducesDuplicate;
+
 					// Replacement is different from the version we have stored => change the other instances as well
-					if (!resourceInfo.Resource.ReallyEquals(resource)) {
-						resourceInfo.Resource = resource;
+					if (replacement == ChangeItemReplacement.Input && !resourceInfo.Resource.ReallyEquals(resource)) {
+						resourcesDatabase.ReplaceResource(resourceInfo, resource);
 
 						// Save only the ones that don't contain the initial item as the rest will be saved later
 						var containedMap = new Dictionary<string, int>(contained.Count);
-						foreach(var c in contained)
+						foreach (var c in contained)
 							containedMap.Add(c.Key, c.Value);
 
-						SaveAll(resourceInfo.ContainingLists.Where(x => !containedMap.ContainsKey(x.Key)).Select(x => x.Key));
+						SaveAll(resourceInfo.ContainingLists.Where(x => !containedMap.ContainsKey(x.Key))
+							.Select(x => x.Key));
 					}
 
 					// remove from all playlists that already contain the replacement
@@ -399,10 +398,10 @@ namespace TS3AudioBot.Playlists {
 							LogPlaylistIdNotFoundThatShouldExist(kvp.Key);
 						}
 					}
-					resourcesDatabase.Remove(item);
+					resourcesDatabase.Remove(item.Resource);
 				}
 
-				return true;
+				return ChangeItemResult.Success;
 			}
 		}
 

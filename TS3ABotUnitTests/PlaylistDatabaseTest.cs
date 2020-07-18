@@ -132,17 +132,30 @@ namespace TS3ABotUnitTests
 				Assert.AreEqual(newExpectedCount, Io.ChangeCount);
 			}
 
-			// Expects that the replacement item is at `index` in all lists
-			public void ChangeItemAtDeep(string id, int index, AudioResource resource, int expectChange, params string[] containingLists) {
+			public void ChangeItemAtDeep(
+				string id, int index, AudioResource resource, int expectChange,
+				PlaylistDatabase.ChangeItemReplacement replacement, bool shouldHandleDuplicates) {
+				if(shouldHandleDuplicates)
+					Assert.AreNotEqual(PlaylistDatabase.ChangeItemResult.Success, Database.ChangeItemAtDeep(id, index, resource, replacement));
+
 				CheckIoChange(expectChange, () => {
-					Assert.IsTrue(Database.ChangeItemAtDeep(id, index, resource));
+					Assert.AreEqual(PlaylistDatabase.ChangeItemResult.Success, Database.ChangeItemAtDeep(id, index, resource, replacement, shouldHandleDuplicates));
 				});
+			}
+
+			// Expects that the replacement item is at `index` in all lists
+			public void ChangeItemAtDeep(string id, int index, AudioResource resource, int expectChange, PlaylistDatabase.ChangeItemReplacement replacement, bool shouldHandleDuplicates, params string[] containingLists) {
+				ChangeItemAtDeep(id, index, resource, expectChange, replacement, shouldHandleDuplicates);
 
 				foreach (var containingList in containingLists) {
 					Assert.IsTrue(Database.TryGet(containingList, out _, out var list));
 					Assert.AreEqual(resource, list[index]);
 					Assert.AreSame(resource, list[index]);
 				}
+			}
+
+			public void CheckUniqueSongsExactly(string id, params AudioResource[] resources) {
+				CheckUniqueSongsExactly(id, (IEnumerable<AudioResource>)resources);
 			}
 
 			public void CheckUniqueSongsExactly(string id, IEnumerable<AudioResource> resources) {
@@ -386,16 +399,27 @@ namespace TS3ABotUnitTests
 				editor.Add(resources[0]);
 			});
 
-			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[0], 0, Constants.ListId, Constants.AnotherListId);
+			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[0], 0, PlaylistDatabase.ChangeItemReplacement.Database, false, Constants.ListId, Constants.AnotherListId);
 
 			// Does not produce a duplicate (was not even contained in the database before)
-			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[1], 2, Constants.ListId, Constants.AnotherListId);
-			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[0], 2, Constants.ListId, Constants.AnotherListId);
+			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[1], 2, PlaylistDatabase.ChangeItemReplacement.Database, false, Constants.ListId, Constants.AnotherListId);
+			helper.CheckUniqueSongsExactly(Constants.ListId, resources[1]);
+			helper.CheckUniqueSongsExactly(Constants.AnotherListId, resources[1]);
+
+			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[0], 2, PlaylistDatabase.ChangeItemReplacement.Database, false, Constants.ListId, Constants.AnotherListId);
+			helper.CheckUniqueSongsExactly(Constants.ListId, resources[0]);
+			helper.CheckUniqueSongsExactly(Constants.AnotherListId, resources[0]);
 
 			// Does not produce a duplicate (is equal but not reallyEqual to the item)
 			var itemEqualButNotReally = resources[0].WithGain(20);
-			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, itemEqualButNotReally, 2, Constants.ListId, Constants.AnotherListId);
-			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[0], 2, Constants.ListId, Constants.AnotherListId);
+
+			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, itemEqualButNotReally, 2, PlaylistDatabase.ChangeItemReplacement.Database, false, Constants.ListId, Constants.AnotherListId);
+			helper.CheckUniqueSongsExactly(Constants.ListId, itemEqualButNotReally);
+			helper.CheckUniqueSongsExactly(Constants.AnotherListId, itemEqualButNotReally);
+
+			helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[0], 2, PlaylistDatabase.ChangeItemReplacement.Database, false, Constants.ListId, Constants.AnotherListId);
+			helper.CheckUniqueSongsExactly(Constants.ListId, resources[0]);
+			helper.CheckUniqueSongsExactly(Constants.AnotherListId, resources[0]);
 		}
 
 		[Test]
@@ -413,9 +437,11 @@ namespace TS3ABotUnitTests
 				helper.EditPlaylist(Constants.AnotherListId, editor => { editor.Add(resources[0]); });
 
 				// Change 0 to item at 1 => playlist 2 replaced and playlist 1 item 0 deleted
-				helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[1], 2, Constants.ListId,
+				helper.ChangeItemAtDeep(Constants.AnotherListId, 0, resources[1], 2, PlaylistDatabase.ChangeItemReplacement.Database, true, Constants.ListId,
 					Constants.AnotherListId);
 				helper.Database.TryGet(Constants.ListId, out _, out var list);
+				helper.CheckUniqueSongsExactly(Constants.ListId, resources[1]);
+				helper.CheckUniqueSongsExactly(Constants.AnotherListId, resources[1]);
 				Assert.AreEqual(1, list.Count);
 			}
 
@@ -432,10 +458,13 @@ namespace TS3ABotUnitTests
 				helper.EditPlaylist(Constants.AnotherListId, editor => { editor.Add(resources[0]); });
 
 				var itemEqualButNotReally = resources[1].WithGain(20);
+
 				// Change 0 to item at 1 => playlist 2 replaced and playlist 1 item 0 deleted AND both items are really equal
-				helper.ChangeItemAtDeep(Constants.AnotherListId, 0, itemEqualButNotReally, 2, Constants.ListId,
+				helper.ChangeItemAtDeep(Constants.AnotherListId, 0, itemEqualButNotReally, 2, PlaylistDatabase.ChangeItemReplacement.Input, true, Constants.ListId,
 					Constants.AnotherListId);
 				helper.Database.TryGet(Constants.ListId, out _, out var list);
+				helper.CheckUniqueSongsExactly(Constants.ListId, itemEqualButNotReally);
+				helper.CheckUniqueSongsExactly(Constants.AnotherListId, itemEqualButNotReally);
 				Assert.AreEqual(1, list.Count);
 			}
 
@@ -454,14 +483,16 @@ namespace TS3ABotUnitTests
 				});
 
 				var itemEqualButNotReally = resources[0].WithGain(20);
+				helper.ChangeItemAtDeep(Constants.ListId, 1, itemEqualButNotReally, 2, PlaylistDatabase.ChangeItemReplacement.Input, true);
+
 				// Check that the unrelated playlist is safed as well
-				helper.CheckIoChange(2, () => {
-					Assert.IsTrue(helper.Database.ChangeItemAtDeep(Constants.ListId, 1, itemEqualButNotReally));
-				});
 				helper.Database.TryGet(Constants.ListId, out _, out var list);
 				Assert.AreSame(itemEqualButNotReally, list[0]);
 				helper.Database.TryGet(Constants.AnotherListId, out _, out var anotherList);
 				Assert.AreSame(itemEqualButNotReally, anotherList[0]);
+
+				helper.CheckUniqueSongsExactly(Constants.ListId, resources[0]);
+				helper.CheckUniqueSongsExactly(Constants.AnotherListId, resources[0]);
 			}
 		}
 	}

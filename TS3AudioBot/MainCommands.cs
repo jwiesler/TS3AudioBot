@@ -1139,7 +1139,7 @@ namespace TS3AudioBot
 						CheckPlaylistModifiable(resInfoContainingList.Key, containingList, info);
 					}
 
-					playlistManager.ChangeItemAtDeepSane(id, index, resource.WithGain(value)).UnwrapThrow();
+					playlistManager.ChangeItemAtDeep(id, index, resource.WithGain(value)).UnwrapThrow();
 					gain = value;
 				} else {
 					gain = resource.Gain;

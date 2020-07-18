@@ -104,18 +104,18 @@ namespace TS3AudioBot.Playlists
 		public PlaylistInfo[] GetAvailablePlaylists() => database.GetInfos();
 
 		// Replaces all occurences of the resource in `listId` at `index` with `with` or removes `resource` if `with` is already in the playlist
-		public E<LocalStr> ChangeItemAtDeep(string listId, int index, AudioResource with) {
-			if (!database.ChangeItemAtDeep(listId, index, with))
+		public E<LocalStr> ChangeItemAtDeep(string listId, int index, AudioResource with, PlaylistDatabase.ChangeItemReplacement replacement = PlaylistDatabase.ChangeItemReplacement.Database, bool shouldHandleDuplicates = false) {
+			switch (database.ChangeItemAtDeep(listId, index, with, replacement, shouldHandleDuplicates)) {
+			case PlaylistDatabase.ChangeItemResult.Success:
+				resourceSearch?.Rebuild();
+				return R.Ok;
+			case PlaylistDatabase.ChangeItemResult.ErrorListNotFound:
 				return ErrorListNotFound(listId);
-			resourceSearch?.Rebuild();
-			return R.Ok;
-		}
-
-		public E<LocalStr> ChangeItemAtDeepSane(string listId, int index, AudioResource resource) {
-			if (!database.ChangeItemAtDeep(listId, index, resource))
-				return ErrorListNotFound(listId);
-			resourceSearch?.Rebuild();
-			return R.Ok;
+			case PlaylistDatabase.ChangeItemResult.ErrorIntroducesDuplicate:
+				return new LocalStr("This change would involve creating a duplicate because the replacement is already contained in one of the playlists.");
+			default:
+				throw new ArgumentOutOfRangeException();
+			}
 		}
 
 		public bool TryGetUniqueResourceInfo(AudioResource resource, out IReadonlyUniqueResourceInfo info) {
