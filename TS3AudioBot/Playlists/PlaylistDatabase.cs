@@ -8,67 +8,89 @@ using TSLib;
 namespace TS3AudioBot.Playlists {
 	public interface IReadonlyUniqueResourceInfo {
 		AudioResource Resource { get; }
-		IReadOnlyDictionary<string, int> ContainingLists { get; }
+		IEnumerable<KeyValuePair<string, int>> ContainingLists { get; }
 	}
 
 	public class UniqueResourceInfo : IReadonlyUniqueResourceInfo {
 		public AudioResource Resource { get; set; }
 
-		private Dictionary<string, int> ContainingListInstances { get; } = new Dictionary<string, int>();
+		private Dictionary<DatabasePlaylist, int> ContainingListInstances { get; } = new Dictionary<DatabasePlaylist, int>();
 
-		public IReadOnlyDictionary<string, int> ContainingLists => ContainingListInstances;
+		public IReadOnlyDictionary<DatabasePlaylist, int> ContainingPlaylists => ContainingListInstances;
+
+		public IEnumerable<KeyValuePair<string, int>> ContainingLists => ContainingListInstances.Select(kv => new KeyValuePair<string, int>(kv.Key.Id, kv.Value));
 
 		public UniqueResourceInfo(AudioResource resource) { Resource = resource; }
 
-		public bool TryAdd(string id, int offset) {
-			if (ContainingListInstances.ContainsKey(id))
+		public bool TryAdd(DatabasePlaylist list, int offset) {
+			if (ContainingListInstances.ContainsKey(list))
 				return false;
-			ContainingListInstances.Add(id, offset);
+			ContainingListInstances.Add(list, offset);
 			return true;
 		}
 
-		public bool RemoveList(string id) {
-			return ContainingListInstances.Remove(id);
+		public bool RemoveList(DatabasePlaylist list) {
+			return ContainingListInstances.Remove(list);
 		}
 
 		// Partitions ContainingListInstances into contained and not contained
-		public (List<KeyValuePair<string, int>> contained, List<KeyValuePair<string, int>> notContained) PartitionContainingLists(UniqueResourceInfo o) {
-			var contained = new List<KeyValuePair<string, int>>();
-			var notContained = new List<KeyValuePair<string, int>>();
+		public (List<KeyValuePair<DatabasePlaylist, int>> contained, List<KeyValuePair<DatabasePlaylist, int>> notContained) PartitionContainingLists(UniqueResourceInfo o) {
+			var contained = new List<KeyValuePair<DatabasePlaylist, int>>();
+			var notContained = new List<KeyValuePair<DatabasePlaylist, int>>();
 			foreach (var containingListInstance in ContainingListInstances) {
 				(o.IsContainedIn(containingListInstance.Key) ? contained : notContained).Add(containingListInstance);
 			}
 			return (contained, notContained);
 		}
 
-		public void UpdateIndex(string id, int offset) {
-			if (!ContainingListInstances.ContainsKey(id))
+		public void UpdateIndex(DatabasePlaylist list, int offset) {
+			if (!ContainingListInstances.ContainsKey(list))
 				throw new ArgumentException();
-			ContainingListInstances[id] = offset;
+			ContainingListInstances[list] = offset;
 		} 
 
-		public bool IsContainedIn(string id) { return ContainingListInstances.ContainsKey(id); }
+		public bool IsContainedIn(DatabasePlaylist list) { return ContainingListInstances.ContainsKey(list); }
+
+		public bool TryGetIndexIn(DatabasePlaylist list, out int index) {
+			return ContainingListInstances.TryGetValue(list, out index);
+		}
 
 		public bool IsContainedInAList => ContainingListInstances.Count > 0;
 	}
 	
 	public class DatabasePlaylist : PlaylistEditorsBase, IPlaylist {
+		public string Id { get; }
 		public List<UniqueResourceInfo> InfoItems { get; }
 		public IEnumerable<AudioResource> Items => InfoItems.Select(i => i.Resource);
 		public AudioResource this[int i] => InfoItems[i].Resource;
 		public int Count => InfoItems.Count;
 
-		public DatabasePlaylist(Uid owner) :
-			this(owner, Enumerable.Empty<Uid>())
+		public DatabasePlaylist(string id, Uid owner) :
+			this(id, owner, Enumerable.Empty<Uid>())
 		{ }
 
-		public DatabasePlaylist(Uid owner, IEnumerable<Uid> editors) :
-			this(owner, editors, new List<UniqueResourceInfo>())
+		public DatabasePlaylist(string id, Uid owner, IEnumerable<Uid> editors) :
+			this(id, owner, editors, new List<UniqueResourceInfo>())
 		{ }
 
-		public DatabasePlaylist(Uid owner, IEnumerable<Uid> editors, List<UniqueResourceInfo> items)  : base(owner, editors)
-		{
+		public DatabasePlaylist(string id, Uid owner, IEnumerable<Uid> editors, List<UniqueResourceInfo> items)  : base(owner, editors) {
+			Id = id;
 			InfoItems = items ?? throw new ArgumentNullException(nameof(items));
+		}
+
+		protected bool Equals(DatabasePlaylist other) {
+			return Id == other.Id;
+		}
+
+		public override bool Equals(object obj) {
+			if (ReferenceEquals(null, obj)) return false;
+			if (ReferenceEquals(this, obj)) return true;
+			if (obj.GetType() != this.GetType()) return false;
+			return Equals((DatabasePlaylist) obj);
+		}
+
+		public override int GetHashCode() {
+			return (Id != null ? Id.GetHashCode() : 0);
 		}
 	}
 
@@ -93,19 +115,19 @@ namespace TS3AudioBot.Playlists {
 			return uniqueSongs.TryGetValue(resource, out info);
 		}
 
-		public bool GetOrCreateForListItem(AudioResource resource, string id, int index, out UniqueResourceInfo info) {
+		public bool GetOrCreateForListItem(AudioResource resource, DatabasePlaylist list, int index, out UniqueResourceInfo info) {
 			if (uniqueSongs.TryGetValue(resource, out info)) {
-				return info.TryAdd(id, index);
+				return info.TryAdd(list, index);
 			}
 
 			info = new UniqueResourceInfo(resource);
-			info.TryAdd(id, index);
+			info.TryAdd(list, index);
 			uniqueSongs.Add(resource, info);
 			return true;
 		}
 
-		public void RemoveListFromItem(string id, UniqueResourceInfo info) {
-			if(!info.RemoveList(id))
+		public void RemoveListFromItem(DatabasePlaylist list, UniqueResourceInfo info) {
+			if(!info.RemoveList(list))
 				Log.Warn("Failed to remove song from database");
 
 			if (!info.IsContainedInAList)
@@ -140,10 +162,9 @@ namespace TS3AudioBot.Playlists {
 			private readonly DatabasePlaylist playlist;
 			private readonly PlaylistDatabase database;
 			public IPlaylist Playlist => playlist;
-			public string Id { get; }
+			public string Id => playlist.Id;
 
-			public PlaylistEditor(string id, DatabasePlaylist playlist, PlaylistDatabase database) {
-				Id = id;
+			public PlaylistEditor(DatabasePlaylist playlist, PlaylistDatabase database) {
 				this.playlist = playlist;
 				this.database = database;
 			}
@@ -151,7 +172,7 @@ namespace TS3AudioBot.Playlists {
 			// Adds an item, returns false if the item is already contained
 			// O(log d)
 			public bool Add(AudioResource resource) {
-				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, Id, playlist.Count, out var info))
+				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, playlist, playlist.Count, out var info))
 					return false;
 				playlist.InfoItems.Add(info);
 				return true;
@@ -165,10 +186,10 @@ namespace TS3AudioBot.Playlists {
 
 			// Moves and updates the moved items' index, ignores values at target
 			// O(n)
-			private static int Move(string id, List<UniqueResourceInfo> items, int begin, int end, int target) {
+			private static int Move(DatabasePlaylist playlist, List<UniqueResourceInfo> items, int begin, int end, int target) {
 				while (begin != end) {
 					var item = items[target] = items[begin];
-					item.UpdateIndex(id, target);
+					item.UpdateIndex(playlist, target);
 					target++;
 					begin++;
 				}
@@ -178,10 +199,10 @@ namespace TS3AudioBot.Playlists {
 
 			// Moves and updates the moved items' index, ignores values at target
 			// O(n)
-			private static int MoveBackwards(string id, List<UniqueResourceInfo> items, int begin, int end, int targetEnd) {
+			private static int MoveBackwards(DatabasePlaylist playlist, List<UniqueResourceInfo> items, int begin, int end, int targetEnd) {
 				while (begin != end) {
 					var item = items[--targetEnd] = items[--end];
-					item.UpdateIndex(id, targetEnd);
+					item.UpdateIndex(playlist, targetEnd);
 				}
 
 				return targetEnd;
@@ -194,8 +215,8 @@ namespace TS3AudioBot.Playlists {
 				if (Equals(item.Resource, resource))
 					return true;
 
-				database.resourcesDatabase.RemoveListFromItem(Id, item);
-				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, Id, index, out var info))
+				database.resourcesDatabase.RemoveListFromItem(playlist, item);
+				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, playlist, index, out var info))
 					return false;
 				playlist.InfoItems[index] = info;
 				return true;
@@ -205,13 +226,13 @@ namespace TS3AudioBot.Playlists {
 			// O(n), O(1) if last, additionally O(log d) if this was the last list containing this item
 			public AudioResource RemoveItemAt(int index) {
 				var resource = playlist.InfoItems[index].Resource;
-				database.resourcesDatabase.RemoveListFromItem(Id, playlist.InfoItems[index]);
-				Move(Id, playlist.InfoItems, index + 1, playlist.Count, index);
+				database.resourcesDatabase.RemoveListFromItem(playlist, playlist.InfoItems[index]);
+				Move(playlist, playlist.InfoItems, index + 1, playlist.Count, index);
 				playlist.InfoItems.RemoveAt(playlist.Count - 1);
 				return resource;
 			}
 
-			private static void RemoveIndices(string id, List<UniqueResourceInfo> items, IList<int> indices, int ibegin, int iend) {
+			private static void RemoveIndices(DatabasePlaylist playlist, List<UniqueResourceInfo> items, IList<int> indices, int ibegin, int iend) {
 				if(iend == ibegin)
 					return;
 
@@ -222,7 +243,7 @@ namespace TS3AudioBot.Playlists {
 					int moveBegin = indices[iit] + 1;
 					int moveEnd = next;
 
-					it = Move(id, items, moveBegin, moveEnd, it);
+					it = Move(playlist, items, moveBegin, moveEnd, it);
 				}
 
 				items.RemoveRange(it, items.Count - it);
@@ -231,7 +252,7 @@ namespace TS3AudioBot.Playlists {
 			// Removes all items specified by `indices`. Shifts the remaining items. Indices has to be sorted in ascending order.
 			// O(n), additionally for every item O(log d) if this was the last list containing this item
 			public void RemoveIndices(IList<int> indices) {
-				RemoveIndices(Id, playlist.InfoItems, indices, 0, indices.Count);
+				RemoveIndices(playlist, playlist.InfoItems, indices, 0, indices.Count);
 			}
 
 			// Moves an item from `index` to `to`, shifting other items to make/fill space
@@ -242,17 +263,17 @@ namespace TS3AudioBot.Playlists {
 
 				var item = playlist.InfoItems[index];
 				if (index < to) {
-					Move(Id, playlist.InfoItems, index + 1, to + 1, index);
+					Move(playlist, playlist.InfoItems, index + 1, to + 1, index);
 				} else {
-					MoveBackwards(Id, playlist.InfoItems, to, index, index + 1);
+					MoveBackwards(playlist, playlist.InfoItems, to, index, index + 1);
 				}
 
-				item.UpdateIndex(Id, to);
+				item.UpdateIndex(playlist, to);
 				playlist.InfoItems[to] = item;
 			}
 
 			public bool TryGetIndexOf(AudioResource resource, out int index) {
-				return database.TryGetIndexOfInternal(Id, resource, out index);
+				return database.TryGetIndexOfInternal(playlist, resource, out index);
 			}
 		}
 
@@ -263,9 +284,9 @@ namespace TS3AudioBot.Playlists {
 			Reload();
 		}
 
-		private void EditPlaylistAndWriteInteral(string id, DatabasePlaylist list, Action<PlaylistEditor> editor) {
-			editor(new PlaylistEditor(id, list, this));
-			AfterPlaylistChanged(id, list);
+		private void EditPlaylistAndWriteInteral(DatabasePlaylist list, Action<PlaylistEditor> editor) {
+			editor(new PlaylistEditor(list, this));
+			AfterPlaylistChanged(list);
 		}
 
 		public bool EditPlaylist(string listId, Action<PlaylistEditor> editor) {
@@ -273,7 +294,7 @@ namespace TS3AudioBot.Playlists {
 				if (!io.TryGetRealId(listId, out var id) || !TryGetInternal(id, out var list))
 					return false;
 
-				EditPlaylistAndWriteInteral(id, list, editor);
+				EditPlaylistAndWriteInteral(list, editor);
 				return true;
 			}
 		}
@@ -284,16 +305,15 @@ namespace TS3AudioBot.Playlists {
 					return false;
 
 				editors(id, list);
-				AfterPlaylistChanged(id, list);
+				AfterPlaylistChanged(list);
 				return true;
 			}
 		}
 
 		// Returns the index of the resource in the list
 		// O(log d)
-		private bool TryGetIndexOfInternal(string id, AudioResource resource, out int index) {
-			if (resourcesDatabase.TryGetUniqueResourceInfo(resource, out var info) &&
-			    info.ContainingLists.TryGetValue(id, out index))
+		private bool TryGetIndexOfInternal(DatabasePlaylist playlist, AudioResource resource, out int index) {
+			if (resourcesDatabase.TryGet(resource, out var info) && info.TryGetIndexIn(playlist, out index))
 				return true;
 			index = 0;
 			return false;
@@ -301,24 +321,16 @@ namespace TS3AudioBot.Playlists {
 
 		public bool TryGetIndexOf(string listId, AudioResource resource, out int index) {
 			lock (Lock) {
-				if (io.TryGetRealId(listId, out var id))
-					return TryGetIndexOfInternal(id, resource, out index);
+				if (io.TryGetRealId(listId, out var id) && TryGetInternal(id, out var list))
+					return TryGetIndexOfInternal(list, resource, out index);
 				index = 0;
 				return false;
 			}
 		}
 
-		private void LogPlaylistIdNotFoundThatShouldExist(string id) {
-			Log.Error($"Not existing playlist with id {id} that should exist contained in a PlaylistDatabase object");
-		}
-
-		private void SaveAll(IEnumerable<string> lists) {
-			foreach (var listId in lists) {
-				if (TryGetInternal(listId, out var containingList)) {
-					AfterPlaylistChanged(listId, containingList);
-				} else {
-					LogPlaylistIdNotFoundThatShouldExist(listId);
-				}
+		private void SaveAll(IEnumerable<DatabasePlaylist> lists) {
+			foreach (var list in lists) {
+				AfterPlaylistChanged(list);
 			}
 		}
 
@@ -353,7 +365,7 @@ namespace TS3AudioBot.Playlists {
 					// => just change the item we got
 					resourcesDatabase.ReplaceResource(item, resource);
 
-					SaveAll(item.ContainingLists.Keys);
+					SaveAll(item.ContainingPlaylists.Keys);
 				} else {
 					// Replacement is contained and will not be mapped to the same item
 					// Replacement might produce a duplicate if added to all already containing playlists
@@ -369,34 +381,26 @@ namespace TS3AudioBot.Playlists {
 						resourcesDatabase.ReplaceResource(resourceInfo, resource);
 
 						// Save only the ones that don't contain the initial item as the rest will be saved later
-						var containedMap = new Dictionary<string, int>(contained.Count);
+						var containedMap = new Dictionary<DatabasePlaylist, int>(contained.Count);
 						foreach (var c in contained)
 							containedMap.Add(c.Key, c.Value);
 
-						SaveAll(resourceInfo.ContainingLists.Where(x => !containedMap.ContainsKey(x.Key))
+						SaveAll(resourceInfo.ContainingPlaylists.Where(x => !containedMap.ContainsKey(x.Key))
 							.Select(x => x.Key));
 					}
 
 					// remove from all playlists that already contain the replacement
 					foreach (var kvp in contained) {
-						if (TryGetInternal(kvp.Key, out var containingList)) {
-							EditPlaylistAndWriteInteral(kvp.Key, containingList, editor => {
-								editor.RemoveItemAt(kvp.Value);
-							});
-						} else {
-							LogPlaylistIdNotFoundThatShouldExist(kvp.Key);
-						}
+						EditPlaylistAndWriteInteral(kvp.Key, editor => {
+							editor.RemoveItemAt(kvp.Value);
+						});
 					}
 
 					// add to the rest
 					foreach (var kvp in notContained) {
-						if (TryGetInternal(kvp.Key, out var containingList)) {
-							resourceInfo.TryAdd(kvp.Key, kvp.Value);
-							containingList.InfoItems[kvp.Value] = resourceInfo;
-							AfterPlaylistChanged(kvp.Key, containingList);
-						} else {
-							LogPlaylistIdNotFoundThatShouldExist(kvp.Key);
-						}
+						resourceInfo.TryAdd(kvp.Key, kvp.Value);
+						kvp.Key.InfoItems[kvp.Value] = resourceInfo;
+						AfterPlaylistChanged(kvp.Key);
 					}
 					resourcesDatabase.Remove(item.Resource);
 				}
@@ -405,8 +409,8 @@ namespace TS3AudioBot.Playlists {
 			}
 		}
 
-		private void AfterPlaylistChanged(string id, DatabasePlaylist playlist) {
-			io.Write(id, playlist);
+		private void AfterPlaylistChanged(DatabasePlaylist playlist) {
+			io.Write(playlist.Id, playlist);
 		}
 
 		private bool TryGetInternal(string id, out DatabasePlaylist value) {
@@ -444,7 +448,7 @@ namespace TS3AudioBot.Playlists {
 
 		public bool CreatePlaylist(string listId, Uid owner) {
 			lock (Lock) {
-				var list = new DatabasePlaylist(owner);
+				var list = new DatabasePlaylist(listId, owner);
 				if (io.TryGetRealId(listId, out _))
 					return false;
 
@@ -460,14 +464,12 @@ namespace TS3AudioBot.Playlists {
 			}
 		}
 
-		
-
-		private void RemovePlaylistItemsInternal(string id, DatabasePlaylist list) {
+		private void RemovePlaylistItemsInternal(DatabasePlaylist list) {
 			foreach (var info in list.InfoItems) {
-				if(!info.RemoveList(id))
+				if(!info.RemoveList(list))
 					Log.Warn("Failed to remove song from database");
 
-				resourcesDatabase.RemoveListFromItem(id, info);
+				resourcesDatabase.RemoveListFromItem(list, info);
 			}
 		}
 
@@ -476,67 +478,12 @@ namespace TS3AudioBot.Playlists {
 				if (!playlistCache.TryGetValue(id, out var list))
 					return false;
 
-				RemovePlaylistItemsInternal(id, list);
+				RemovePlaylistItemsInternal(list);
 				playlistCache.Remove(id);
 				io.Delete(id);
 				return true;
 			}
 		}
-
-		/*public bool GetAllOccurences(AudioResource resource, out IReadOnlyCollection<KeyValuePair<string, int>> list) {
-			if (UniqueResourcesDictionary.TryGetValue(resource, out var info)) {
-				list = info.ContainingLists;
-				return true;
-			}
-
-			list = null;
-			return false;
-		}*/
-
-		/*private static void OverwriteListItem(string listId, PlaylistData playlistData, List<UniqueResourceInfo> songs, int index, AudioResource with, UniqueResourceInfo withInfo) {
-			withInfo.AddInstance(listId, index);
-			songs[index] = withInfo;
-					
-			playlistData.Playlist.ItemsW[index] = with;
-		}*/
-
-		/*public void ChangeAllOccurences(UniqueResource resource, AudioResource with) {
-			if (!uniqueSongs.TryGetValue(resource, out var info))
-				return;
-
-			
-			if (GetOrCreate(with, out var withInfo)) {
-				if (Equals(resource, withInfo.Resource))
-					return;
-			}
-
-			foreach (var listKeyValuePair in info.ContainingLists) {
-				var listId = listKeyValuePair.Key;
-				var indices = listKeyValuePair.Value;
-				if (!playlistCache.TryGetValue(listId, out var playlistData))
-					continue;
-
-				indices.Sort();
-				var songs = playlistData.Songs;
-
-				int startRemoveIndex;
-				if (withInfo.IsContainedIn(listId)) {
-					// Already contained, remove all
-					Log.Debug($"{resource.ResourceTitle} is already in {listId}, removing entries");
-					startRemoveIndex = 0;
-				} else {
-					// Not yet contained, replace and remove other occurences
-					Log.Debug($"{resource.ResourceTitle} is not in {listId}, replacing entry");
-					startRemoveIndex = 1;
-					OverwriteListItem(listId, playlistData, songs, indices[0], with, withInfo);
-				} 
-
-				Collections.RemoveIndices(songs, indices, startRemoveIndex, indices.Count);
-				playlistData.Playlist.RemoveIndices(indices, startRemoveIndex, indices.Count);
-			}
-
-			uniqueSongs.Remove(resource);
-		}*/
 
 		public void Clear() {
 			lock (Lock) {
@@ -555,16 +502,16 @@ namespace TS3AudioBot.Playlists {
 
 		private void AddPlaylistInternal(string id, IPlaylist list) {
 			var items = new List<UniqueResourceInfo>(list.Count);
+			var plist = new DatabasePlaylist(id, list.Owner, list.AdditionalEditors, items);
 
 			for (var index = 0; index < list.Count; index++) {
 				var item = list[index];
-				if(resourcesDatabase.GetOrCreateForListItem(item, id, index, out var info))
+				if(resourcesDatabase.GetOrCreateForListItem(item, plist, index, out var info))
 					items.Add(info);
 				else
 					Log.Info($"Song {item.ResourceTitle} in playlist {id} at index {index} is already contained in this playlist, skipping");
 			}
 
-			var plist = new DatabasePlaylist(list.Owner, list.AdditionalEditors, items);
 			playlistCache.Add(id, plist);
 		}
 

@@ -108,8 +108,9 @@ namespace TS3ABotUnitTests
 
 			public void CheckUniqueSong(AudioResource resource, string id, int index) {
 				Assert.IsTrue(Database.TryGetUniqueResourceInfo(resource, out var info));
-				Assert.IsTrue(info.ContainingLists.TryGetValue(id, out var idx));
-				Assert.AreEqual(index, idx);
+				var kvp = info.ContainingLists.First(kv => kv.Key == id);
+				Assert.IsNotNull(kvp);
+				Assert.AreEqual(index, kvp.Value);
 			}
 
 			public void CheckPlaylistContainsExactly(string id, IEnumerable<AudioResource> resources) {
