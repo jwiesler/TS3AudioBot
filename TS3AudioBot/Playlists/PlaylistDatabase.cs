@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TS3AudioBot.ResourceFactories;
@@ -82,6 +83,8 @@ namespace TS3AudioBot.Playlists {
 			return Id == other.Id;
 		}
 
+		public IEnumerator<AudioResource> GetEnumerator() { return Items.GetEnumerator(); }
+
 		public override bool Equals(object obj) {
 			if (ReferenceEquals(null, obj)) return false;
 			if (ReferenceEquals(this, obj)) return true;
@@ -92,6 +95,8 @@ namespace TS3AudioBot.Playlists {
 		public override int GetHashCode() {
 			return (Id != null ? Id.GetHashCode() : 0);
 		}
+
+		IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
 	}
 
 	public class PlaylistResourcesDatabase {
@@ -215,9 +220,9 @@ namespace TS3AudioBot.Playlists {
 				if (Equals(item.Resource, resource))
 					return true;
 
-				database.resourcesDatabase.RemoveListFromItem(playlist, item);
 				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, playlist, index, out var info))
 					return false;
+				database.resourcesDatabase.RemoveListFromItem(playlist, item);
 				playlist.InfoItems[index] = info;
 				return true;
 			}

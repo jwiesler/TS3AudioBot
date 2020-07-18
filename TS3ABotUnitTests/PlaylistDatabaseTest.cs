@@ -14,7 +14,7 @@ namespace TS3ABotUnitTests
 		public static void AssertIsDefaultPlaylist(Uid uid, IPlaylist list) {
 			Assert.IsNotNull(list);
 			Assert.AreEqual(0, list.Count);
-			Assert.IsEmpty(list.Items);
+			Assert.IsEmpty(list);
 			Assert.IsEmpty(list.AdditionalEditors);
 			Assert.AreEqual(uid, list.Owner);
 		}
@@ -26,7 +26,7 @@ namespace TS3ABotUnitTests
 			}
 			Assert.IsNotNull(value);
 			Assert.AreEqual(expected.Owner, value.Owner);
-			CollectionAssert.AreEquivalent(expected.Items, value.Items);
+			CollectionAssert.AreEquivalent(expected, value);
 			CollectionAssert.AreEquivalent(expected.AdditionalEditors, value.AdditionalEditors);
 		}
 
@@ -34,12 +34,6 @@ namespace TS3ABotUnitTests
 			var index = 0;
 			foreach (var item in list) {
 				yield return (index++, item);
-			}
-		}
-
-		public static IEnumerable<AudioResource> EnumeratePlaylist(IPlaylist list) {
-			for (var i = 0; i < list.Count; ++i) {
-				yield return list[i];
 			}
 		}
 
@@ -307,6 +301,7 @@ namespace TS3ABotUnitTests
 					if (i1 > 0) {
 						var lastResource = replacementResources[indices[i1 - 1]];
 						Assert.IsFalse(editor.ChangeItemAt(index, lastResource));
+						helper.CheckUniqueSongsExactly(Constants.ListId, resources);
 					}
 
 					Assert.IsTrue(editor.ChangeItemAt(index, resource));

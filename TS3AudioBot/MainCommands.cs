@@ -1084,7 +1084,7 @@ namespace TS3AudioBot
 			string id = null;
 			ModifyPlaylist(playlistManager, listId, info, editor => {
 				id = editor.Id;
-				editor.AddRange(addList.Items);
+				editor.AddRange(addList);
 			}).UnwrapThrow();
 
 			return CommandListShow(client, playlistManager, resolver, id, null, null);
@@ -1288,7 +1288,7 @@ namespace TS3AudioBot
 		{
 			var (otherList, _) = playlistManager.GetPlaylist(mergeListId).UnwrapThrow();
 			ModifyPlaylist(playlistManager, baseListId, info, editor => {
-				editor.AddRange(otherList.Items);
+				editor.AddRange(otherList);
 			}).UnwrapThrow();
 		}
 
@@ -1296,7 +1296,7 @@ namespace TS3AudioBot
 		public static void CommandListQueue(PlaylistManager playlistManager, PlayManager playManager, InvokerData invoker, string userProvidedId)
 		{
 			var (plist, id) = playlistManager.GetPlaylist(userProvidedId).UnwrapThrow();
-			playManager.Enqueue(plist.Items, new MetaData(invoker.ClientUid, id)).UnwrapThrow();
+			playManager.Enqueue(plist, new MetaData(invoker.ClientUid, id)).UnwrapThrow();
 		}
 
 		public static string UidToClientName(TsFullClient ts3Client, Uid client) {
@@ -1316,7 +1316,7 @@ namespace TS3AudioBot
 			} else {
 				countV = Tools.Clamp(countV, 0, plist.Count - offsetV);
 			}
-			var items = plist.Items.Skip(offsetV).Take(countV).Select(resourceFactory.ToApiFormat).ToArray();
+			var items = plist.Skip(offsetV).Take(countV).Select(resourceFactory.ToApiFormat).ToArray();
 			var plInfo = new PlaylistInfo
 			{
 				Id = id,

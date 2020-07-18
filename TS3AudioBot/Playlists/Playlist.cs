@@ -8,6 +8,7 @@
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TS3AudioBot.Algorithm;
@@ -23,11 +24,7 @@ namespace TS3AudioBot.Playlists
 		bool ToggleAdditionalEditor(Uid uid);
 	}
 
-	public interface IPlaylist : IPlaylistEditors {
-		AudioResource this[int i] { get; }
-		int Count { get; }
-		IEnumerable<AudioResource> Items { get; }
-	}
+	public interface IPlaylist : IPlaylistEditors, IReadOnlyList<AudioResource> {}
 
 	public class PlaylistEditorsBase : IPlaylistEditors {
 		public Uid Owner { get; }
@@ -121,5 +118,7 @@ namespace TS3AudioBot.Playlists
 		}
 
 		private static readonly E<LocalStr> ErrorFull = new LocalStr("Playlist is full");
+		public IEnumerator<AudioResource> GetEnumerator() { return Items.GetEnumerator(); }
+		IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
 	}
 }
