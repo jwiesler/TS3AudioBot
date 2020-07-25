@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using NLog;
 using TS3AudioBot.Localization;
 
 namespace TS3AudioBot.Search
 {
 	public class StrSearch : IDisposable {
+		private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 		private const string StrSearchLibrary = "strsearch";
 
 		private enum Result {
@@ -23,8 +25,11 @@ namespace TS3AudioBot.Search
 			public readonly ulong Consumed;
 		};
 
+		[UnmanagedFunctionPointer(CallingConvention.StdCall)]
+		private delegate void LogCallbackFunction(string msg);
+
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
-		private static extern unsafe IntPtr CreateSearchInstanceFromText(char *charactersBegin, ulong count);
+		private static extern unsafe IntPtr CreateSearchInstanceFromText(char *charactersBegin, ulong count, LogCallbackFunction callback);
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
 		public static extern void DestroySearchInstance(IntPtr instance);
@@ -32,10 +37,12 @@ namespace TS3AudioBot.Search
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
 		private static extern unsafe Result FindUniqueItems(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, ref FindUniqueItemsResult itemsResult, uint offset);
+		
+		private static void LogCallback(string msg) { Log.Info("strsearch: " + msg); }
 
 		public static unsafe IntPtr CreateSearchInstanceFromText(char[] characters) {
 			fixed (char* charactersPtr = characters) {
-				return CreateSearchInstanceFromText(charactersPtr, (ulong) characters.LongLength);
+				return CreateSearchInstanceFromText(charactersPtr, (ulong) characters.LongLength, LogCallback);
 			}
 		}
 
