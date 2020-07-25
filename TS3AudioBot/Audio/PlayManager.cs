@@ -283,6 +283,9 @@ namespace TS3AudioBot.Audio {
 		}
 
 		private void OnAudioResourceUpdated(object sender, AudioResourceUpdatedEventArgs e) {
+			if (e.QueueItem.MetaData.ContainingPlaylistId == null)
+				return;
+
 			lock (Lock) {
 				Log.Info("AudioResource was changed by loader, saving containing playlist");
 
