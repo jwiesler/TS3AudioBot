@@ -793,7 +793,10 @@ namespace TS3AudioBot
 		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, int count, string query) {
 			Stopwatch timer = new Stopwatch();
 			timer.Start();
-			var res = resourceSearch.Find(query, from, Math.Min(SearchMaxItems, count)).UnwrapThrow();
+			if (from < 0)
+				throw new CommandException("offset can't be negative", CommandExceptionReason.CommandError);
+
+			var res = resourceSearch.Find(query, (uint) from, Math.Min(SearchMaxItems, count)).UnwrapThrow();
 			Log.Info($"Search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
 
 			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = res.Items, Results = res.ConsumedResults, TotalResults = res.TotalResults }, result => {
