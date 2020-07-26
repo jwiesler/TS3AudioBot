@@ -3,4 +3,4 @@
 	url = https://github.com/ReSpeak/tsdeclarations
 [submodule "TS3AudioBot/strsearch"]
 	path = TS3AudioBot/strsearch
-	url = git@github.com:jwiesler/strsearch.git
+	url = https://github.com/jwiesler/strsearch.git
