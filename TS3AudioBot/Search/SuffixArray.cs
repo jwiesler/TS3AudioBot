@@ -37,6 +37,9 @@ namespace TS3AudioBot.Search
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
 		private static extern unsafe Result FindUniqueItems(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, ref FindUniqueItemsResult itemsResult, uint offset);
+
+		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
+		private static extern unsafe Result FindUniqueItemsKeywords(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, ref FindUniqueItemsResult itemsResult);
 		
 		private static void LogCallback(string msg) { Log.Info("strsearch: " + msg); }
 
@@ -48,6 +51,20 @@ namespace TS3AudioBot.Search
 
 		private static LocalStr FormatError(Result result) {
 			return new LocalStr($"strsearch returned non success value {result}");
+		}
+
+		public static unsafe R<FindUniqueItemsResult, LocalStr> FindUniqueItemsKeywords(IntPtr instance, char[] pattern, int[] output) {
+			var result = new FindUniqueItemsResult();
+			fixed (char* patternPtr = pattern)
+			fixed (int* outputPtr = output) {
+				var res = FindUniqueItemsKeywords(instance, patternPtr, (ulong) pattern.LongLength, outputPtr, (ulong) output.LongLength, ref result);
+				if (res == Result.Ok)
+					return result;
+
+				if (res == Result.OffsetOutOfBounds)
+					return new LocalStr("Offset was out of bounds");
+				return FormatError(res);
+			}
 		}
 
 		public static unsafe R<FindUniqueItemsResult, LocalStr> FindUniqueItems(IntPtr instance, char[] pattern, int[] output, uint offset) {
@@ -70,7 +87,7 @@ namespace TS3AudioBot.Search
 
 		public R<(int[] items, FindUniqueItemsResult result), LocalStr> FindUniqueItems(char[] pattern, int count, uint offset) {
 			var items = new int[count];
-			var res = FindUniqueItems(instance, pattern, items, offset);
+			var res = FindUniqueItemsKeywords(instance, pattern, items);
 			if (!res.Ok)
 				return res.Error;
 			return (items, res.Value);
