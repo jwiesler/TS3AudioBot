@@ -110,6 +110,10 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="strsearch" />
+  </ItemGroup>
+
   <Target Name="GenerateGitVersion" BeforeTargets="BeforeCompile">
     <ItemGroup>
       <VersionBuildScript Include="build.csx" />
@@ -126,5 +130,11 @@
         <AutoGen>True</AutoGen>
       </Compile>
     </ItemGroup>
+  </Target>
+  <Target Name="StrSearch" BeforeTargets="Build" Condition="'$(OS)' != 'Windows_NT'">
+      <Exec Command="mkdir -p build" WorkingDirectory="strsearch" />
+      <Exec Command="cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DSTRSEARCH_USE_LTO=off .." WorkingDirectory="strsearch/build" />  
+      <Exec Command="make" WorkingDirectory="strsearch/build" />
+      <Exec Command="cp strsearch.so $(TargetDir)" WorkingDirectory="strsearch/build" />
   </Target>
 </Project>
