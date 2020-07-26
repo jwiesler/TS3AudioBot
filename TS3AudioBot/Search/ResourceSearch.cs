@@ -103,6 +103,7 @@ namespace TS3AudioBot.Search {
 					lock (this) {
 						if (version < Version) {
 							// Rebuild was called in the background, rebuild
+							inst.Dispose();
 							version = Version;
 							continue;
 						}
