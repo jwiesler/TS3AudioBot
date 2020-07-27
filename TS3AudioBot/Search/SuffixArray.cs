@@ -26,7 +26,7 @@ namespace TS3AudioBot.Search
 		};
 
 		[UnmanagedFunctionPointer(CallingConvention.StdCall)]
-		private delegate void LogCallbackFunction(string msg);
+		public delegate void LogCallbackFunction(string msg);
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
 		private static extern unsafe IntPtr CreateSearchInstanceFromText(char *charactersBegin, ulong count, LogCallbackFunction callback);
@@ -43,9 +43,9 @@ namespace TS3AudioBot.Search
 		
 		private static void LogCallback(string msg) { Log.Info("strsearch: " + msg); }
 
-		public static unsafe IntPtr CreateSearchInstanceFromText(char[] characters) {
+		public static unsafe IntPtr CreateSearchInstanceFromText(char[] characters, LogCallbackFunction callback) {
 			fixed (char* charactersPtr = characters) {
-				return CreateSearchInstanceFromText(charactersPtr, (ulong) characters.LongLength, LogCallback);
+				return CreateSearchInstanceFromText(charactersPtr, (ulong) characters.LongLength, callback);
 			}
 		}
 
@@ -81,9 +81,13 @@ namespace TS3AudioBot.Search
 			}
 		}
 
+		private readonly LogCallbackFunction log;
 		private readonly IntPtr instance;
-
-		public StrSearch(char[] characters) { instance = CreateSearchInstanceFromText(characters); }
+		
+		public StrSearch(char[] characters) {
+			log = LogCallback;
+			instance = CreateSearchInstanceFromText(characters, log); 
+		}
 
 		public R<(int[] items, FindUniqueItemsResult result), LocalStr> FindUniqueItems(char[] pattern, int count, uint offset) {
 			var items = new int[count];
