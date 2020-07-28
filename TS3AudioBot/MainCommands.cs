@@ -852,7 +852,6 @@ namespace TS3AudioBot
 			}
 
 			var maxItemCount = Math.Min(SearchMaxItems, count);
-			Log.Info($"Searching for '{query}...'");
 			var res = resourceSearch.FindKeywords(query, maxItemCount, match, (uint) from).UnwrapThrow();
 			Log.Info($"Keywords search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
 			return MakeResult(from, res);
