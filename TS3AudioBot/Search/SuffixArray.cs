@@ -18,11 +18,29 @@ namespace TS3AudioBot.Search
 			OffsetOutOfBounds
 		}
 
+		public enum KeywordsMatch {
+			All,
+			AtLeastOne
+		};
+
 		[StructLayout(LayoutKind.Sequential)]
 		public struct FindUniqueItemsResult {
 			public readonly ulong TotalResults;
 			public readonly ulong Count;
 			public readonly ulong Consumed;
+		};
+
+		[StructLayout(LayoutKind.Sequential)]
+		public struct FindUniqueItemsTimings {
+			public readonly long Find;
+			public readonly long Unique;
+		};
+
+		[StructLayout(LayoutKind.Sequential)]
+		public struct FindUniqueItemsKeywordsTimings {
+			public readonly long Find;
+			public readonly long Unique;
+			public readonly long Parse;
 		};
 
 		[UnmanagedFunctionPointer(CallingConvention.StdCall)]
@@ -36,10 +54,10 @@ namespace TS3AudioBot.Search
 
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
-		private static extern unsafe Result FindUniqueItems(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, ref FindUniqueItemsResult itemsResult, uint offset);
+		private static extern unsafe Result FindUniqueItems(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, ref FindUniqueItemsResult itemsResult, uint offset, ref FindUniqueItemsTimings timing);
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
-		private static extern unsafe Result FindUniqueItemsKeywords(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, ref FindUniqueItemsResult itemsResult);
+		private static extern unsafe Result FindUniqueItemsKeywords(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, KeywordsMatch matching, uint offset, ref FindUniqueItemsResult itemsResult, ref FindUniqueItemsKeywordsTimings timings);
 		
 		private static void LogCallback(string msg) { Log.Info("strsearch: " + msg); }
 
@@ -50,34 +68,36 @@ namespace TS3AudioBot.Search
 		}
 
 		private static LocalStr FormatError(Result result) {
+			if (result == Result.OffsetOutOfBounds)
+				return new LocalStr("Offset was out of bounds");
 			return new LocalStr($"strsearch returned non success value {result}");
 		}
 
-		public static unsafe R<FindUniqueItemsResult, LocalStr> FindUniqueItemsKeywords(IntPtr instance, char[] pattern, int[] output) {
+		public static unsafe R<FindUniqueItemsResult, LocalStr> FindUniqueItemsKeywords(IntPtr instance, char[] pattern, int[] output, KeywordsMatch matching, uint offset) {
 			var result = new FindUniqueItemsResult();
+			var timings = new FindUniqueItemsKeywordsTimings();
 			fixed (char* patternPtr = pattern)
 			fixed (int* outputPtr = output) {
-				var res = FindUniqueItemsKeywords(instance, patternPtr, (ulong) pattern.LongLength, outputPtr, (ulong) output.LongLength, ref result);
-				if (res == Result.Ok)
-					return result;
+				var res = FindUniqueItemsKeywords(instance, patternPtr, (ulong) pattern.LongLength, outputPtr, (ulong) output.LongLength, matching, offset, ref result, ref timings);
+				if (res != Result.Ok)
+					return FormatError(res);
 
-				if (res == Result.OffsetOutOfBounds)
-					return new LocalStr("Offset was out of bounds");
-				return FormatError(res);
+				Log.Info($"Find unique items keywords timings: parse: {timings.Parse}ns, find: {timings.Find}ns, unique: {timings.Unique}ns");
+				return result;
 			}
 		}
 
 		public static unsafe R<FindUniqueItemsResult, LocalStr> FindUniqueItems(IntPtr instance, char[] pattern, int[] output, uint offset) {
 			var result = new FindUniqueItemsResult();
+			var timings = new FindUniqueItemsTimings();
 			fixed (char* patternPtr = pattern)
 			fixed (int* outputPtr = output) {
-				var res = FindUniqueItems(instance, patternPtr, (ulong) pattern.LongLength, outputPtr, (ulong) output.LongLength, ref result, offset);
-				if (res == Result.Ok)
-					return result;
+				var res = FindUniqueItems(instance, patternPtr, (ulong) pattern.LongLength, outputPtr, (ulong) output.LongLength, ref result, offset, ref timings);
+				if (res != Result.Ok)
+					return FormatError(res);
 
-				if (res == Result.OffsetOutOfBounds)
-					return new LocalStr("Offset was out of bounds");
-				return FormatError(res);
+				Log.Info($"Find unique items timings: find: {timings.Find}ns, unique: {timings.Unique}ns");
+				return result;
 			}
 		}
 
@@ -91,7 +111,15 @@ namespace TS3AudioBot.Search
 
 		public R<(int[] items, FindUniqueItemsResult result), LocalStr> FindUniqueItems(char[] pattern, int count, uint offset) {
 			var items = new int[count];
-			var res = FindUniqueItemsKeywords(instance, pattern, items);
+			var res = FindUniqueItems(instance, pattern, items, offset);
+			if (!res.Ok)
+				return res.Error;
+			return (items, res.Value);
+		}
+
+		public R<(int[] items, FindUniqueItemsResult result), LocalStr> FindUniqueItemsKeywords(char[] pattern, int count, KeywordsMatch matching, uint offset) {
+			var items = new int[count];
+			var res = FindUniqueItemsKeywords(instance, pattern, items, matching, offset);
 			if (!res.Ok)
 				return res.Error;
 			return (items, res.Value);
@@ -127,6 +155,10 @@ namespace TS3AudioBot.Search
 
 		public R<(int[] items, StrSearch.FindUniqueItemsResult result), LocalStr> FindUniqueItems(char[] pattern, int count, uint offset) {
 			return instance.FindUniqueItems(pattern, count, offset);
+		}
+
+		public R<(int[] items, StrSearch.FindUniqueItemsResult result), LocalStr> FindUniqueItemsKeywords(char[] pattern, int count, StrSearch.KeywordsMatch matching, uint offset) {
+			return instance.FindUniqueItemsKeywords(pattern, count, matching, offset);
 		}
 
 		public void Dispose() {

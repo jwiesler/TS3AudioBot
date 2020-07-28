@@ -789,20 +789,11 @@ namespace TS3AudioBot
 			return CommandItemsFrom(resourceSearch, 0, 50, query);
 		}
 
-		[Command("itemsf")]
-		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, int count, string query) {
-			Stopwatch timer = new Stopwatch();
-			timer.Start();
-			if (from < 0)
-				throw new CommandException("offset can't be negative", CommandExceptionReason.CommandError);
-
-			var res = resourceSearch.Find(query, (uint) from, Math.Min(SearchMaxItems, count)).UnwrapThrow();
-			Log.Info($"Search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
-
+		private static JsonValue<PlaylistSearchResult> MakeResult(int from, ResourceSearchInstance.Result res) {
 			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = res.Items, Results = res.ConsumedResults, TotalResults = res.TotalResults }, result => {
 				StringBuilder builder = new StringBuilder();
 				builder.Append("Found ").Append(result.TotalResults).Append(" result(s).");
-				if (result.TotalResults > result.Items.Count)
+				if (result.Results > result.Items.Count)
 					builder.Append(" Showing only ").Append(result.Items.Count).Append(" unique items out of ").Append(result.Results).Append(" items.");
 
 				for (int i = 0; i < result.Items.Count; ++i) {
@@ -821,6 +812,49 @@ namespace TS3AudioBot
 
 				return builder.ToString();
 			});
+		}
+
+		[Command("itemsf")]
+		public static JsonValue<PlaylistSearchResult> CommandItemsFrom(ResourceSearch resourceSearch, int from, int count, string query) {
+			Stopwatch timer = new Stopwatch();
+			timer.Start();
+			if (from < 0)
+				throw new CommandException("offset can't be negative", CommandExceptionReason.CommandError);
+
+			var maxItemCount = Math.Min(SearchMaxItems, count);
+			var res = resourceSearch.Find(query, maxItemCount, (uint) from).UnwrapThrow();
+			Log.Info($"Search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
+			return MakeResult(from, res);
+		}
+
+		[Command("itemsk")]
+		public static JsonValue<PlaylistSearchResult> CommandItemsKeywords(ResourceSearch resourceSearch, string type, string query) {
+			return CommandItemsKeywordsFrom(resourceSearch, type, 0, 50, query);
+		}
+
+		[Command("itemskf")]
+		public static JsonValue<PlaylistSearchResult> CommandItemsKeywordsFrom(ResourceSearch resourceSearch, string type, int from, int count, string query) {
+			Stopwatch timer = new Stopwatch();
+			timer.Start();
+			if (from < 0)
+				throw new CommandException("offset can't be negative", CommandExceptionReason.CommandError);
+
+			StrSearch.KeywordsMatch match;
+			switch (type) {
+			case "all":
+				match = StrSearch.KeywordsMatch.All;
+				break;
+			case "atleastone":
+				match = StrSearch.KeywordsMatch.AtLeastOne;
+				break;
+			default:
+				throw new CommandException($"Unexpected matching strategy {type}", CommandExceptionReason.CommandError);
+			}
+
+			var maxItemCount = Math.Min(SearchMaxItems, count);
+			var res = resourceSearch.FindKeywords(query, maxItemCount, match, (uint) from).UnwrapThrow();
+			Log.Info($"Keywords search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
+			return MakeResult(from, res);
 		}
 
 		[Command("info")]

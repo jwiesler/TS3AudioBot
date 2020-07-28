@@ -43,17 +43,28 @@ namespace TS3AudioBot.Search {
 			public int TotalResults { get; set; }
 		}
 
-		public R<Result, LocalStr> Find(string query, uint offset, int maxItems) {
+		private Result MakeResult(int[] items, StrSearch.FindUniqueItemsResult result) {
+			return new Result {
+				ConsumedResults = (int) result.Consumed,
+				Items = LookupItems(items, (int) result.Count),
+				TotalResults = (int) result.TotalResults
+			};
+		}
+
+		public R<Result, LocalStr> Find(string query, int maxItems, uint offset) {
 			var res = sa.FindUniqueItems(query.ToLowerInvariant().ToCharArray(), maxItems, offset);
 			if (!res.Ok)
 				return res.Error;
 
-			var (ints, result) = res.Value;
-			return new Result {
-				ConsumedResults = (int) result.Consumed,
-				Items = LookupItems(ints, (int) result.Count),
-				TotalResults = (int) result.TotalResults
-			};
+			return MakeResult(res.Value.items, res.Value.result);
+		}
+
+		public R<Result, LocalStr> FindKeywords(string query, int maxItems, StrSearch.KeywordsMatch matching, uint offset) {
+			var res = sa.FindUniqueItemsKeywords(query.ToLowerInvariant().ToCharArray(), maxItems, matching, offset);
+			if (!res.Ok)
+				return res.Error;
+
+			return MakeResult(res.Value.items, res.Value.result);
 		}
 
 		public void Dispose() {
@@ -85,8 +96,12 @@ namespace TS3AudioBot.Search {
 			return inst;
 		}
 
-		public R<ResourceSearchInstance.Result, LocalStr> Find(string query, uint offset, int maxItems) {
-			return instance.Find(query, offset, maxItems);
+		public R<ResourceSearchInstance.Result, LocalStr> Find(string query, int maxItems, uint offset) {
+			return instance.Find(query, maxItems, offset);
+		}
+
+		public R<ResourceSearchInstance.Result, LocalStr> FindKeywords(string query, int maxItems, StrSearch.KeywordsMatch matching, uint offset) {
+			return instance.FindKeywords(query, maxItems, matching, offset);
 		}
 
 		private void Exchange(ResourceSearchInstance value) {
