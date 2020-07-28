@@ -852,6 +852,7 @@ namespace TS3AudioBot
 			}
 
 			var maxItemCount = Math.Min(SearchMaxItems, count);
+			Log.Info($"Searching for '{query}...'");
 			var res = resourceSearch.FindKeywords(query, maxItemCount, match, (uint) from).UnwrapThrow();
 			Log.Info($"Keywords search for \"{query}\" took {timer.ElapsedMilliseconds}ms");
 			return MakeResult(from, res);
@@ -1036,7 +1037,7 @@ namespace TS3AudioBot
 				return index.Value;
 			return R.Err;
 		}
-		
+
 		[Command("list create", "_undocumented")]
 		public static void CommandListCreate(PlaylistManager playlistManager, InvokerData invoker, string listId)
 			=> playlistManager.CreatePlaylist(listId, invoker.ClientUid).UnwrapThrow();
