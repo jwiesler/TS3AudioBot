@@ -198,6 +198,8 @@ namespace TS3AudioBot.Playlists
 		public void Write(string listId, IPlaylist list)
 		{
 			lock (ioLock) {
+				if (!TryGetRealId(listId, out _))
+					RegisterPlaylistId(listId);
 				WriteToFile(listId, list);
 			}
 		}
@@ -386,7 +388,7 @@ namespace TS3AudioBot.Playlists
 	{
 		[JsonProperty(PropertyName = "count")]
 		public int Count { get; set; }
-		[JsonProperty(PropertyName = "id")]
+		[JsonProperty(PropertyName = "id", NullValueHandling = NullValueHandling.Ignore)]
 		public string Id { get; set; }
 		[JsonProperty(PropertyName = "owner")]
 		public string OwnerId { get; set; }
