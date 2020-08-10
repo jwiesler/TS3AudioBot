@@ -57,6 +57,9 @@ namespace TS3AudioBot.ResourceFactories
 			if (ytdlPath is null)
 				return new LocalStr(strings.error_ytdl_not_found);
 
+			// Remove " in query string as this might break youtube-dl / globbing
+			text = text.Replace("\"", "");
+
 			var param = $"{ytdlPath.Value.param}{ParamGetSearch}\"{text}\"";
 			return RunYoutubeDl<JsonYtdlPlaylistDump>(ytdlPath.Value.ytdlpath, param);
 		}
