@@ -76,6 +76,8 @@ namespace TS3AudioBot.Search {
 		private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
 		private ResourceSearchInstance instance;
+		private readonly ReaderWriterLockSlim instanceLock = new ReaderWriterLockSlim();
+
 		private Task CurrentUpdateTask { get; set; }
 		private int Version { get; set; }
 		private PlaylistDatabase Database { get; }
@@ -97,16 +99,24 @@ namespace TS3AudioBot.Search {
 		}
 
 		public R<ResourceSearchInstance.Result, LocalStr> Find(string query, int maxItems, uint offset) {
-			return instance.Find(query, maxItems, offset);
+			instanceLock.EnterReadLock();
+			var r = instance.Find(query, maxItems, offset);
+			instanceLock.ExitReadLock();
+			return r;
 		}
 
 		public R<ResourceSearchInstance.Result, LocalStr> FindKeywords(string query, int maxItems, StrSearch.KeywordsMatch matching, uint offset) {
-			return instance.FindKeywords(query, maxItems, matching, offset);
+			instanceLock.EnterReadLock();
+			var r = instance.FindKeywords(query, maxItems, matching, offset);
+			instanceLock.ExitReadLock();
+			return r;
 		}
 
 		private void Exchange(ResourceSearchInstance value) {
-			var old = Interlocked.Exchange(ref instance, value);
-			old?.Dispose();
+			instanceLock.EnterWriteLock();
+			instance?.Dispose();
+			instance = value;
+			instanceLock.ExitWriteLock();
 		}
 
 		private Task StartRebuildTask(int version) {
