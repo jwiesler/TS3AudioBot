@@ -1717,11 +1717,11 @@ namespace TS3AudioBot
 		}
 
 		[Command("song")]
-		public static JsonValue<SongInfo> CommandSong(PlayManager playManager, Player playerConnection, Bot bot, ClientCall invoker = null)
+		public static JsonValue<SongInfo> CommandSong(PlayManager playManager, Player playerConnection, Bot bot = null, ClientCall invoker = null)
 		{
 			if (playManager.CurrentPlayData is null)
 				throw new CommandException(strings.info_currently_not_playing, CommandExceptionReason.CommandError);
-			if (bot.QuizMode && invoker != null && playManager.CurrentPlayData.Invoker != invoker.ClientUid)
+			if (bot != null && bot.QuizMode && invoker != null && playManager.CurrentPlayData.Invoker != invoker.ClientUid)
 				throw new CommandException(strings.info_quizmode_is_active, CommandExceptionReason.CommandError);
 
 			return JsonValue.Create(
