@@ -37,26 +37,27 @@ namespace TS3AudioBot.Audio {
 
 		public int Count => Items.Count;
 
-		public PlayQueue() {
-			items = new List<QueueItem>();
-		}
+		public event EventHandler<EventArgs> OnQueueChange;
 
-		public QueueItem TryGetItem(int index) {
-			return index < items.Count ? items[index] : null;
-		}
+		public PlayQueue() { items = new List<QueueItem>(); }
+
+		public QueueItem TryGetItem(int index) { return index < items.Count ? items[index] : null; }
 
 		public void Enqueue(QueueItem item) {
 			items.Add(item);
+			OnQueueChange?.Invoke(this, null);
 		}
 
 		public void Enqueue(IEnumerable<QueueItem> list) {
 			items.AddRange(list);
+			OnQueueChange?.Invoke(this, null);
 		}
 
 		public void InsertAfter(QueueItem item, int index) {
 			if(!Tools.IsBetweenExcludingUpper(index, 0, items.Count))
 				throw new ArgumentException();
 			items.Insert(index + 1, item);
+			OnQueueChange?.Invoke(this, null);
 		}
 
 		public void Remove(int at) {
@@ -68,6 +69,8 @@ namespace TS3AudioBot.Audio {
 			items.RemoveAt(at);
 			if (at < Index)
 				--Index;
+
+			OnQueueChange?.Invoke(this, null);
 		}
 
 		public void RemoveRange(int from, int to) {
@@ -81,6 +84,8 @@ namespace TS3AudioBot.Audio {
 			items.RemoveRange(from, count);
 			if (to < Index)
 				Index -= count;
+
+			OnQueueChange?.Invoke(this, null);
 		}
 
 		public bool CanSkip(int count) {
@@ -97,6 +102,7 @@ namespace TS3AudioBot.Audio {
 				throw new ArgumentException("count too large");
 
 			Index = targetIndex;
+			OnQueueChange?.Invoke(this, null);
 			return Index != items.Count;
 		}
 
@@ -105,6 +111,7 @@ namespace TS3AudioBot.Audio {
 				return false;
 
 			if (++Index != items.Count) {
+				OnQueueChange?.Invoke(this, null);
 				return true;
 			}
 			return false;
@@ -114,12 +121,14 @@ namespace TS3AudioBot.Audio {
 			if (0 == Index)
 				return false;
 			--Index;
+			OnQueueChange?.Invoke(this, null);
 			return true;
 		}
 
 		public void Clear() {
 			items.Clear();
 			Index = 0;
+			OnQueueChange?.Invoke(this, null);
 		}
 	}
 }
