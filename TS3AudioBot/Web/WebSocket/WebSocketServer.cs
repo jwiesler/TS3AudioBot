@@ -186,6 +186,7 @@ namespace TS3AudioBot.Web.WebSocket {
 				}
 			}
 
+			Log.Trace($"Stopping WebSocket server {ip}:{port}.");
 			server.Stop();
 		}
 
