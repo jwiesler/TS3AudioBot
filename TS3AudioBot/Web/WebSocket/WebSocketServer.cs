@@ -192,13 +192,14 @@ namespace TS3AudioBot.Web.WebSocket {
 		}
 
 		public void Dispose() {
-			foreach (var client in ConnectedClients) {
-				client.Value.Stop();
-			}
-
 			running = false;
 			newConnectionHandlerThread.Join();
 			Log.Trace($"Joined WebSocket server {ip}:{port}.");
+
+			foreach (var client in ConnectedClients) {
+				client.Value.Stop();
+			}
+			Log.Trace("Stopped all remaining client connections.");
 		}
 	}
 }
