@@ -28,6 +28,7 @@ namespace TS3AudioBot.Web.WebSocket {
 		private readonly ConfWebSocket confWebSocket;
 		private readonly IPAddress ip;
 		private readonly ushort port;
+		private readonly Thread newConnectionHandlerThread;
 
 		private bool running;
 
@@ -46,7 +47,7 @@ namespace TS3AudioBot.Web.WebSocket {
 
 			running = true;
 			ConnectedClients = new ConcurrentDictionary<int, WebSocketConnection>();
-			var newConnectionHandlerThread = new Thread(NewConnectionHandler) {
+			newConnectionHandlerThread = new Thread(NewConnectionHandler) {
 				IsBackground = true
 			};
 			newConnectionHandlerThread.Start();
@@ -83,7 +84,7 @@ namespace TS3AudioBot.Web.WebSocket {
 		}
 
 		private void NewConnectionHandler() {
-			TcpListener server = new TcpListener(ip, port);
+			var server = new TcpListener(ip, port);
 			server.Start();
 
 			var policy = new TokenValidationPolicyBuilder()
@@ -196,6 +197,8 @@ namespace TS3AudioBot.Web.WebSocket {
 			}
 
 			running = false;
+			newConnectionHandlerThread.Join();
+			Log.Trace($"Joined WebSocket server {ip}:{port}.");
 		}
 	}
 }
