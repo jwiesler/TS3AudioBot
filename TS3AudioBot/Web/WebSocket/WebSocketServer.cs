@@ -94,7 +94,13 @@ namespace TS3AudioBot.Web.WebSocket {
 			var reader = new JwtReader();
 
 			while (running) {
-				TcpClient client = server.AcceptTcpClient();
+				TcpClient client;
+				if (server.Pending()) {
+					client = server.AcceptTcpClient();
+				} else {
+					Thread.Sleep(100);
+					continue;
+				}
 
 				var stream = client.GetStream();
 				stream.WriteTimeout = 10;
@@ -156,7 +162,9 @@ namespace TS3AudioBot.Web.WebSocket {
 				if (!match.Success) {
 					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
-				} else if (match.Groups.Count != 2) {
+				}
+
+				if (match.Groups.Count != 2) {
 					InvalidMatchNumber(match, stream);
 					continue;
 				}
