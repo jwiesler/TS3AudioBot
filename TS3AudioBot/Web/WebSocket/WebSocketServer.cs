@@ -13,7 +13,7 @@ using Newtonsoft.Json;
 using TS3AudioBot.Config;
 
 namespace TS3AudioBot.Web.WebSocket {
-	public class WebSocketServer {
+	public class WebSocketServer : IDisposable {
 		private static int clientCounter;
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
 		private static readonly	byte[] AccessDeniedResponse = Encoding.UTF8.GetBytes(
@@ -29,6 +29,8 @@ namespace TS3AudioBot.Web.WebSocket {
 		private readonly IPAddress ip;
 		private readonly ushort port;
 
+		private bool running;
+
 		public WebSocketServer(IPAddress ip, ushort port, ConfWebSocket confWebSocket) {
 			this.ip = ip ?? throw new ArgumentException("No IP address provided.");
 
@@ -42,6 +44,7 @@ namespace TS3AudioBot.Web.WebSocket {
 				Log.Warn("Default key in use for websocket JWS. This might not even work and is at least a bad idea.");
 			}
 
+			running = true;
 			ConnectedClients = new ConcurrentDictionary<int, WebSocketConnection>();
 			var newConnectionHandlerThread = new Thread(NewConnectionHandler) {
 				IsBackground = true
@@ -49,7 +52,7 @@ namespace TS3AudioBot.Web.WebSocket {
 			newConnectionHandlerThread.Start();
 
 			var clientWatcherThread = new Thread(() => {
-				while (true) {
+				while (running) {
 					IList<int> keysToRemove = new List<int>();
 
 					foreach (var pair in ConnectedClients) {
@@ -89,7 +92,7 @@ namespace TS3AudioBot.Web.WebSocket {
 				.Build();
 			var reader = new JwtReader();
 
-			while (true) {
+			while (running) {
 				TcpClient client = server.AcceptTcpClient();
 
 				var stream = client.GetStream();
@@ -182,6 +185,16 @@ namespace TS3AudioBot.Web.WebSocket {
 					handler.Stop();
 				}
 			}
+
+			server.Stop();
+		}
+
+		public void Dispose() {
+			foreach (var client in ConnectedClients) {
+				client.Value.Stop();
+			}
+
+			running = false;
 		}
 	}
 }
