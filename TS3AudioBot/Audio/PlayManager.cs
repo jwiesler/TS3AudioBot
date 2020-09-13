@@ -107,7 +107,7 @@ namespace TS3AudioBot.Audio {
 
 		public void OnQueueChanged(int firstChangedIndex = 0) {
 			if(firstChangedIndex < Queue.Index)
-				throw new ArgumentOutOfRangeException("firstChangedIndex");
+				throw new ArgumentOutOfRangeException($"{firstChangedIndex}");
 
 			if (firstChangedIndex <= NextSongIndex) {
 				NextSongIndex = firstChangedIndex;
