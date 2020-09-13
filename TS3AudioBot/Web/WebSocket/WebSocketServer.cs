@@ -76,7 +76,7 @@ namespace TS3AudioBot.Web.WebSocket {
 		}
 
 		private void InvalidMatchNumber(Match match, Stream stream) {
-			Log.Error("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
+			Log.Warn("While trying to find the Sec-WebSocket-Key, there was a wrong number of groups as result of the regex.");
 			for (int i = 0; i < match.Groups.Count; i++) {
 				Log.Trace($"Group {i}: " + match.Groups[i]);
 			}
@@ -117,6 +117,7 @@ namespace TS3AudioBot.Web.WebSocket {
 
 				// Check if this is a websocket handshake. If no, skip.
 				if (!new Regex("^GET").IsMatch(request)) {
+					Log.Warn("Denied websocket because client used wrong method.");
 					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
 				}
@@ -127,7 +128,7 @@ namespace TS3AudioBot.Web.WebSocket {
 				// HTML headers are case insensitive
 				var match = new Regex("Sec-WebSocket-Key: (.*)", RegexOptions.IgnoreCase).Match(request);
 				if (!match.Success) {
-					Log.Error("Sec-WebSocket-Key was not found in request.");
+					Log.Warn("Sec-WebSocket-Key was not found in request.");
 					Log.Trace("Request was (base64-encoded): " + Convert.ToBase64String(Encoding.ASCII.GetBytes(request)));
 					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
@@ -160,6 +161,7 @@ namespace TS3AudioBot.Web.WebSocket {
 				// Get cookie
 				match = new Regex("lk-session=([^;\r\n]*)", RegexOptions.IgnoreCase).Match(request);
 				if (!match.Success) {
+					Log.Warn("Denied websocket because session cookie is missing.");
 					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
 				}
@@ -173,11 +175,13 @@ namespace TS3AudioBot.Web.WebSocket {
 				var sessionCookie = match.Groups[1].ToString();
 				var result = reader.TryReadToken(sessionCookie, policy);
 				if (!result.Succedeed) {
+					Log.Warn($"Denied websocket because JWS token could not be validated: {result.ErrorHeader}, {result.ErrorClaim}.");
 					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
 				}
 
 				if (result.Token?.Payload == null) {
+					Log.Warn("Denied websocket because JWS token payload is empty.");
 					stream.Write(AccessDeniedResponse, 0, AccessDeniedResponse.Length);
 					continue;
 				}
