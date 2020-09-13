@@ -20,5 +20,11 @@ namespace TS3AudioBot.Web.Model
 		public TimeSpan Length { get; set; }
 		[JsonProperty(PropertyName = "Paused")]
 		public bool Paused { get; set; }
+		[JsonProperty(PropertyName = "PlaylistId")]
+		public string PlaylistId { get; set; }
+		[JsonProperty(PropertyName = "PlaylistOwnerUid")]
+		public string PlaylistOwnerUid { get; set; }
+		[JsonProperty(PropertyName = "PlaylistOwnerName")]
+		public string PlaylistOwnerName { get; set; }
 	}
 }

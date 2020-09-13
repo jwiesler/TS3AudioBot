@@ -1717,12 +1717,26 @@ namespace TS3AudioBot
 		}
 
 		[Command("song")]
-		public static JsonValue<SongInfo> CommandSong(PlayManager playManager, Player playerConnection, Bot bot = null, ClientCall invoker = null)
+		public static JsonValue<SongInfo> CommandSong(PlayManager playManager, PlaylistManager playlistManager, Player playerConnection, TsFullClient ts3FullClient, Bot bot = null, ClientCall invoker = null)
 		{
 			if (playManager.CurrentPlayData is null)
 				throw new CommandException(strings.info_currently_not_playing, CommandExceptionReason.CommandError);
 			if (bot != null && bot.QuizMode && invoker != null && playManager.CurrentPlayData.Invoker != invoker.ClientUid)
 				throw new CommandException(strings.info_quizmode_is_active, CommandExceptionReason.CommandError);
+
+			string playlistId = playManager.CurrentPlayData.MetaData.ContainingPlaylistId;
+			string playlistOwnerUid = null;
+			string playlistOwnerName = null;
+			if (playlistId != null) {
+				var playlist = playlistManager.GetAvailablePlaylists().SingleOrDefault(info => info.Id == playlistId);
+				if (playlist != null) {
+					playlistOwnerUid = playlist.OwnerId;
+					var nameResult = ts3FullClient.GetClientNameFromUid(Uid.To(playlistOwnerUid));
+					if (nameResult.Ok) {
+						playlistOwnerName = nameResult.Value.Name;
+					}
+				}
+			}
 
 			return JsonValue.Create(
 				new SongInfo
@@ -1733,6 +1747,9 @@ namespace TS3AudioBot
 					Position = playerConnection.Position,
 					Length = playerConnection.Length,
 					Paused = playerConnection.Paused,
+					PlaylistId = playlistId,
+					PlaylistOwnerUid = playlistOwnerUid,
+					PlaylistOwnerName = playlistOwnerName
 				},
 				x =>
 				{
