@@ -22,9 +22,9 @@ namespace TS3AudioBot.Web.Model
 		public bool Paused { get; set; }
 		[JsonProperty(PropertyName = "PlaylistId")]
 		public string PlaylistId { get; set; }
-		[JsonProperty(PropertyName = "PlaylistOwnerUid")]
-		public string PlaylistOwnerUid { get; set; }
-		[JsonProperty(PropertyName = "PlaylistOwnerName")]
-		public string PlaylistOwnerName { get; set; }
+		[JsonProperty(PropertyName = "IssuerUid")]
+		public string IssuerUid { get; set; }
+		[JsonProperty(PropertyName = "IssuerName")]
+		public string IssuerName { get; set; }
 	}
 }

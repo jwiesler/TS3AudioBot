@@ -1725,17 +1725,11 @@ namespace TS3AudioBot
 				throw new CommandException(strings.info_quizmode_is_active, CommandExceptionReason.CommandError);
 
 			string playlistId = playManager.CurrentPlayData.MetaData.ContainingPlaylistId;
-			string playlistOwnerUid = null;
-			string playlistOwnerName = null;
-			if (playlistId != null) {
-				var playlist = playlistManager.GetAvailablePlaylists().SingleOrDefault(info => info.Id == playlistId);
-				if (playlist != null) {
-					playlistOwnerUid = playlist.OwnerId;
-					var nameResult = ts3FullClient.GetClientNameFromUid(Uid.To(playlistOwnerUid));
-					if (nameResult.Ok) {
-						playlistOwnerName = nameResult.Value.Name;
-					}
-				}
+			Uid issuerUid = playManager.CurrentPlayData.Invoker.GetValueOrDefault();
+			string issuerName = null;
+			var nameResult = ts3FullClient.GetClientNameFromUid(issuerUid);
+			if (nameResult.Ok) {
+				issuerName = nameResult.Value.Name;
 			}
 
 			return JsonValue.Create(
@@ -1748,8 +1742,8 @@ namespace TS3AudioBot
 					Length = playerConnection.Length,
 					Paused = playerConnection.Paused,
 					PlaylistId = playlistId,
-					PlaylistOwnerUid = playlistOwnerUid,
-					PlaylistOwnerName = playlistOwnerName
+					IssuerUid = issuerUid.ToString(),
+					IssuerName = issuerName
 				},
 				x =>
 				{
