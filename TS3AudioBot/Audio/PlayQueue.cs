@@ -102,6 +102,7 @@ namespace TS3AudioBot.Audio {
 				throw new ArgumentException("count too large");
 
 			Index = targetIndex;
+			OnQueueChange?.Invoke(this, null);
 			return Index != items.Count;
 		}
 
@@ -109,13 +110,18 @@ namespace TS3AudioBot.Audio {
 			if (Index == items.Count)
 				return false;
 
-			return ++Index != items.Count;
+			if (++Index != items.Count) {
+				OnQueueChange?.Invoke(this, null);
+				return true;
+			}
+			return false;
 		}
 
 		public bool TryPrevious() {
 			if (0 == Index)
 				return false;
 			--Index;
+			OnQueueChange?.Invoke(this, null);
 			return true;
 		}
 
