@@ -45,6 +45,7 @@ namespace TS3AudioBot.Audio {
 		public event EventHandler<PlayInfoEventArgs> AfterResourceStarted;
 		public event EventHandler<SongEndEventArgs> ResourceStopped;
 		public event EventHandler<PlaybackStoppedEventArgs> PlaybackStopped;
+		public event EventHandler<EventArgs> OnQueueChange;
 
 		// Needed for the injector cancer
 		public PlayManager(
@@ -95,6 +96,7 @@ namespace TS3AudioBot.Audio {
 				taskHost.Clear();
 				NextSongIndex = 0;
 				nextSongShadow = null;
+				OnQueueChange?.Invoke(this, null);
 			}
 		}
 
@@ -113,6 +115,8 @@ namespace TS3AudioBot.Audio {
 				NextSongIndex = firstChangedIndex;
 				UpdateNextSong();
 			}
+
+			OnQueueChange?.Invoke(this, null);
 		}
 
 		public void EnqueueAsNextSong(QueueItem item) {
