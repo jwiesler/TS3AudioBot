@@ -1726,11 +1726,6 @@ namespace TS3AudioBot
 
 			string playlistId = playManager.CurrentPlayData.MetaData.ContainingPlaylistId;
 			Uid issuerUid = playManager.CurrentPlayData.Invoker.GetValueOrDefault();
-			string issuerName = null;
-			var nameResult = ts3FullClient.GetClientNameFromUid(issuerUid);
-			if (nameResult.Ok) {
-				issuerName = nameResult.Value.Name;
-			}
 
 			return JsonValue.Create(
 				new SongInfo
@@ -1743,7 +1738,6 @@ namespace TS3AudioBot
 					Paused = playerConnection.Paused,
 					PlaylistId = playlistId,
 					IssuerUid = issuerUid.ToString(),
-					IssuerName = issuerName
 				},
 				x =>
 				{

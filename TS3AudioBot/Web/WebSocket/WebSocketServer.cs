@@ -30,6 +30,8 @@ namespace TS3AudioBot.Web.WebSocket {
 		private readonly ushort port;
 		private readonly Thread newConnectionHandlerThread;
 
+		public event EventHandler<ClientConnectedEventArgs> OnClientConnected;
+
 		private bool running;
 
 		public WebSocketServer(IPAddress ip, ushort port, ConfWebSocket confWebSocket) {
@@ -196,6 +198,8 @@ namespace TS3AudioBot.Web.WebSocket {
 
 				if (!ConnectedClients.TryAdd(clientCounter++, handler)) {
 					handler.Stop();
+				} else {
+					OnClientConnected?.Invoke(this, new ClientConnectedEventArgs(handler));
 				}
 			}
 
@@ -211,6 +215,14 @@ namespace TS3AudioBot.Web.WebSocket {
 				client.Value.Stop();
 			}
 			Log.Trace("Stopped all remaining client connections.");
+		}
+	}
+
+	public class ClientConnectedEventArgs : EventArgs {
+		public WebSocketConnection Client;
+
+		public ClientConnectedEventArgs(WebSocketConnection client) {
+			Client = client;
 		}
 	}
 }

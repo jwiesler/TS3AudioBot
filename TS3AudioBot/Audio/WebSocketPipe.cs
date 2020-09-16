@@ -25,6 +25,7 @@ namespace TS3AudioBot.Audio
 		public bool HasListeners => server.ConnectedClients.Count != 0;
 		public int NumListeners => server.ConnectedClients.Count;
 		public IList<string> Listeners => server.ConnectedClients.Select(kvPair => kvPair.Value.Uid).Distinct().ToList();
+		public long LastDataSentTimestamp;
 		public IAudioPassiveConsumer OutStream { get; set; }
 
 		private readonly WebSocketServer server;
@@ -34,6 +35,7 @@ namespace TS3AudioBot.Audio
 		}
 
 		public void Write(Span<byte> data, Meta meta) {
+			LastDataSentTimestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 			foreach (var pair in server.ConnectedClients) {
 				pair.Value.SendBytes(data.ToArray());
 			}
