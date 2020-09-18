@@ -38,6 +38,7 @@ namespace TS3AudioBot.Audio {
 		public int Count => Items.Count;
 
 		public event EventHandler<EventArgs> OnQueueChange;
+		public event EventHandler<EventArgs> OnQueueIndexChange;
 
 		public PlayQueue() { items = new List<QueueItem>(); }
 
@@ -67,8 +68,10 @@ namespace TS3AudioBot.Audio {
 				throw new InvalidOperationException("Can't remove the current item");
 
 			items.RemoveAt(at);
-			if (at < Index)
+			if (at < Index) {
 				--Index;
+				OnQueueIndexChange?.Invoke(this, null);
+			}
 
 			OnQueueChange?.Invoke(this, null);
 		}
@@ -82,8 +85,10 @@ namespace TS3AudioBot.Audio {
 
 			int count = to - from + 1;
 			items.RemoveRange(from, count);
-			if (to < Index)
+			if (to < Index) {
 				Index -= count;
+				OnQueueIndexChange?.Invoke(this, null);
+			}
 
 			OnQueueChange?.Invoke(this, null);
 		}
@@ -103,6 +108,7 @@ namespace TS3AudioBot.Audio {
 
 			Index = targetIndex;
 			OnQueueChange?.Invoke(this, null);
+			OnQueueIndexChange?.Invoke(this, null);
 			return Index != items.Count;
 		}
 
@@ -112,6 +118,7 @@ namespace TS3AudioBot.Audio {
 
 			if (++Index != items.Count) {
 				OnQueueChange?.Invoke(this, null);
+				OnQueueIndexChange?.Invoke(this, null);
 				return true;
 			}
 			return false;
@@ -122,6 +129,7 @@ namespace TS3AudioBot.Audio {
 				return false;
 			--Index;
 			OnQueueChange?.Invoke(this, null);
+			OnQueueIndexChange?.Invoke(this, null);
 			return true;
 		}
 
@@ -129,6 +137,7 @@ namespace TS3AudioBot.Audio {
 			items.Clear();
 			Index = 0;
 			OnQueueChange?.Invoke(this, null);
+			OnQueueIndexChange?.Invoke(this, null);
 		}
 	}
 }
