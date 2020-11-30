@@ -8,6 +8,8 @@
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -32,11 +34,12 @@ namespace TS3AudioBot.Audio
 		private const string PreLinkConf = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -hide_banner -nostats -threads 1 -i \"";
 		private const string PostLinkConf = "-ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private const string LinkConfIcy = "-hide_banner -nostats -threads 1 -i pipe:0 -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
-		private static readonly Regex FindMaxVolumeMatcher = new Regex("^.*max_volume: (-?\\d+\\.\\d+) dB$", Util.DefaultRegexConfig);
-		private static readonly Regex FindMeanVolumeMatcher = new Regex("^.*mean_volume: (-?\\d+\\.\\d+) dB$", Util.DefaultRegexConfig);
+		private static readonly Regex FindHistrogramMatcher = new Regex("^.*histogram_(\\d+)db: (\\d+)$", Util.DefaultRegexConfig);
+		private static readonly Regex FindNSamplesMatcher = new Regex("^.*n_samples: (\\d+)$", Util.DefaultRegexConfig);
+		private static readonly Regex FindSampleRateMatcher = new Regex("^.*Stream.*Audio: pcm_s16le.*, (\\d+) Hz,.*$", Util.DefaultRegexConfig);
 		private const string PreLinkConfDetect = "-hide_banner -nostats -threads 1 -t 180 -i \"";
 		private const string PostLinkConfDetect = "-af volumedetect -f null /dev/null";
-		private static readonly TimeSpan retryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
+		private static readonly TimeSpan RetryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
 		public event EventHandler<EventArgs> OnSongLengthParsed;
 
 		private readonly ConfToolsFfmpeg config;
@@ -86,17 +89,23 @@ namespace TS3AudioBot.Audio
 			}
 		}
 
-		public int VolumeDetect(string url, CancellationToken token) {
+		public int VolumeDetect(string url, CancellationToken token, bool full = false) {
 			int gain = 0;
-			float maxVolumeFloat = 0f;
-			float meanVolumeFloat = 0f;
+			int numSamples = -1;
+			int sampleRate = -1;
+			var histogram = new SortedDictionary<int, int>();
+
+			var pre = PreLinkConfDetect;
+			if (full) {
+				pre = PreLinkConfDetect.Replace(" -t 180 ", " ");
+			}
 
 			var ffmpegProcess = new Process
 			{
 				StartInfo = new ProcessStartInfo
 				{
 					FileName = config.Path.Value,
-					Arguments = string.Concat(PreLinkConfDetect, url, "\" ", PostLinkConfDetect),
+					Arguments = string.Concat(pre, url, "\" ", PostLinkConfDetect),
 					RedirectStandardError = true,
 					UseShellExecute = false,
 					CreateNoWindow = true,
@@ -117,30 +126,60 @@ namespace TS3AudioBot.Audio
 			string line;
 			while ((line = errorReader.ReadLine()) != null) {
 				errorLogStringBuilder.AppendLine(line);
-				var match = FindMaxVolumeMatcher.Match(line);
-				if (match.Success && float.TryParse(match.Groups[1].Value, out var maxVolume)) {
-					maxVolumeFloat = maxVolume;
+				var match = FindNSamplesMatcher.Match(line);
+				if (match.Success) {
+					int.TryParse(match.Groups[1].Value, out numSamples);
 				}
 
-				match = FindMeanVolumeMatcher.Match(line);
-				if (match.Success && float.TryParse(match.Groups[1].Value, out var meanVolume)) {
-					meanVolumeFloat = meanVolume;
+				match = FindSampleRateMatcher.Match(line);
+				if (match.Success) {
+					int.TryParse(match.Groups[1].Value, out sampleRate);
+				}
+
+				match = FindHistrogramMatcher.Match(line);
+				if (match.Success && int.TryParse(match.Groups[1].Value, out var db) && int.TryParse(match.Groups[2].Value, out var samples)) {
+					histogram.Add(db, samples);
 				}
 			}
 
 			Log.Trace($"Ffmpeg process {ffmpegProcess.Id} exited, output:\n{errorLogStringBuilder}");
 
-			if (maxVolumeFloat < 0) {
-				gain += (int) Math.Round(Math.Abs(maxVolumeFloat));
+			if (sampleRate == -1 || numSamples == -1 || histogram.Count == 0) {
+				Log.Warn("One or more values necessary for gain detection not found, returning a gain of 0.");
+				return 0;
 			}
 
-			float absMax = Math.Abs(maxVolumeFloat);
-			float absMean = Math.Abs(meanVolumeFloat);
-			if (absMean - absMax > 10) {
-				gain += (int) Math.Round((absMean - absMax - 10) / 2);
+			// ffmpeg stops outputting the histogram when > 0.1% of samples are in it.
+			var samplesClipped = 0;
+			var millisecondsClipped = 0;
+			var millisecondsPerSample = 1000.0f / sampleRate;
+			foreach (var entry in histogram) {
+				var samples = entry.Value;
+				var newSamplesClipped = samplesClipped + samples;
+				var newMillisecondsClipped = (int)(newSamplesClipped * millisecondsPerSample);
+				var newPercentClipped = newSamplesClipped / (float) numSamples;
+
+				// Clip at most 0.1% of samples or 1000 ms of audio.
+				if (newPercentClipped > 0.001f || newMillisecondsClipped > 1000) {
+					break;
+				}
+
+				samplesClipped = newSamplesClipped;
+				millisecondsClipped = newMillisecondsClipped;
+				gain = entry.Key;
 			}
 
-			Log.Info($"Detected gain needed: {gain}dB (maximum volume {maxVolumeFloat:0.00}, mean volume {meanVolumeFloat:0.00})");
+			if (gain == 0) {
+				Log.Error("No gain needed.");
+			} else {
+				Log.Error(
+					$"Detected gain: {gain} dB." +
+					$" This will clip {samplesClipped} samples" +
+					$" ({millisecondsClipped} ms), which is {samplesClipped / (float) numSamples * 100:0.00}%" +
+					" of the samples in the song."
+				);
+			}
+
 			return gain;
 		}
 
@@ -240,7 +279,7 @@ namespace TS3AudioBot.Audio
 				{
 					var actualStopPosition = instance.AudioTimer.SongPosition;
 					Log.Trace("Actual song position {0}", actualStopPosition);
-					if (actualStopPosition + retryOnDropBeforeEnd < expectedStopLength) {
+					if (actualStopPosition + RetryOnDropBeforeEnd < expectedStopLength) {
 						return DoRetry(instance, actualStopPosition);
 					}
 				}
@@ -468,7 +507,7 @@ namespace TS3AudioBot.Audio
 			{
 				Closed = true;
 				Log.Trace($"Ffmpeg process {FfmpegProcess.Id} exited, output:\n{errorLogStringBuilder}");
-				
+
 				try
 				{
 					if (!FfmpegProcess.HasExitedSafe())
@@ -490,7 +529,7 @@ namespace TS3AudioBot.Audio
 
 				if (sender != FfmpegProcess)
 					throw new InvalidOperationException("Wrong process associated to event");
-				
+
 				errorLogStringBuilder.AppendLine(e.Data);
 
 				if (!ParsedSongLength.HasValue)

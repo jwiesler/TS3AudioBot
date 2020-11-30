@@ -119,6 +119,10 @@ namespace TS3AudioBot.ResourceFactories
 			return new AudioResource(ResourceId, ResourceTitle, AudioType, AdditionalData, TitleIsUserSet, gain);
 		}
 
+		public AudioResource WithNewAdditionalData() {
+			return new AudioResource(ResourceId, ResourceTitle, AudioType, new Dictionary<string, string>(), TitleIsUserSet, Gain);
+		}
+
 		protected bool Equals(AudioResource other) {
 			return base.Equals(other) && Equals(AdditionalData, other.AdditionalData);
 		}
