@@ -393,7 +393,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 					Log.Trace("Result: abr={0} acodec={1} vcodec={2} url={3}", f.abr, f.acodec, f.vcodec, f.url);
 				}
 			}
-			Log.Trace("Using version with {0}kbit/s", formats[0]?.abr);
+			Log.Trace("Using {0} codec with {1}kbit/s", formats[0]?.acodec, formats[0]?.abr);
 
 			// Resource is broken
 			if (string.IsNullOrEmpty(url)) {
@@ -410,7 +410,7 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 
 			if (resource.ResourceTitle == null)
 				resource = resource.WithTitle(StringNormalize.Normalize(response.title) ?? $"Youtube-{resource.ResourceId}");
-			
+
 
 			Log.Debug("youtube-dl succeeded!");
 			return new PlayResource(url, resource);
