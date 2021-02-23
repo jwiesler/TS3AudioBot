@@ -1179,7 +1179,10 @@ namespace TS3AudioBot
 					playlistManager.ChangeItemAtDeep(id, index, resource.WithGain(value)).UnwrapThrow();
 					gain = value;
 				} else {
-					gain = resource.Gain;
+					throw new CommandException(
+						"Could not set gain: Failed to retrieve the resource from the resource database.",
+						CommandExceptionReason.CommandError
+					);
 				}
 			}
 

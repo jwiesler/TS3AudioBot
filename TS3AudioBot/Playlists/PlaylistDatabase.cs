@@ -48,7 +48,7 @@ namespace TS3AudioBot.Playlists {
 			if (!ContainingListInstances.ContainsKey(list))
 				throw new ArgumentException();
 			ContainingListInstances[list] = offset;
-		} 
+		}
 
 		public bool IsContainedIn(DatabasePlaylist list) { return ContainingListInstances.ContainsKey(list); }
 
@@ -58,7 +58,7 @@ namespace TS3AudioBot.Playlists {
 
 		public bool IsContainedInAList => ContainingListInstances.Count > 0;
 	}
-	
+
 	public class DatabasePlaylist : PlaylistEditorsBase, IPlaylist {
 		public string Id { get; }
 		public List<UniqueResourceInfo> InfoItems { get; }
@@ -160,7 +160,7 @@ namespace TS3AudioBot.Playlists {
 		private readonly IPlaylistIO io;
 		private readonly Dictionary<string, DatabasePlaylist> playlistCache = new Dictionary<string, DatabasePlaylist>(16);
 		private readonly PlaylistResourcesDatabase resourcesDatabase = new PlaylistResourcesDatabase();
-		
+
 		public object Lock { get; } = new object();
 
 		public class PlaylistEditor {
@@ -217,11 +217,12 @@ namespace TS3AudioBot.Playlists {
 			// O(log d)
 			public bool ChangeItemAt(int index, AudioResource resource) {
 				var item = playlist.InfoItems[index];
-				if (Equals(item.Resource, resource))
+				if (item.Resource.Equals(resource))
 					return true;
 
 				if (!database.resourcesDatabase.GetOrCreateForListItem(resource, playlist, index, out var info))
 					return false;
+
 				database.resourcesDatabase.RemoveListFromItem(playlist, item);
 				playlist.InfoItems[index] = info;
 				return true;

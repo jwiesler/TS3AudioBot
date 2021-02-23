@@ -170,9 +170,9 @@ namespace TS3AudioBot.Audio
 			}
 
 			if (gain == 0) {
-				Log.Error("No gain needed.");
+				Log.Info("No gain needed.");
 			} else {
-				Log.Error(
+				Log.Info(
 					$"Detected gain: {gain} dB." +
 					$" This will clip {samplesClipped} samples" +
 					$" ({millisecondsClipped} ms), which is {samplesClipped / (float) numSamples * 100:0.00}%" +

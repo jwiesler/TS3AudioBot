@@ -8,6 +8,7 @@
 // program. If not, see <https://opensource.org/licenses/OSL-3.0>.
 
 using System;
+using System.Linq;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.ResourceFactories;
@@ -22,6 +23,8 @@ namespace TS3AudioBot.Playlists
 		private readonly PlaylistDatabase database;
 		private readonly ResourceSearch resourceSearch;
 		public object Lock => database.Lock;
+		public int UniqueCount => database.UniqueResources.Count();
+		public int Count => database.UniqueResources.Select(r => r.ContainingLists.Count()).Sum();
 
 		public PlaylistManager(PlaylistDatabase database, ResourceSearch resourceSearch) {
 			this.database = database;
@@ -58,7 +61,7 @@ namespace TS3AudioBot.Playlists
 				return checkName;
 			if (!database.CreatePlaylist(listId, owner))
 				return new LocalStr($"Playlist {listId} already exists");
-			
+
 			return R.Ok;
 		}
 

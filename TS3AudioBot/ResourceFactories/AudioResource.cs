@@ -90,7 +90,9 @@ namespace TS3AudioBot.ResourceFactories
 		[JsonConstructor]
 		public AudioResource(
 			string resourceId, string resourceTitle = null, string audioType = null,
-			Dictionary<string, string> additionalData = null, bool? titleIsUserSet = null, int? gain = null) : base(resourceId, resourceTitle, audioType) {
+			Dictionary<string, string> additionalData = null,
+			bool? titleIsUserSet = null, int? gain = null
+		) : base(resourceId, resourceTitle, audioType) {
 			AdditionalData = additionalData;
 			TitleIsUserSet = titleIsUserSet;
 			Gain = gain;
@@ -101,6 +103,15 @@ namespace TS3AudioBot.ResourceFactories
 			if (AdditionalData == null)
 				return null;
 			return AdditionalData.TryGetValue(key, out var value) ? value : null;
+		}
+
+		public AudioResource DeepCopy() {
+			return new AudioResource(
+				ResourceId, ResourceTitle, AudioType,
+				AdditionalData != null ? new Dictionary<string, string>(AdditionalData) : null,
+				TitleIsUserSet,
+				Gain
+			);
 		}
 
 		public AudioResource WithTitle(string newInfoTitle) {
@@ -123,25 +134,50 @@ namespace TS3AudioBot.ResourceFactories
 			return new AudioResource(ResourceId, ResourceTitle, AudioType, new Dictionary<string, string>(), TitleIsUserSet, Gain);
 		}
 
-		protected bool Equals(AudioResource other) {
-			return base.Equals(other) && Equals(AdditionalData, other.AdditionalData);
-		}
-
-		public bool ReallyEquals(AudioResource other) { return Equals(other) && Gain == other.Gain && TitleIsUserSet == other.TitleIsUserSet; }
-
-		public override bool Equals(object obj) {
-			if (ReferenceEquals(null, obj)) return false;
-			if (ReferenceEquals(this, obj)) return true;
-			if (obj.GetType() != this.GetType()) return false;
-			return Equals((AudioResource) obj);
-		}
-
-		public override int GetHashCode() {
-			unchecked {
-				int hashCode = base.GetHashCode();
-				hashCode = (hashCode * 397) ^ (AdditionalData != null ? AdditionalData.GetHashCode() : 0);
-				return hashCode;
+		public bool ReallyEquals(AudioResource other) {
+			if (ReferenceEquals(null, other)) {
+				return false;
 			}
+
+			if (ReferenceEquals(this, other)) {
+				return true;
+			}
+
+			if (!Equals(other) || Gain != other.Gain || TitleIsUserSet != other.TitleIsUserSet) {
+				return false;
+			}
+
+			if (AdditionalData == null && other.AdditionalData != null) {
+				return false;
+			}
+
+			if (AdditionalData != null && other.AdditionalData == null) {
+				return false;
+			}
+
+			// Both are null (see checks above). If I use &&, static code analysis is unhappy for some weird reason.
+			if (AdditionalData == null || other.AdditionalData == null) {
+				return true;
+			}
+
+			if (AdditionalData.Count != other.AdditionalData.Count) {
+				return false;
+			}
+
+			if (new HashSet<string>(AdditionalData.Keys).Equals(new HashSet<string>(other.AdditionalData.Keys))) {
+				// Key sets are not the same.
+				return false;
+			}
+
+			foreach (var key in AdditionalData.Keys) {
+				if (AdditionalData[key] != other.AdditionalData[key]) {
+					// There is a key-value-pair that does not match.
+					return false;
+				}
+			}
+
+			// No need to compare values in the other direction as the key sets are the same.
+			return true;
 		}
 	}
 }
