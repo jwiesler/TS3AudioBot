@@ -1517,12 +1517,19 @@ namespace TS3AudioBot
 		[Usage("<sec>", "Time in seconds")]
 		[Usage("<min:sec>", "Time in Minutes:Seconds")]
 		[Usage("<0h0m0s>", "Time in hours, minutes and seconds")]
-		public static void CommandSeek(Player playerConnection, TimeSpan position)
+		public static void CommandSeek(Player playerConnection, PlayManager playManager, TimeSpan position)
 		{
 			//if (!parsed)
 			//	throw new CommandException(strings.cmd_seek_invalid_format, CommandExceptionReason.CommandError);
 			if (position < TimeSpan.Zero || position > playerConnection.Length)
 				throw new CommandException(strings.cmd_seek_out_of_range, CommandExceptionReason.CommandError);
+
+			if (playManager.CurrentPlayData != null && playManager.CurrentPlayData.ResourceData.AudioType == "spotify") {
+				throw new CommandException(
+					"Seeking is not supported for spotify songs.",
+					CommandExceptionReason.CommandError
+				);
+			}
 
 			playerConnection.Position = position;
 		}

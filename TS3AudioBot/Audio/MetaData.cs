@@ -24,6 +24,7 @@ namespace TS3AudioBot.Audio
 			ResourceOwnerUid = resourceOwnerUid;
 			ContainingPlaylistId = containingPlaylistId;
 			StartOffset = startOffset;
+
 		}
 
 		public override string ToString() { return $"{ResourceOwnerUid}-{ContainingPlaylistId}@{StartOffset}"; }

@@ -20,6 +20,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
+using TS3AudioBot.Web;
 using TSLib.Audio;
 using TSLib.Helper;
 
@@ -31,7 +32,8 @@ namespace TS3AudioBot.Audio
 		private readonly Id id;
 		private static readonly Regex FindDurationMatcher = new Regex(@"^\s*Duration: (\d+):(\d\d):(\d\d).(\d\d)", Util.DefaultRegexConfig);
 		private static readonly Regex IcyMetadataMatcher = new Regex("((\\w+)='(.*?)';\\s*)+", Util.DefaultRegexConfig);
-		private const string PreLinkConf = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -hide_banner -nostats -threads 1 -i \"";
+		private const string PreLinkReconnectConf = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5";
+		private const string PreLinkConf = "-hide_banner -nostats -threads 1 -i \"";
 		private const string PostLinkConf = "-ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private const string LinkConfIcy = "-hide_banner -nostats -threads 1 -i pipe:0 -ac 2 -ar 48000 -f s16le -acodec pcm_s16le pipe:1";
 		private static readonly Regex FindHistrogramMatcher = new Regex("^.*histogram_(\\d+)db: (\\d+)$", Util.DefaultRegexConfig);
@@ -40,9 +42,10 @@ namespace TS3AudioBot.Audio
 		private const string PreLinkConfDetect = "-hide_banner -nostats -threads 1 -t 180 -i \"";
 		private const string PostLinkConfDetect = "-af volumedetect -f null /dev/null";
 		private static readonly TimeSpan RetryOnDropBeforeEnd = TimeSpan.FromSeconds(10);
-		public event EventHandler<EventArgs> OnSongLengthParsed;
+		public event EventHandler<EventArgs> OnSongLengthSet;
 
 		private readonly ConfToolsFfmpeg config;
+		private readonly LibrespotPlayer librespot;
 
 		public event EventHandler OnSongEnd;
 		public event EventHandler<SongInfoChanged> OnSongUpdated;
@@ -53,10 +56,10 @@ namespace TS3AudioBot.Audio
 		public int Channels { get; } = 2;
 		public int BitsPerSample { get; } = 16;
 
-		public FfmpegProducer(ConfToolsFfmpeg config, Id id)
-		{
+		public FfmpegProducer(ConfToolsFfmpeg config, Id id, LibrespotPlayer librespot) {
 			this.config = config;
 			this.id = id;
+			this.librespot = librespot;
 		}
 
 		public static async Task WaitForExitAsync(Process process, CancellationToken cancellationToken = default)
@@ -104,7 +107,7 @@ namespace TS3AudioBot.Audio
 			{
 				StartInfo = new ProcessStartInfo
 				{
-					FileName = config.Path.Value,
+					FileName = config.FfmpegPath.Value,
 					Arguments = string.Concat(pre, url, "\" ", PostLinkConfDetect),
 					RedirectStandardError = true,
 					UseShellExecute = false,
@@ -183,8 +186,7 @@ namespace TS3AudioBot.Audio
 			return gain;
 		}
 
-		public E<string> AudioStart(string url, string resId, int gain, TimeSpan? startOff = null)
-		{
+		public E<string> AudioStart(string url, int gain, TimeSpan? startOff = null) {
 			return StartFfmpegProcess(url, gain, startOff ?? TimeSpan.Zero);
 		}
 
@@ -328,8 +330,7 @@ namespace TS3AudioBot.Audio
 			return StartFfmpegProcess(lastLink, gain, value);
 		}
 
-		private R<FfmpegInstance, string> StartFfmpegProcess(string url, int gain, TimeSpan? offsetOpt)
-		{
+		private R<FfmpegInstance, string> StartFfmpegProcess(string url, int gain, TimeSpan? offsetOpt) {
 			StopFfmpegProcess();
 			Log.Trace("Start request {0}", url);
 
@@ -337,14 +338,21 @@ namespace TS3AudioBot.Audio
 				Log.Info("Starting stream with {0}dB gain.", gain);
 			}
 
+			// Prepare librespot if necessary and working.
+			TimeSpan? duration = null;
+			var pipeHandleOption = librespot.StreamSongToPipeHandle(url);
+			if (pipeHandleOption.Ok) {
+				(url, duration) = pipeHandleOption.Value;
+			}
+
 			string arguments;
 			var offset = offsetOpt ?? TimeSpan.Zero;
+			var prelinkconf = (url.StartsWith("http") ? PreLinkReconnectConf + " " : "") + PreLinkConf;
 			if (offset > TimeSpan.Zero) {
 				var seek = string.Format(CultureInfo.InvariantCulture, @"-ss {0:hh\:mm\:ss\.fff}", offset);
-				arguments = string.Concat(seek, " ", PreLinkConf, url, gain > 0 ? "\" -af volume=" + gain + "dB " : "\" ", PostLinkConf, " ", seek);
-			}
-			else {
-				arguments = string.Concat(PreLinkConf, url, gain > 0 ? "\" -af volume=" + gain + "dB " : "\" ", PostLinkConf);
+				arguments = string.Concat(seek, " ", prelinkconf, url, gain > 0 ? "\" -af volume=" + gain + "dB " : "\" ", PostLinkConf, " ", seek);
+			} else {
+				arguments = string.Concat(prelinkconf, url, gain > 0 ? "\" -af volume=" + gain + "dB " : "\" ", PostLinkConf);
 			}
 
 			var newInstance = new FfmpegInstance(
@@ -354,9 +362,15 @@ namespace TS3AudioBot.Audio
 					SongPositionOffset = offset
 				},
 				false) {
-				Gain = gain,
-				OnSongLengthParsed = InvokeOnSongLengthParsed
+				Gain = gain
 			};
+
+			if (duration != null) {
+				newInstance.SongLength = duration;
+				InvokeOnSongLengthParsed();
+			} else {
+				newInstance.OnSongLengthSet = InvokeOnSongLengthParsed;
+			}
 
 			return StartFfmpegProcessInternal(newInstance, arguments);
 		}
@@ -412,7 +426,7 @@ namespace TS3AudioBot.Audio
 				{
 					StartInfo = new ProcessStartInfo
 					{
-						FileName = config.Path.Value,
+						FileName = config.FfmpegPath.Value,
 						Arguments = arguments,
 						RedirectStandardOutput = true,
 						RedirectStandardInput = true,
@@ -448,7 +462,7 @@ namespace TS3AudioBot.Audio
 		}
 
 		private void InvokeOnSongLengthParsed() {
-			OnSongLengthParsed?.Invoke(this, EventArgs.Empty);
+			OnSongLengthSet?.Invoke(this, EventArgs.Empty);
 		}
 
 		private void StopFfmpegProcess()
@@ -457,18 +471,17 @@ namespace TS3AudioBot.Audio
 			if (oldInstance != null)
 			{
 				oldInstance.OnMetaUpdated = null;
-				oldInstance.OnSongLengthParsed = null;
+				oldInstance.OnSongLengthSet = null;
 				oldInstance.Close();
 			}
 		}
 
-		private TimeSpan? GetCurrentSongLength()
-		{
+		private TimeSpan? GetCurrentSongLength() {
 			var instance = ffmpegInstance;
 			if (instance is null)
 				return TimeSpan.Zero;
 
-			return instance.ParsedSongLength;
+			return instance.SongLength;
 		}
 
 		public void Dispose()
@@ -484,8 +497,8 @@ namespace TS3AudioBot.Audio
 			public int Gain { get; set; }
 			public bool IsIcyStream { get; }
 			public PreciseAudioTimer AudioTimer { get; }
-			public TimeSpan? ParsedSongLength { get; set; } = null;
-			public Action OnSongLengthParsed;
+			public TimeSpan? SongLength { get; set; } = null;
+			public Action OnSongLengthSet;
 			public Stream IcyStream { get; set; }
 			public int IcyMetaInt { get; set; }
 			public bool Closed { get; set; }
@@ -532,7 +545,7 @@ namespace TS3AudioBot.Audio
 
 				errorLogStringBuilder.AppendLine(e.Data);
 
-				if (!ParsedSongLength.HasValue)
+				if (!SongLength.HasValue)
 				{
 					var match = FindDurationMatcher.Match(e.Data);
 					if (!match.Success)
@@ -542,9 +555,9 @@ namespace TS3AudioBot.Audio
 					int minutes = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
 					int seconds = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
 					int millisec = int.Parse(match.Groups[4].Value, CultureInfo.InvariantCulture) * 10;
-					ParsedSongLength = new TimeSpan(0, hours, minutes, seconds, millisec);
+					SongLength = new TimeSpan(0, hours, minutes, seconds, millisec);
 					Thread.MemoryBarrier();
-					OnSongLengthParsed?.Invoke();
+					OnSongLengthSet?.Invoke();
 				}
 
 				//if (!HasIcyTag && e.Data.AsSpan().TrimStart().StartsWith("icy-".AsSpan()))

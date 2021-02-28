@@ -34,9 +34,8 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 		private string YoutubeProjectId => conf.ApiKey.Value;
 		private readonly ConfResolverYoutube conf;
 
-		public YoutubeResolver(ConfFactories conf)
-		{
-			this.conf = conf.Youtube;
+		public YoutubeResolver(ConfResolverYoutube conf) {
+			this.conf = conf;
 		}
 
 		public string ResolverFor => "youtube";

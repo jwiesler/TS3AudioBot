@@ -54,9 +54,8 @@ namespace TS3AudioBot.Audio
 		public IAudioPassiveConsumer PlayerSink { get; private set; }
 		public event EventHandler OnSongLengthParsed;
 
-		public Player(ConfBot config, Id id)
-		{
-			FfmpegProducer = new FfmpegProducer(config.GetParent().Tools.Ffmpeg, id);
+		public Player(ConfBot config, Id id, LibrespotPlayer librespotPlayer) {
+			FfmpegProducer = new FfmpegProducer(config.GetParent().Tools.Ffmpeg, id, librespotPlayer);
 			WebSocketPipe = new WebSocketPipe(config.WebSocket);
 			StallCheckPipe = new StallCheckPipe();
 			VolumePipe = new VolumePipe();
@@ -73,7 +72,7 @@ namespace TS3AudioBot.Audio
 			MergePipe.Into(TimePipe).Chain<CheckActivePipe>().Chain(SplitterPipe);
 			SplitterPipe.Chain(EncoderPipeHighQuality).Chain(WebSocketPipe);
 			SplitterPipe.Chain(StallCheckPipe).Chain(VolumePipe).Chain(EncoderPipe);
-			FfmpegProducer.OnSongLengthParsed += (sender, args) => OnSongLengthParsed?.Invoke(sender, args);
+			FfmpegProducer.OnSongLengthSet += (sender, args) => OnSongLengthParsed?.Invoke(sender, args);
 		}
 
 		public void SetTarget(IAudioPassiveConsumer target)
@@ -98,7 +97,7 @@ namespace TS3AudioBot.Audio
 			if (res is MediaPlayResource mres && mres.IsIcyStream)
 				result = FfmpegProducer.AudioStartIcy(res.PlayUri);
 			else
-				result = FfmpegProducer.AudioStart(res.PlayUri, res.BaseData.ResourceId, gain, res.Meta?.StartOffset);
+				result = FfmpegProducer.AudioStart(res.PlayUri, gain, res.Meta?.StartOffset);
 
 			if (result)
 				Play(FfmpegProducer);

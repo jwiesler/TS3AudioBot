@@ -95,6 +95,7 @@ namespace TS3AudioBot
 			builder.AddModule(new TsFullClient());
 			builder.RequestModule<TsBaseFunctions, TsFullClient>();
 			builder.RequestModule<Ts3Client>();
+			builder.RequestModule<LibrespotPlayer>();
 			builder.RequestModule<Player>();
 			builder.RequestModule<CustomTargetPipe>();
 			builder.RequestModule<IVoiceTarget, CustomTargetPipe>();

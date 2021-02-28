@@ -56,8 +56,7 @@ namespace TS3AudioBot
 			Console.CancelKeyPress += core.ConsoleInterruptHandler;
 
 			var initResult = core.Run(setup);
-			if (!initResult)
-			{
+			if (!initResult) {
 				Log.Error("Core initialization failed: {0}", initResult.Error);
 				core.Dispose();
 			}
@@ -101,8 +100,10 @@ namespace TS3AudioBot
 			builder.RequestModule<TokenManager>();
 			builder.RequestModule<CommandManager>();
 			builder.AddModule(config.Factories);
+			builder.RequestModule<SpotifyApi>();
 			builder.RequestModule<ResourceResolver>();
 			builder.RequestModule<Stats>();
+			builder.AddModule(config.Tools.Librespot);
 
 			if (!builder.Build())
 			{

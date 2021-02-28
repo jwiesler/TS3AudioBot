@@ -56,8 +56,7 @@ namespace TS3AudioBot.Config
 			"The path to the database file for persistent data.");
 	}
 
-	public class ConfFactories : ConfigTable
-	{
+	public class ConfFactories : ConfigTable {
 		public ConfPath Media { get; } = Create<ConfPath>("media",
 			"The default path to look for local resources.");
 		public ConfResolverYoutube Youtube = Create<ConfResolverYoutube>("youtube");
@@ -74,19 +73,36 @@ namespace TS3AudioBot.Config
 			"This feature is unsupported and may break at any time");
 	}
 
+	public class ConfSpotify : ConfigTable {
+		public ConfigValue<string> SpotifyAPIClientId { get; } = new ConfigValue<string>("spotify-api-client-id", string.Empty);
+		public ConfigValue<string> SpotifyAPIClientSecret { get; } = new ConfigValue<string>("spotify-api-client-secret", string.Empty);
+		public ConfigValue<string> SpotifyAccessToken { get; set; } = new ConfigValue<string>("spotify-api-access-token", string.Empty, "You are not supposed to fill this yourself. Start the bot to get instructions!");
+		public ConfigValue<string> SpotifyRefreshToken { get; set; } = new ConfigValue<string>("spotify-api-refresh-token", string.Empty, "You are not supposed to fill this yourself. Start the bot to get instructions!");
+	}
+
+	public class ConfLibrespot : ConfigTable {
+		public ConfigValue<string> LibrespotPath { get; } = new ConfigValue<string>("librespot-path", string.Empty);
+		public ConfigValue<string> LibrespotUser { get; } = new ConfigValue<string>("librespot-user", string.Empty);
+		public ConfigValue<string> LibrespotPassword { get; } = new ConfigValue<string>("librespot-pw", string.Empty);
+		public ConfigValue<string> LibrespotDeviceName { get; } = new ConfigValue<string>("librespot-device-name", "TS3AudioBot");
+	}
+
 	public class ConfTools : ConfigTable
 	{
 		// youtube-dl can be empty by default as we make some thorough lookups.
 		public ConfPath YoutubeDl { get; } = Create<ConfPath>("youtube-dl",
 			"Path to the youtube-dl binary or local git repository.");
-		public ConfToolsFfmpeg Ffmpeg { get; } = Create<ConfToolsFfmpeg>("ffmpeg",
-			"The path to ffmpeg.");
-		//public ConfPath Ffprobe { get; } = Create<ConfPath>("ffprobe");
+		public ConfToolsFfmpeg Ffmpeg { get; } = Create<ConfToolsFfmpeg>("ffmpeg", "The path to ffmpeg.");
+		public ConfSpotify Spotify { get; } =
+			Create<ConfSpotify>("spotify", "Configuration for accessing the spotify API.");
+
+		public ConfLibrespot Librespot { get; } =
+			Create<ConfLibrespot>("librespot", "Configuration for streaming from spotify.");
 	}
 
 	public class ConfToolsFfmpeg : ConfigTable
 	{
-		public ConfigValue<string> Path { get; } = new ConfigValue<string>("path", "ffmpeg");
+		public ConfigValue<string> FfmpegPath { get; } = new ConfigValue<string>("ffmpeg-path", "ffmpeg");
 	}
 
 	public class ConfRights : ConfigTable

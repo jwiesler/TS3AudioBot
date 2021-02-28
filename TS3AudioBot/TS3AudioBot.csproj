@@ -70,6 +70,8 @@
     <PackageReference Include="Nett" Version="0.15.0" />
     <PackageReference Include="PlaylistsNET" Version="1.0.5" />
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-beta0007" />
+    <PackageReference Include="SpotifyAPI.Web" Version="6.0.0" />
+    <PackageReference Include="SpotifyAPI.Web.Auth" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

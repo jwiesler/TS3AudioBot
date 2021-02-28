@@ -993,4 +993,10 @@ with the id {1}?</value>
   <data name="error_ts_code_781" xml:space="preserve">
     <value>Invalid channel password.</value>
   </data>
+  <data name="login_to_spotify_using_this_url" xml:space="preserve">
+    <value>Please open this URL in your local browser: {0}</value>
+  </data>
+  <data name="copy_redirect_url_here" xml:space="preserve">
+    <value>After authorizing with spotify and getting redirected to an empty page, copy the URL from your browser URL bar here: </value>
+  </data>
 </root>

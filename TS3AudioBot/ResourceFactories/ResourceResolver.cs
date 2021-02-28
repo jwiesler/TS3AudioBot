@@ -13,11 +13,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using TS3AudioBot.Audio;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Playlists;
 using TS3AudioBot.ResourceFactories.Youtube;
+using TS3AudioBot.Web;
 using TSLib;
 
 namespace TS3AudioBot.ResourceFactories
@@ -31,13 +33,14 @@ namespace TS3AudioBot.ResourceFactories
 		private readonly List<IResourceResolver> resResolvers = new List<IResourceResolver>();
 		private readonly List<ISearchResolver> searchResolvers = new List<ISearchResolver>();
 
-		public ResourceResolver(ConfFactories conf)
+		public ResourceResolver(ConfFactories conf, SpotifyApi spotifyApi)
 		{
 			AddResolver(new MediaResolver());
-			AddResolver(new YoutubeResolver(conf));
+			AddResolver(new YoutubeResolver(conf.Youtube));
 			AddResolver(new SoundcloudResolver());
 			AddResolver(new TwitchResolver());
 			AddResolver(new BandcampResolver());
+			AddResolver(new SpotifyResolver(spotifyApi));
 		}
 
 		private T GetResolverByType<T>(string audioType) where T : class, IResolver =>
@@ -80,8 +83,7 @@ namespace TS3AudioBot.ResourceFactories
 		/// <param name="resource">An <see cref="AudioResource"/> with at least
 		/// <see cref="AudioResource.AudioType"/> and<see cref="AudioResource.ResourceId"/> set.</param>
 		/// <returns>The playable resource if successful, or an error message otherwise.</returns>
-		public R<PlayResource, LocalStr> Load(ResolveContext ctx, AudioResource resource)
-		{
+		public R<PlayResource, LocalStr> Load(ResolveContext ctx, AudioResource resource) {
 			if (resource is null)
 				throw new ArgumentNullException(nameof(resource));
 
@@ -91,13 +93,14 @@ namespace TS3AudioBot.ResourceFactories
 
 			var sw = Stopwatch.StartNew();
 			R<PlayResource, LocalStr> result;
-			try
-			{
+			try {
 				result = resolver.GetResourceById(ctx, resource);
-			}
-			catch (Exception ex)
-			{
-				Log.Error(ex, "Resource resolver '{0}' threw while trying to resolve '{@resource}'", resolver.ResolverFor, resource);
+			} catch (Exception ex) {
+				Log.Error(
+					ex,
+					"Resource resolver '{0}' threw while trying to resolve '{@resource}'",
+					resolver.ResolverFor, resource
+				);
 				return CouldNotLoad(strings.error_playmgr_internal_error);
 			}
 			if (!result.Ok)
