@@ -61,7 +61,7 @@ namespace TS3AudioBot.Audio
 			VolumePipe = new VolumePipe();
 			Volume = config.Audio.Volume.Default;
 			EncoderPipe = new EncoderPipe(SendCodec) { Bitrate = ScaleBitrate(config.Audio.Bitrate) };
-			EncoderPipeHighQuality = new EncoderPipe(Codec.OpusMusic) { Bitrate = 192000 };
+			EncoderPipeHighQuality = new EncoderPipe(Codec.OpusMusic) { Bitrate = 320000 };
 			TimePipe = new PreciseTimedPipe { ReadBufferSize = EncoderPipe.PacketSize };
 			TimePipe.Initialize(EncoderPipe, id);
 			MergePipe = new PassiveMergePipe();
