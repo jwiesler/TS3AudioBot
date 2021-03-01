@@ -432,15 +432,22 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			return rc;
 		}
 
-		public R<Stream, LocalStr> GetThumbnail(ResolveContext _, PlayResource playResource)
-		{
+		public R<Stream, LocalStr> GetThumbnail(ResolveContext ctx, PlayResource playResource) {
+			var urlOption = GetThumbnailUrl(ctx, playResource);
+			if (!urlOption.Ok) {
+				return urlOption.Error;
+			}
+
+			return WebWrapper.GetResponseUnsafe(urlOption.Value);
+		}
+
+		public R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource) {
 			// default  :  120px/ 90px /default.jpg
 			// medium   :  320px/180px /mqdefault.jpg
 			// high     :  480px/360px /hqdefault.jpg
 			// standard :  640px/480px /sddefault.jpg
 			// maxres   : 1280px/720px /maxresdefault.jpg
-			var imgurl = new Uri($"https://i.ytimg.com/vi/{playResource.BaseData.ResourceId}/mqdefault.jpg");
-			return WebWrapper.GetResponseUnsafe(imgurl);
+			return new Uri($"https://i.ytimg.com/vi/{playResource.BaseData.ResourceId}/mqdefault.jpg");
 		}
 
 		public R<IList<AudioResource>, LocalStr> Search(ResolveContext _, string keyword)

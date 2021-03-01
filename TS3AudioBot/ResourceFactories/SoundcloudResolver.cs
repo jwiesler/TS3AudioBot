@@ -154,8 +154,16 @@ namespace TS3AudioBot.ResourceFactories
 			return plist;
 		}
 
-		public R<Stream, LocalStr> GetThumbnail(ResolveContext _, PlayResource playResource)
-		{
+		public R<Stream, LocalStr> GetThumbnail(ResolveContext ctx, PlayResource playResource) {
+			var urlOption = GetThumbnailUrl(ctx, playResource);
+			if (!urlOption.Ok) {
+				return urlOption.Error;
+			}
+
+			return WebWrapper.GetResponseUnsafe(urlOption.Value);
+		}
+
+		public R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource) {
 			var uri = new Uri($"https://api.soundcloud.com/tracks/{playResource.BaseData.ResourceId}?client_id={SoundcloudClientId}");
 			if (!WebWrapper.DownloadString(out string jsonResponse, uri))
 				return new LocalStr(strings.error_net_no_connection);
@@ -170,11 +178,10 @@ namespace TS3AudioBot.ResourceFactories
 			// t500x500: 500px×500px
 			// crop    : 400px×400px
 			// t300x300: 300px×300px
-			// large   : 100px×100px 
+			// large   : 100px×100px
 			imgUrl = imgUrl.Replace("-large", "-t300x300");
 
-			var imgurl = new Uri(imgUrl);
-			return WebWrapper.GetResponseUnsafe(imgurl);
+			return new Uri(imgUrl);
 		}
 
 		public void Dispose() { }

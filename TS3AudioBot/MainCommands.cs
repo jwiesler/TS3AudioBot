@@ -357,6 +357,20 @@ namespace TS3AudioBot
 				return false;
 			});
 
+		[Command("data song coverurl get", "_undocumented")]
+		public static Uri CommandDataCoverUrl(ResolveContext resourceFactory, PlayManager playManager) {
+			var cur = playManager.CurrentPlayData;
+			if (cur == null)
+				throw new CommandException("Nothing playing right now...", CommandExceptionReason.CommandError);
+
+			var urlOption = resourceFactory.GetThumbnailUrl(cur.PlayResource);
+			if (!urlOption.Ok) {
+				throw new CommandException(urlOption.Error.ToString(), CommandExceptionReason.CommandError);
+			}
+
+			return urlOption.Value;
+		}
+
 		[Command("eval")]
 		[Usage("<command> <arguments...>", "Executes the given command on arguments")]
 		[Usage("<strings...>", "Concat the strings and execute them with the command system")]

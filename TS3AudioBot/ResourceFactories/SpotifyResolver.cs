@@ -38,6 +38,15 @@ namespace TS3AudioBot.ResourceFactories {
 		}
 
 		public R<Stream, LocalStr> GetThumbnail(ResolveContext ctx, PlayResource playResource) {
+			var urlOption = GetThumbnailUrl(ctx, playResource);
+			if (!urlOption.Ok) {
+				return urlOption.Error;
+			}
+
+			return WebWrapper.GetResponseUnsafe(urlOption.Value);
+		}
+
+		public R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource) {
 			var trackId = SpotifyApi.UriToTrackId(playResource.BaseData.ResourceId);
 			if (!trackId.Ok) {
 				return trackId.Error;
@@ -48,9 +57,7 @@ namespace TS3AudioBot.ResourceFactories {
 				return response.Error;
 			}
 
-			return WebWrapper.GetResponseUnsafe(
-				response.Value.Album.Images.OrderByDescending(item => item.Height).ToList()[0].Url
-			);
+			return new Uri(response.Value.Album.Images.OrderByDescending(item => item.Height).ToList()[0].Url);
 		}
 
 		public void Dispose() {

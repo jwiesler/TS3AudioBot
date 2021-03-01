@@ -40,6 +40,7 @@ namespace TS3AudioBot.ResourceFactories
 		public R<Playlist, LocalStr> LoadPlaylistFrom(string message, Uid owner, string audioType = null) => Resolver.LoadPlaylistFrom(this, message, owner, audioType);
 		public R<string, LocalStr> RestoreLink(AudioResource res) => Resolver.RestoreLink(this, res);
 		public R<Stream, LocalStr> GetThumbnail(PlayResource playResource) => Resolver.GetThumbnail(this, playResource);
+		public R<Uri, LocalStr> GetThumbnailUrl(PlayResource playResource) => Resolver.GetThumbnailUrl(this, playResource);
 		public R<IList<AudioResource>, LocalStr> Search(string resolverName, string query) => Resolver.Search(this, resolverName, query);
 	}
 }

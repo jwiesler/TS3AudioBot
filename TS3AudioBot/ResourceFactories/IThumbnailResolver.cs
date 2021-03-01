@@ -16,5 +16,6 @@ namespace TS3AudioBot.ResourceFactories
 	public interface IThumbnailResolver : IResolver
 	{
 		R<Stream, LocalStr> GetThumbnail(ResolveContext ctx, PlayResource playResource);
+		R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource);
 	}
 }

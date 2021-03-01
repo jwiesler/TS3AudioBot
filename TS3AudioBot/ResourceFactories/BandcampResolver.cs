@@ -110,8 +110,16 @@ namespace TS3AudioBot.ResourceFactories
 			return webSite;
 		}
 
-		public R<Stream, LocalStr> GetThumbnail(ResolveContext _, PlayResource playResource)
-		{
+		public R<Stream, LocalStr> GetThumbnail(ResolveContext ctx, PlayResource playResource) {
+			var urlOption = GetThumbnailUrl(ctx, playResource);
+			if (!urlOption.Ok) {
+				return urlOption.Error;
+			}
+
+			return WebWrapper.GetResponseUnsafe(urlOption.Value);
+		}
+
+		public R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource) {
 			string artId;
 			if (playResource is BandcampPlayResource bandcampPlayResource)
 			{
@@ -146,8 +154,7 @@ namespace TS3AudioBot.ResourceFactories
 			// 15 :  135px/ 135px
 			// 16 :  700px/ 700px
 			// 42 :   50px/  50px / supporter
-			var imgurl = new Uri($"https://f4.bcbits.com/img/a{artId}_4.jpg");
-			return WebWrapper.GetResponseUnsafe(imgurl);
+			return new Uri($"https://f4.bcbits.com/img/a{artId}_4.jpg");
 		}
 
 		private static string GetTrackArtId(string site)

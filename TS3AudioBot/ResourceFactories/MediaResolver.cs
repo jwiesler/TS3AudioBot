@@ -59,7 +59,7 @@ namespace TS3AudioBot.ResourceFactories
 
 			if (resource.ResourceTitle == null)
 				resource = resource.WithTitle(!string.IsNullOrWhiteSpace(resData.Title) ? StringNormalize.Normalize(resData.Title) : resource.ResourceId);
-			
+
 			return new MediaPlayResource(resData.FullUri, resource, resData.Image, false);
 		}
 
@@ -366,6 +366,10 @@ namespace TS3AudioBot.ResourceFactories
 				return new LocalStr(strings.error_media_image_not_found);
 
 			return new MemoryStream(rawImgData);
+		}
+
+		public R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource) {
+			throw new NotImplementedException();
 		}
 
 		public void Dispose() { }

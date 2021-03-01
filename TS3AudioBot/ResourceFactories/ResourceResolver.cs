@@ -205,6 +205,18 @@ namespace TS3AudioBot.ResourceFactories
 			return result;
 		}
 
+		public R<Uri, LocalStr> GetThumbnailUrl(ResolveContext ctx, PlayResource playResource)
+		{
+			var resolver = GetResolverByType<IThumbnailResolver>(playResource.BaseData.AudioType);
+			if (resolver is null)
+				return new LocalStr(string.Format(strings.error_resfac_no_registered_factory, playResource.BaseData.AudioType));
+
+			var sw = Stopwatch.StartNew();
+			var result = resolver.GetThumbnailUrl(ctx, playResource);
+			Log.Debug("Took {0}ms to load thumbnail.", sw.ElapsedMilliseconds);
+			return result;
+		}
+
 		public R<IList<AudioResource>, LocalStr> Search(ResolveContext ctx, string resolverName, string query)
 		{
 			var resolver = GetResolverByType<ISearchResolver>(resolverName);
