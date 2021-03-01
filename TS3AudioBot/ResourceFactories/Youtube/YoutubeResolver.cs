@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
@@ -447,7 +448,34 @@ namespace TS3AudioBot.ResourceFactories.Youtube
 			// high     :  480px/360px /hqdefault.jpg
 			// standard :  640px/480px /sddefault.jpg
 			// maxres   : 1280px/720px /maxresdefault.jpg
-			return new Uri($"https://i.ytimg.com/vi/{playResource.BaseData.ResourceId}/mqdefault.jpg");
+
+			IList<string> names = new List<string> {
+				"maxresdefault.jpg",
+				"sddefault.jpg",
+				"hqdefault.jpg",
+				"mqdefault.jpg",
+				"default.jpg"
+			};
+
+			Uri workingUrl = null;
+			foreach (var name in names) {
+				var tentativeUrl = new Uri($"https://i.ytimg.com/vi/{playResource.BaseData.ResourceId}/{name}");
+				var request = WebRequest.CreateHttp(tentativeUrl);
+				request.Method = "HEAD";
+				try {
+					request.GetResponse();
+					workingUrl = tentativeUrl;
+					break;
+				} catch (WebException) {
+					// Apparently offline.
+				}
+			}
+
+			if (workingUrl == null) {
+				return new LocalStr("No working thumbnail URL found.");
+			}
+
+			return workingUrl;
 		}
 
 		public R<IList<AudioResource>, LocalStr> Search(ResolveContext _, string keyword)

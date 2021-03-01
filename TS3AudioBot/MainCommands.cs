@@ -1744,11 +1744,6 @@ namespace TS3AudioBot
 			string playlistId = playManager.CurrentPlayData.MetaData.ContainingPlaylistId;
 			Uid issuerUid = playManager.CurrentPlayData.Invoker.GetValueOrDefault();
 
-			var urlOption = resolver.GetThumbnailUrl(playManager.CurrentPlayData.PlayResource);
-			if (!urlOption.Ok) {
-				throw new CommandException(urlOption.Error.ToString(), CommandExceptionReason.CommandError);
-			}
-
 			return JsonValue.Create(
 				new SongInfo
 				{
@@ -1759,8 +1754,7 @@ namespace TS3AudioBot
 					Length = playerConnection.Length,
 					Paused = playerConnection.Paused,
 					PlaylistId = playlistId,
-					IssuerUid = issuerUid.ToString(),
-					ThumbnailUrl = urlOption.Value
+					IssuerUid = issuerUid.ToString()
 				},
 				x =>
 				{
