@@ -1734,7 +1734,7 @@ namespace TS3AudioBot
 		}
 
 		[Command("song")]
-		public static JsonValue<SongInfo> CommandSong(PlayManager playManager, Player playerConnection, TsFullClient ts3FullClient, Bot bot = null, ClientCall invoker = null)
+		public static JsonValue<SongInfo> CommandSong(PlayManager playManager, Player playerConnection, ResolveContext resolver, Bot bot = null, ClientCall invoker = null)
 		{
 			if (playManager.CurrentPlayData is null)
 				throw new CommandException(strings.info_currently_not_playing, CommandExceptionReason.CommandError);
@@ -1743,6 +1743,11 @@ namespace TS3AudioBot
 
 			string playlistId = playManager.CurrentPlayData.MetaData.ContainingPlaylistId;
 			Uid issuerUid = playManager.CurrentPlayData.Invoker.GetValueOrDefault();
+
+			var urlOption = resolver.GetThumbnailUrl(playManager.CurrentPlayData.PlayResource);
+			if (!urlOption.Ok) {
+				throw new CommandException(urlOption.Error.ToString(), CommandExceptionReason.CommandError);
+			}
 
 			return JsonValue.Create(
 				new SongInfo
@@ -1755,6 +1760,7 @@ namespace TS3AudioBot
 					Paused = playerConnection.Paused,
 					PlaylistId = playlistId,
 					IssuerUid = issuerUid.ToString(),
+					ThumbnailUrl = urlOption.Value
 				},
 				x =>
 				{

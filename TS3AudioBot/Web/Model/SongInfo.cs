@@ -26,5 +26,7 @@ namespace TS3AudioBot.Web.Model
 		public string IssuerUid { get; set; }
 		[JsonProperty(PropertyName = "IssuerName")]
 		public string IssuerName { get; set; }
+		[JsonProperty(PropertyName = "ThumbnailUrl")]
+		public Uri ThumbnailUrl { get; set; }
 	}
 }
