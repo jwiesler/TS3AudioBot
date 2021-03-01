@@ -33,7 +33,7 @@ namespace TSLib.Audio
 		private byte[] notEncodedBuffer = Array.Empty<byte>();
 		private int notEncodedLength;
 		// https://tools.ietf.org/html/rfc6716#section-3.2.1
-		private const int max_encoded_size = 255 * 4 + 255;
+		private const int max_encoded_size = 10000;
 		private readonly byte[] encodedBuffer = new byte[max_encoded_size];
 
 		public EncoderPipe(Codec codec)
