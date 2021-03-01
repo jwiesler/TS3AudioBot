@@ -667,7 +667,7 @@ with the id {1}?</value>
     <value>Cleanup done!</value>
   </data>
   <data name="info_currently_not_playing" xml:space="preserve">
-    <value>There is nothing on right now...</value>
+    <value>There is nothing playing right now...</value>
   </data>
   <data name="info_currently_playing" xml:space="preserve">
     <value>Now playing: {0}</value>

@@ -361,7 +361,7 @@ namespace TS3AudioBot
 		public static Uri CommandDataCoverUrl(ResolveContext resourceFactory, PlayManager playManager) {
 			var cur = playManager.CurrentPlayData;
 			if (cur == null)
-				throw new CommandException("Nothing playing right now...", CommandExceptionReason.CommandError);
+				throw new CommandException(strings.info_currently_not_playing, CommandExceptionReason.CommandError);
 
 			var urlOption = resourceFactory.GetThumbnailUrl(cur.PlayResource);
 			if (!urlOption.Ok) {
@@ -369,6 +369,15 @@ namespace TS3AudioBot
 			}
 
 			return urlOption.Value;
+		}
+
+		[Command("data song uniqueid get", "_undocumented")]
+		public static string CommandDataSongId(PlayManager playManager) {
+			var cur = playManager.CurrentPlayData;
+			if (cur == null)
+				throw new CommandException(strings.info_currently_not_playing, CommandExceptionReason.CommandError);
+
+			return cur.ResourceData.UniqueId;
 		}
 
 		[Command("eval")]
