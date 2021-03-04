@@ -340,8 +340,13 @@ namespace TS3AudioBot.Audio
 
 			// Prepare librespot if necessary and working.
 			TimeSpan? duration = null;
-			var pipeHandleOption = librespot.StreamSongToPipeHandle(url);
-			if (pipeHandleOption.Ok) {
+
+			if (SpotifyApi.UriToTrackId(url).Ok) {
+				var pipeHandleOption = librespot.StreamSongToPipeHandle(url);
+				if (!pipeHandleOption.Ok) {
+					return pipeHandleOption.Error.ToString();
+				}
+
 				(url, duration) = pipeHandleOption.Value;
 			}
 
