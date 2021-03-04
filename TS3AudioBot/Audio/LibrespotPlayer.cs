@@ -37,6 +37,13 @@ namespace TS3AudioBot.Audio {
 		private static readonly Regex BadAuthMatcher = new Regex("Bad credentials$");
 		private static readonly Regex GoodAuthMatcher = new Regex("librespot_core::session.*Authenticated as");
 
+		private static readonly ByteSizeFormatter byteSizeFormatter = new ByteSizeFormatter {
+			Convention = ByteSizeConvention.Binary,
+			DecimalPlaces = 2,
+			RoundingRule = ByteSizeRounding.Closest,
+			UseFullWordForBytes = true
+		};
+
 		private readonly SpotifyApi api;
 		private readonly ConfLibrespot conf;
 		private readonly string deviceId;
@@ -137,7 +144,7 @@ namespace TS3AudioBot.Audio {
 					process.Close();
 
 					state = State.Idle;
-					Log.Debug($"{message} Sent {totalBytesSent.Bytes()} bytes in total.");
+					Log.Debug($"{message} Sent {byteSizeFormatter.Format(totalBytesSent)} bytes in total.");
 				}
 
 				var buffer = new byte[BytesPerChunk];
