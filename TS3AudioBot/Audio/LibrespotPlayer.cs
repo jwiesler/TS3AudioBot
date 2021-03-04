@@ -6,6 +6,7 @@ using System.IO.Pipes;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using HumanBytes;
 using SpotifyAPI.Web;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
@@ -136,7 +137,7 @@ namespace TS3AudioBot.Audio {
 					process.Close();
 
 					state = State.Idle;
-					Log.Debug($"{message} Sent {totalBytesSent} bytes in total.");
+					Log.Debug($"{message} Sent {totalBytesSent.Bytes()} bytes in total.");
 				}
 
 				var buffer = new byte[BytesPerChunk];
