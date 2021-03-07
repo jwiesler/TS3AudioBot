@@ -225,19 +225,26 @@ namespace TS3AudioBot.Audio {
 			process.ErrorDataReceived += ParseError;
 			process.BeginErrorReadLine();
 
+			void Exit() {
+				if (!process.HasExitedSafe()) {
+					process.Kill();
+				}
+				process.Close();
+
+				state = State.Idle;
+			}
+
 			// Wait for successful launch of librespot.
 			var stopWatch = new Stopwatch();
 			stopWatch.Start();
 			while (state != State.LibrespotRunning) {
 				if (state == State.LibrespotFailed) {
-					process.Kill();
-					process.Close();
+					Exit();
 					return new LocalStr("Librespot failed to authenticate, check authentication information in the config!");
 				}
 
 				if (stopWatch.Elapsed > StartTimeout) {
-					process.Kill();
-					process.Close();
+					Exit();
 					return new LocalStr($"Librespot did not launch in time. Output:\n{string.Join("\n", output)}");
 				}
 
