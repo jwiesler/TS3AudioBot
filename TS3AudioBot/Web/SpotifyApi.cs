@@ -140,7 +140,7 @@ namespace TS3AudioBot.Web {
 			return task.Result;
 		}
 
-		private E<LocalStr> ResolveRequestTask(Task task, bool refresh = true) {
+		public E<LocalStr> ResolveRequestTask(Task task, bool refresh = true) {
 			try {
 				task.Wait();
 			} catch (AggregateException ae) {

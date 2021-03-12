@@ -1591,6 +1591,31 @@ namespace TS3AudioBot
 			});
 		}
 
+		[Command("searchns from", "_undocumented")] // TODO Doc
+		public static JsonArray<AudioResource> PropagiateSearchSessionless(CallerInfo callerInfo, ResolveContext resolver, string resolverName, string query)
+		{
+			var result = resolver.Search(resolverName, query);
+			var list = result.UnwrapThrow();
+
+			return new JsonArray<AudioResource>(list, searchResults =>
+			{
+				if (searchResults.Count == 0)
+					return strings.cmd_search_no_result;
+
+				var tmb = new TextModBuilder(callerInfo.IsColor);
+				tmb.AppendFormat(
+					strings.cmd_search_header.Mod().Bold(),
+					$"!search play <{strings.info_number}>".Mod().Italic(),
+					$"!search add <{strings.info_number}>".Mod().Italic()).Append("\n");
+				for (int i = 0; i < searchResults.Count; i++)
+				{
+					tmb.AppendFormat("{0}: {1}\n", i.ToString().Mod().Bold(), searchResults[i].ResourceTitle);
+				}
+
+				return tmb.ToString();
+			});
+		}
+
 		[Command("search get", "_undocumented")] // TODO Doc
 		public static void CommandSearchGet(UserSession session, int index)
 			=> session.GetSearchResult(index);

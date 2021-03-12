@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using SpotifyAPI.Web;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
 using TS3AudioBot.Web;
 
 namespace TS3AudioBot.ResourceFactories {
-	public class SpotifyResolver : IResourceResolver, IThumbnailResolver {
+	public class SpotifyResolver : IResourceResolver, IThumbnailResolver, ISearchResolver {
 		public string ResolverFor => "spotify";
+
+		private const int SearchLimit = 1000;
 
 		private readonly SpotifyApi api;
 
@@ -59,6 +63,36 @@ namespace TS3AudioBot.ResourceFactories {
 
 			return new Uri(response.Value.Album.Images.OrderByDescending(item => item.Height).ToList()[0].Url);
 		}
+
+		public R<IList<AudioResource>, LocalStr> Search(ResolveContext ctx, string keyword) {
+			var searchResult = api.Request(() => api.Client.Search.Item(
+				new SearchRequest(SearchRequest.Types.Track, keyword))
+			);
+
+
+			if (!searchResult.Ok) {
+				return searchResult.Error;
+			}
+
+			if (searchResult.Value.Tracks.Total > SearchLimit) {
+				return new LocalStr("Too many search results, please make your search query more specific.");
+			}
+
+			var pagesTask = api.Client.PaginateAll(searchResult.Value.Tracks, (s) => s.Tracks);
+
+			var pagesTaskResolveResult = api.ResolveRequestTask(pagesTask);
+			if (!pagesTaskResolveResult.Ok) {
+				return pagesTaskResolveResult.Error;
+			}
+
+			var result = new List<AudioResource>();
+			foreach (var item in pagesTask.Result) {
+				result.Add(new AudioResource(item.Uri, SpotifyApi.TrackToName(item), ResolverFor));
+			}
+
+			return result;
+		}
+
 
 		public void Dispose() {
 		}
