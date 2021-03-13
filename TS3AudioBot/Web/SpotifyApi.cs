@@ -96,6 +96,14 @@ namespace TS3AudioBot.Web {
 			return uri.Replace(SpotifyTrackUriPrefix, "");
 		}
 
+		public static R<string, LocalStr> UriToUrl(string uri) {
+			if (!uri.Contains(SpotifyTrackUriPrefix)) {
+				return new LocalStr("Invalid spotify track URI.");
+			}
+
+			return "https://open.spotify.com/track/" + uri.Replace(SpotifyTrackUriPrefix, "");
+		}
+
 		public static string TrackToName(FullTrack track) {
 			return $"{string.Join(", ", track.Artists.Select(artist => artist.Name))} - {track.Name}";
 		}

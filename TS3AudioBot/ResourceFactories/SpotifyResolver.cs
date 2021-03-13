@@ -38,7 +38,7 @@ namespace TS3AudioBot.ResourceFactories {
 		}
 
 		public string RestoreLink(ResolveContext ctx, AudioResource resource) {
-			return resource.ResourceId;
+			return SpotifyApi.UriToUrl(resource.ResourceId).OkOr(null);
 		}
 
 		public R<Stream, LocalStr> GetThumbnail(ResolveContext ctx, PlayResource playResource) {
