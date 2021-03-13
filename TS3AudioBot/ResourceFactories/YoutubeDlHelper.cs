@@ -29,7 +29,7 @@ namespace TS3AudioBot.ResourceFactories
 
 		const string ParamGetSingleVideo = " --no-warnings --dump-json --id --";
 		const string ParamGetPlaylist = "--no-warnings --yes-playlist --flat-playlist --dump-single-json --id --";
-		const string ParamGetSearch = "--no-warnings --flat-playlist --dump-single-json -- ytsearch10:";
+		const string ParamGetSearch = "--no-warnings --flat-playlist --dump-single-json -- ytsearch50:";
 
 		public static R<JsonYtdlDump, LocalStr> GetSingleVideo(string id)
 		{
