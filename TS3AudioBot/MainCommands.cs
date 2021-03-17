@@ -813,7 +813,12 @@ namespace TS3AudioBot
 		}
 
 		private static JsonValue<PlaylistSearchResult> MakeResult(int from, ResourceSearchInstance.Result res) {
-			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult { Offset = from, Items = res.Items, Results = res.ConsumedResults, TotalResults = res.TotalResults }, result => {
+			return new JsonValue<PlaylistSearchResult>(new PlaylistSearchResult {
+				Offset = from,
+				Items = res.Items,
+				Results = res.ConsumedResults,
+				TotalResults = res.TotalResults
+			}, result => {
 				StringBuilder builder = new StringBuilder();
 				builder.Append("Found ").Append(result.TotalResults).Append(" result(s).");
 				if (result.Results > result.Items.Count)

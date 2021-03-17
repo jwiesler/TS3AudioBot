@@ -19,6 +19,7 @@ namespace TS3AudioBot.Search {
 			var r = new PlaylistSearchItemInfo();
 			r.ResourceTitle = info.Resource.ResourceTitle;
 			r.ResourceId = info.Resource.ResourceId;
+			r.ResourceType = info.Resource.AudioType;
 			r.ContainingLists = info.ContainingLists.Select(kv => new ContainingListInfo {Id = kv.Key, Index = kv.Value}).ToList();
 			return r;
 		}
@@ -123,7 +124,7 @@ namespace TS3AudioBot.Search {
 			return Task.Run(() => {
 				while (true) {
 					Log.Info($"Rebuilding suffix array (version {version})...");
-					
+
 					var inst = Build(Database);
 					lock (this) {
 						if (version < Version) {

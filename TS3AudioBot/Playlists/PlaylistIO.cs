@@ -63,7 +63,7 @@ namespace TS3AudioBot.Playlists
 	{
 		private readonly ConfBot confBot;
 		private static readonly NLog.Logger Log = NLog.LogManager.GetCurrentClassLogger();
-		
+
 		private const int FileVersion = 3;
 		private readonly object ioLock = new object();
 
@@ -290,7 +290,7 @@ namespace TS3AudioBot.Playlists
 
 				if(RegisterPlaylistId(fi.Name))
 					result.Add((fi.Name, list.Value));
-				
+
 			}
 
 			return result;
@@ -361,7 +361,7 @@ namespace TS3AudioBot.Playlists
 						continue;
 					Log.Error($"Failed to write playlist {listId}");
 				}
-					
+
 			}
 		}*/
 	}
@@ -379,6 +379,9 @@ namespace TS3AudioBot.Playlists
 
 		[JsonProperty(PropertyName = "resid")]
 		public string ResourceId { get; set; }
+
+		[JsonProperty(PropertyName = "type")]
+		public string ResourceType { get; set; }
 
 		[JsonProperty(PropertyName = "containinglists")]
 		public List<ContainingListInfo> ContainingLists { get; set; }
