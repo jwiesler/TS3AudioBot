@@ -53,7 +53,7 @@ namespace TS3AudioBot.ResourceFactories
 			return GetResourceById(resource.ResourceId, resource.ResourceTitle, false);
 		}
 
-		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, AudioResource resource) => GetResourceById(resource.UniqueId, resource.ResourceTitle, true); // TODO maybe
+		public R<PlayResource, LocalStr> GetResourceById(ResolveContext _, AudioResource resource) => GetResourceById(resource.ResourceId, resource.ResourceTitle, true); // TODO maybe
 
 		private R<PlayResource, LocalStr> GetResourceById(string id, string title, bool allowNullName)
 		{
@@ -68,8 +68,13 @@ namespace TS3AudioBot.ResourceFactories
 //				return GetResource(null, link);
 //			}
 
-			string finalRequest = $"https://api.soundcloud.com/tracks/{id}/stream?client_id={SoundcloudClientId}";
-			return new PlayResource(finalRequest, new AudioResource(id, StringNormalize.Normalize(title), ResolverFor));
+			var result = WebWrapper.DownloadString(new Uri($"https://api.soundcloud.com/tracks/{id}/streams?client_id={SoundcloudClientId}"));
+			if (!result.Ok) {
+				return result.Error;
+			}
+
+			var json = JsonConvert.DeserializeObject<Dictionary<string, string>>(result.Value);
+			return new PlayResource(json["http_mp3_128_url"], new AudioResource(id, StringNormalize.Normalize(title), ResolverFor));
 		}
 
 		public string RestoreLink(ResolveContext _, AudioResource resource)
