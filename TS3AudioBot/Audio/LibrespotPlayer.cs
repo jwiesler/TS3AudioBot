@@ -176,7 +176,7 @@ namespace TS3AudioBot.Audio {
 
 			// Get song duration.
 			TimeSpan? duration = null;
-			var trackOption = api.UriToTrack(spotifyTrackUri);
+			var trackOption = api.GetTrack(spotifyTrackUri);
 			if (trackOption.Ok) {
 				duration = TimeSpan.FromMilliseconds(trackOption.Value.DurationMs);
 			}
@@ -240,7 +240,10 @@ namespace TS3AudioBot.Audio {
 			while (state != State.LibrespotRunning) {
 				if (state == State.LibrespotFailed) {
 					Exit();
-					return new LocalStr("Librespot failed to authenticate, check authentication information in the config!");
+					return new LocalStr(
+						$"Librespot failed to authenticate, check authentication information in the config!" +
+						$" Output:\n{string.Join("\n", output)}"
+					);
 				}
 
 				if (stopWatch.Elapsed > StartTimeout) {

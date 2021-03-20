@@ -13,7 +13,11 @@ namespace TS3AudioBot.Web {
 
 		private static readonly string SpotifyTrackUriPrefix = "spotify:track:";
 		private static readonly Uri CallbackUrl = new Uri("http://localhost:4562/callback");
-		private static readonly Regex SpotifyCallbackCodeMatcher = new Regex(CallbackUrl.ToString().Replace("/", "\\/") + "\\?code=(.*)$");
+
+		private static readonly Regex SpotifyUrlMatcher =
+			new Regex("https:\\/\\/open.spotify.com\\/track\\/([a-zA-Z0-9]*)(\\?.*)?");
+		private static readonly Regex SpotifyCallbackCodeMatcher =
+			new Regex(CallbackUrl.ToString().Replace("/", "\\/") + "\\?code=(.*)$");
 
 		public SpotifyClient Client { get; private set; }
 
@@ -88,6 +92,15 @@ namespace TS3AudioBot.Web {
 			Client = new SpotifyClient(config.SpotifyAccessToken);
 		}
 
+		public static R<string, LocalStr> UrlToTrackId(string url) {
+			var match = SpotifyUrlMatcher.Match(url);
+			if (!match.Success) {
+				return new LocalStr("Invalid spotify track URL.");
+			}
+
+			return match.Groups[1].Value;
+		}
+
 		public static R<string, LocalStr> UriToTrackId(string uri) {
 			if (!uri.Contains(SpotifyTrackUriPrefix)) {
 				return new LocalStr("Invalid spotify track URI.");
@@ -108,10 +121,13 @@ namespace TS3AudioBot.Web {
 			return $"{string.Join(", ", track.Artists.Select(artist => artist.Name))} - {track.Name}";
 		}
 
-		public R<FullTrack, LocalStr> UriToTrack(string uri) {
-			var trackId = UriToTrackId(uri);
+		public R<FullTrack, LocalStr> GetTrack(string uriOrUrl) {
+			var trackId = UriToTrackId(uriOrUrl);
 			if (!trackId.Ok) {
-				return trackId.Error;
+				trackId = UrlToTrackId(uriOrUrl);
+				if (!trackId.Ok) {
+					return new LocalStr("Neither a valid spotify URI nor a valid spotify URL was given.");
+				}
 			}
 
 			var response = Request(() => Client.Tracks.Get(trackId.Value));

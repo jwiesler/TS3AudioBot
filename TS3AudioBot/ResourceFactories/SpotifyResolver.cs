@@ -20,11 +20,15 @@ namespace TS3AudioBot.ResourceFactories {
 		}
 
 		public MatchCertainty MatchResource(ResolveContext ctx, string uri) {
-			return SpotifyApi.UriToTrackId(uri).Ok ? MatchCertainty.Always : MatchCertainty.Never;
+			if (SpotifyApi.UriToTrackId(uri).Ok || SpotifyApi.UrlToTrackId(uri).Ok) {
+				return MatchCertainty.Always;
+			}
+
+			return MatchCertainty.Never;
 		}
 
 		public R<PlayResource, LocalStr> GetResource(ResolveContext ctx, string uri) {
-			var trackOption = api.UriToTrack(uri);
+			var trackOption = api.GetTrack(uri);
 			if (!trackOption.Ok) {
 				return trackOption.Error;
 			}
