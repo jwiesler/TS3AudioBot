@@ -11,7 +11,6 @@ using SpotifyAPI.Web;
 using TS3AudioBot.Config;
 using TS3AudioBot.Helper;
 using TS3AudioBot.Localization;
-using TS3AudioBot.ResourceFactories;
 using TS3AudioBot.Web;
 
 namespace TS3AudioBot.Audio {
@@ -145,7 +144,7 @@ namespace TS3AudioBot.Audio {
 			var handle = "pipe:" + pipeServer.GetClientHandleAsString();
 			var totalBytesSent = 0;
 
-			void Exit(string message) {
+			void Exit(string message, bool stats = true) {
 				pipeServer.Dispose();
 
 				if (!process.HasExitedSafe()) {
@@ -154,7 +153,12 @@ namespace TS3AudioBot.Audio {
 				process.Close();
 
 				state = State.Idle;
-				Log.Debug($"{message} Sent {byteSizeFormatter.Format(totalBytesSent)} bytes in total.");
+
+				var msg = message;
+				if (stats) {
+					msg += $" Sent {byteSizeFormatter.Format(totalBytesSent)} bytes in total.";
+				}
+				Log.Debug(msg);
 			}
 
 			var byteReaderThread = new Thread(() => {
@@ -206,36 +210,41 @@ namespace TS3AudioBot.Audio {
 			while (true) {
 				checkCount++;
 
+				Log.Trace($"Checking if song is playing, try {checkCount}, trying since {stopwatch.Elapsed:c}, limit is {TrackStartTimeout:c}.");
+
 				if (stopwatch.Elapsed > TrackStartTimeout) {
 					stopwatch.Stop();
 					const string message = "Song did not start in time, skipping.";
-					Exit(message);
+					Exit(message, false);
 					return new LocalStr(message);
 				}
 
 				var checkResult = api.Request(() => api.Client.Player.GetCurrentPlayback());
 				if (!checkResult.Ok) {
-					Exit(checkResult.Error.ToString());
+					Exit(checkResult.Error.ToString(), false);
 					return checkResult.Error;
 				}
-
 				var currentlyPlaying = checkResult.Value;
 
 				if (currentlyPlaying.CurrentlyPlayingType != "track") {
+					Log.Trace("The currently playing song is not a track.");
 					continue;
 				}
 
 				var track = (FullTrack) currentlyPlaying.Item;
 
 				if (
-					checkResult.Value.IsPlaying
-				    && checkResult.Value.Device.Id == deviceId
+					currentlyPlaying.IsPlaying
+				    && currentlyPlaying.Device.Id == deviceId
 					&& track.Id == trackId.Value
 				) {
 					stopwatch.Stop();
 					duration = TimeSpan.FromMilliseconds(track.DurationMs);
+					Log.Trace("Song is playing now. Continuing.");
 					break;
 				}
+
+				Log.Trace($"Song not playing yet. IsPlaying: {currentlyPlaying.IsPlaying}, DeviceId: {currentlyPlaying.Device.Id} (should be {deviceId}), TrackId: {track.Id} (should be {trackId.Value}).");
 			}
 
 			Log.Debug($"Checked if the song started already {checkCount} times.");
