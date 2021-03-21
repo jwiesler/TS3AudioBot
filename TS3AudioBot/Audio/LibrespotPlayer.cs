@@ -57,11 +57,13 @@ namespace TS3AudioBot.Audio {
 			this.api = api;
 			this.conf = conf;
 			state = State.NotSetUp;
+			Log.Trace("Changed librespot state to notsetup.");
 			output = new List<string>();
 
 			void Fail(string message) {
 				Log.Error(message);
 				state = State.NotSetUp;
+				Log.Trace("Failed setup of librespot, changed state to notsetup.");
 				if (process != null && !process.HasExitedSafe()) {
 					process.Kill();
 				}
@@ -108,6 +110,8 @@ namespace TS3AudioBot.Audio {
 			process.Kill();
 			process.Close();
 			process = null;
+
+			Log.Trace("Set up Librespot, changed state to idle.");
 			state = State.Idle;
 		}
 
@@ -275,6 +279,7 @@ namespace TS3AudioBot.Audio {
 				}
 				process.Close();
 
+				Log.Trace("Set Librespot state back to idle.");
 				state = State.Idle;
 			}
 
@@ -310,11 +315,13 @@ namespace TS3AudioBot.Audio {
 
 			var badAuthMatch = BadAuthMatcher.Match(e.Data);
 			if (badAuthMatch.Success) {
+				Log.Trace("Set Librespot state to failed.");
 				state = State.LibrespotFailed;
 			}
 
 			var goodAuthMatch = GoodAuthMatcher.Match(e.Data);
 			if (goodAuthMatch.Success) {
+				Log.Trace("Set Librespot state to running.");
 				state = State.LibrespotRunning;
 			}
 		}
