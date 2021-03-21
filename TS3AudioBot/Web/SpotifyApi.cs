@@ -160,7 +160,7 @@ namespace TS3AudioBot.Web {
 		}
 
 		public static string TrackToName(FullTrack track) {
-			return $"{string.Join(", ", track.Artists.Select(artist => artist.Name))} - {track.Name}";
+			return $"{string.Join(", ", track.Artists.Select(artist => artist.Name).Take(3))} - {track.Name}";
 		}
 
 		public R<FullTrack, LocalStr> UriToTrackIfAvailable(string uri) {
