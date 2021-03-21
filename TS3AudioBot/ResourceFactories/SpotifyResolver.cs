@@ -27,8 +27,18 @@ namespace TS3AudioBot.ResourceFactories {
 			return MatchCertainty.Never;
 		}
 
-		public R<PlayResource, LocalStr> GetResource(ResolveContext ctx, string uri) {
-			var trackOption = api.GetTrack(uri);
+		public R<PlayResource, LocalStr> GetResource(ResolveContext ctx, string uriOrUrl) {
+			string uri;
+
+			// Convert if it is a URL.
+			var uriResult = SpotifyApi.UrlToUri(uriOrUrl);
+			if (uriResult.Ok) {
+				uri = uriResult.Value;
+			} else {
+				uri = uriOrUrl;
+			}
+
+			var trackOption = api.UriToTrack(uri);
 			if (!trackOption.Ok) {
 				return trackOption.Error;
 			}

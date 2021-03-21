@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using SpotifyAPI.Web;
@@ -117,17 +118,23 @@ namespace TS3AudioBot.Web {
 			return "https://open.spotify.com/track/" + uri.Replace(SpotifyTrackUriPrefix, "");
 		}
 
+		public static R<string, LocalStr> UrlToUri(string url) {
+			var match = SpotifyUrlMatcher.Match(url);
+			if (!match.Success) {
+				return new LocalStr("Invalid spotify track URL.");
+			}
+
+			return match.Groups[1].Value;
+		}
+
 		public static string TrackToName(FullTrack track) {
 			return $"{string.Join(", ", track.Artists.Select(artist => artist.Name))} - {track.Name}";
 		}
 
-		public R<FullTrack, LocalStr> GetTrack(string uriOrUrl) {
-			var trackId = UriToTrackId(uriOrUrl);
+		public R<FullTrack, LocalStr> UriToTrack(string uri) {
+			var trackId = UriToTrackId(uri);
 			if (!trackId.Ok) {
-				trackId = UrlToTrackId(uriOrUrl);
-				if (!trackId.Ok) {
-					return new LocalStr("Neither a valid spotify URI nor a valid spotify URL was given.");
-				}
+				return trackId.Error;
 			}
 
 			var response = Request(() => Client.Tracks.Get(trackId.Value));
