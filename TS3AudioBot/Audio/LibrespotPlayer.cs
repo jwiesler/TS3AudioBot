@@ -176,7 +176,7 @@ namespace TS3AudioBot.Audio {
 
 			// Get song duration.
 			TimeSpan? duration = null;
-			var trackOption = api.GetTrack(spotifyTrackUri);
+			var trackOption = api.UriToTrack(spotifyTrackUri);
 			if (trackOption.Ok) {
 				duration = TimeSpan.FromMilliseconds(trackOption.Value.DurationMs);
 			}
