@@ -163,16 +163,16 @@ namespace TS3AudioBot.Web {
 			return $"{string.Join(", ", track.Artists.Select(artist => artist.Name))} - {track.Name}";
 		}
 
-		public R<FullTrack, LocalStr> UriToTrack(string uri) {
+		public R<FullTrack, LocalStr> UriToTrackIfAvailable(string uri) {
 			var trackId = UriToTrackId(uri);
 			if (!trackId.Ok) {
 				return trackId.Error;
 			}
 
-			return TrackIdToTrack(trackId.Value);
+			return TrackIdToTrackIfAvailable(trackId.Value);
 		}
 
-		public R<FullTrack, LocalStr> TrackIdToTrack(string trackId) {
+		public R<FullTrack, LocalStr> TrackIdToTrackIfAvailable(string trackId) {
 			var response = Request(() => Client.Tracks.Get(trackId));
 			if (!response.Ok) {
 				return response.Error;
