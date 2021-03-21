@@ -124,7 +124,7 @@ namespace TS3AudioBot.Web {
 				return new LocalStr("Invalid spotify track URL.");
 			}
 
-			return match.Groups[1].Value;
+			return SpotifyTrackUriPrefix + match.Groups[1].Value;
 		}
 
 		public static string TrackToName(FullTrack track) {
