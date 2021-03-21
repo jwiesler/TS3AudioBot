@@ -24,6 +24,7 @@ namespace TS3AudioBot.Web {
 
 		private readonly ConfSpotify config;
 		private readonly ConfRoot rootConfig;
+		private readonly string market;
 
 		public SpotifyApi(ConfRoot rootConfig) {
 			config = rootConfig.Tools.Spotify;
@@ -48,7 +49,8 @@ namespace TS3AudioBot.Web {
 				) {
 					Scope = new[] {
 						Scopes.UserReadPlaybackState,
-						Scopes.UserModifyPlaybackState
+						Scopes.UserModifyPlaybackState,
+						Scopes.UserReadPrivate
 					}
 				};
 				Console.WriteLine(strings.login_to_spotify_using_this_url, loginRequest.ToUri());
@@ -83,6 +85,14 @@ namespace TS3AudioBot.Web {
 					return;
 				}
 
+				if (
+					config.SpotifyAccessToken == null
+					|| config.SpotifyRefreshToken == null
+				) {
+					Log.Error("Failed to setup spotify API: Token config entries are invalid.");
+					return;
+				}
+
 				config.SpotifyAccessToken.Value = tokenRequestTask.Result.AccessToken;
 				config.SpotifyRefreshToken.Value = tokenRequestTask.Result.RefreshToken;
 
@@ -90,7 +100,29 @@ namespace TS3AudioBot.Web {
 			}
 
 			// Create spotify client.
-			Client = new SpotifyClient(config.SpotifyAccessToken);
+			var client = new SpotifyClient(config.SpotifyAccessToken);
+
+			// Get the market of the bot.
+			var userData = Request(() => client.UserProfile.Current());
+			if (!userData.Ok) {
+				Log.Error("Failed to setup spotify API: Could not get user data.");
+				return;
+			}
+
+			// Reshaper is lying, it is null if the user-read-private permission is missing.
+			if (userData.Value.Country == null) {
+				Log.Error("Failed to setup spotify API: Country of the spotify user is invalid.");
+
+				// Reset access and refresh token as they are using the wrong permissions.
+				config.SpotifyAccessToken.Value = "";
+				config.SpotifyRefreshToken.Value = "";
+				rootConfig.Save();
+
+				return;
+			}
+
+			Client = client;
+			market = userData.Value.Country;
 		}
 
 		public static R<string, LocalStr> UrlToTrackId(string url) {
@@ -137,9 +169,18 @@ namespace TS3AudioBot.Web {
 				return trackId.Error;
 			}
 
-			var response = Request(() => Client.Tracks.Get(trackId.Value));
+			return TrackIdToTrack(trackId.Value);
+		}
+
+		public R<FullTrack, LocalStr> TrackIdToTrack(string trackId) {
+			var response = Request(() => Client.Tracks.Get(trackId));
 			if (!response.Ok) {
 				return response.Error;
+			}
+
+			// Check if it is available on the bots market.
+			if (!response.Value.AvailableMarkets.Contains(market)) {
+				return new LocalStr("This track is not available for the registered spotify account.");
 			}
 
 			return response.Value;

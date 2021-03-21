@@ -33,7 +33,8 @@ namespace TS3AudioBot.Audio {
 		                                     " --password {1} -n {2} --disable-audio-cache" +
 		                                     " --bitrate 320 --backend pipe --passthrough";
 
-		private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(5);
+		private static readonly TimeSpan LibrespotStartTimeout = TimeSpan.FromSeconds(5);
+		private static readonly TimeSpan TrackStartTimeout = TimeSpan.FromSeconds(5);
 		private static readonly Regex BadAuthMatcher = new Regex("Bad credentials$");
 		private static readonly Regex GoodAuthMatcher = new Regex("librespot_core::session.*Authenticated as");
 
@@ -71,6 +72,12 @@ namespace TS3AudioBot.Audio {
 				}
 			}
 
+			// Check if spotify is available.
+			if (api.Client == null) {
+				Fail($"Failed to setup Librespot: Spotify API access was not set up correctly. Cannot play from spotify.");
+				return;
+			}
+
 			// Get device ID for librespot.
 			// 1. Connect librespot for it to appear in the API.
 			var processOption = LaunchLibrespot();
@@ -105,7 +112,8 @@ namespace TS3AudioBot.Audio {
 		}
 
 		public R<(string, TimeSpan?), LocalStr> StreamSongToPipeHandle(string spotifyTrackUri) {
-			if (!SpotifyApi.UriToTrackId(spotifyTrackUri).Ok) {
+			var trackId = SpotifyApi.UriToTrackId(spotifyTrackUri);
+			if (!trackId.Ok) {
 				return new LocalStr("Cannot stream this URI from spotify.");
 			}
 
@@ -131,22 +139,21 @@ namespace TS3AudioBot.Audio {
 			Log.Debug("Starting stream...");
 			var pipeServer = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
 			var handle = "pipe:" + pipeServer.GetClientHandleAsString();
+			var totalBytesSent = 0;
+
+			void Exit(string message) {
+				pipeServer.Dispose();
+
+				if (!process.HasExitedSafe()) {
+					process.Kill();
+				}
+				process.Close();
+
+				state = State.Idle;
+				Log.Debug($"{message} Sent {byteSizeFormatter.Format(totalBytesSent)} bytes in total.");
+			}
 
 			var byteReaderThread = new Thread(() => {
-				var totalBytesSent = 0;
-
-				void Exit(string message) {
-					pipeServer.Dispose();
-
-					if (!process.HasExitedSafe()) {
-						process.Kill();
-					}
-					process.Close();
-
-					state = State.Idle;
-					Log.Debug($"{message} Sent {byteSizeFormatter.Format(totalBytesSent)} bytes in total.");
-				}
-
 				var buffer = new byte[BytesPerChunk];
 				while (true) {
 					try {
@@ -174,23 +181,60 @@ namespace TS3AudioBot.Audio {
 				IsBackground = true
 			};
 
-			// Get song duration.
-			TimeSpan? duration = null;
-			var trackOption = api.UriToTrack(spotifyTrackUri);
-			if (trackOption.Ok) {
-				duration = TimeSpan.FromMilliseconds(trackOption.Value.DurationMs);
-			}
-
 			// Start song.
-			var result = api.Request(
+			var playResult = api.Request(
 				() => api.Client.Player.ResumePlayback(new PlayerResumePlaybackRequest {
 					DeviceId = deviceId,
 					Uris = new List<string> { spotifyTrackUri }
 				})
 			);
-			if (!result.Ok) {
-				return result.Error;
+			if (!playResult.Ok) {
+				Exit(playResult.Error.ToString());
+				return playResult.Error;
 			}
+
+			TimeSpan duration;
+
+			// Check if the song actually started playing.
+			var checkCount = 0;
+			var stopwatch = new Stopwatch();
+			stopwatch.Start();
+			while (true) {
+				checkCount++;
+
+				if (stopwatch.Elapsed > TrackStartTimeout) {
+					stopwatch.Stop();
+					const string message = "Song did not start in time, skipping.";
+					Exit(message);
+					return new LocalStr(message);
+				}
+
+				var checkResult = api.Request(() => api.Client.Player.GetCurrentPlayback());
+				if (!checkResult.Ok) {
+					Exit(checkResult.Error.ToString());
+					return checkResult.Error;
+				}
+
+				var currentlyPlaying = checkResult.Value;
+
+				if (currentlyPlaying.CurrentlyPlayingType != "track") {
+					continue;
+				}
+
+				var track = (FullTrack) currentlyPlaying.Item;
+
+				if (
+					checkResult.Value.IsPlaying
+				    && checkResult.Value.Device.Id == deviceId
+					&& track.Id == trackId.Value
+				) {
+					stopwatch.Stop();
+					duration = TimeSpan.FromMilliseconds(track.DurationMs);
+					break;
+				}
+			}
+
+			Log.Debug($"Checked if the song started already {checkCount} times.");
 
 			byteReaderThread.Start();
 			state = State.StreamRunning;
@@ -246,7 +290,7 @@ namespace TS3AudioBot.Audio {
 					);
 				}
 
-				if (stopWatch.Elapsed > StartTimeout) {
+				if (stopWatch.Elapsed > LibrespotStartTimeout) {
 					Exit();
 					return new LocalStr($"Librespot did not launch in time. Output:\n{string.Join("\n", output)}");
 				}
