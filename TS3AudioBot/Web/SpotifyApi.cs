@@ -105,7 +105,7 @@ namespace TS3AudioBot.Web {
 			// Get the market of the bot.
 			var userData = Request(() => client.UserProfile.Current());
 			if (!userData.Ok) {
-				Log.Error("Failed to setup spotify API: Could not get user data.");
+				Log.Error($"Failed to setup spotify API: Could not get user data ({userData.Error}).");
 				return;
 			}
 
