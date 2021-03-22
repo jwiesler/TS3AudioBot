@@ -179,7 +179,7 @@ namespace TS3AudioBot.Web {
 			}
 
 			// Check if it is available on the bots market.
-			Log.Trace("Markets: " + string.Join(", ", response.Value.AvailableMarkets));
+			Log.Trace($"Markets ({market}): " + string.Join(", ", response.Value.AvailableMarkets));
 			if (!response.Value.AvailableMarkets.Contains(market)) {
 				return new LocalStr("This track is not available for the registered spotify account.");
 			}
