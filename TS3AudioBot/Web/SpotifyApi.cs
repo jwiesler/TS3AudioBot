@@ -173,7 +173,7 @@ namespace TS3AudioBot.Web {
 		}
 
 		public R<FullTrack, LocalStr> TrackIdToTrackIfAvailable(string trackId) {
-			var response = Request(() => Client.Tracks.Get(trackId));
+			var response = Request(() => Client.Tracks.Get(trackId, new TrackRequest { Market = market }));
 			if (!response.Ok) {
 				return response.Error;
 			}
