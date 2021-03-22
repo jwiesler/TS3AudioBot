@@ -227,7 +227,6 @@ namespace TS3AudioBot.Audio {
 				}
 
 				var checkResult = api.Request(() => api.Client.Player.GetCurrentPlayback());
-				Log.Trace($"Result of currently playing check: {checkResult.Ok}");
 				if (!checkResult.Ok) {
 					Exit(checkResult.Error.ToString(), false);
 					return checkResult.Error;
@@ -252,6 +251,8 @@ namespace TS3AudioBot.Audio {
 					Log.Trace("Song is playing now. Continuing.");
 					break;
 				}
+
+				Log.Trace($"Song not playing yet. IsPlaying: {currentlyPlaying.IsPlaying}, DeviceId: {currentlyPlaying.Device.Id} (should be {deviceId}), TrackId: {track.Id} (should be {trackId.Value}).");
 			}
 
 			return (handle, byteReaderThread, duration);
