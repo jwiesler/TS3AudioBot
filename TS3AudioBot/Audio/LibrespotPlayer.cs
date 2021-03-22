@@ -205,8 +205,15 @@ namespace TS3AudioBot.Audio {
 				}
 			}
 
+			// Start audio streaming to ffmpeg.
+			Log.Debug("Starting stream...");
+			var pipeServer = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+			var handle = "pipe:" + pipeServer.GetClientHandleAsString();
+
 			var totalBytesSent = 0;
 			void ExitLibrespot(string message, bool stats = true) {
+				pipeServer.Dispose();
+
 				if (!process.HasExitedSafe()) {
 					process.Kill();
 				}
@@ -226,11 +233,6 @@ namespace TS3AudioBot.Audio {
 				ExitLibrespot(msg, false);
 				return new LocalStr(msg);
 			}
-
-			// Start audio streaming to ffmpeg.
-			Log.Debug("Starting stream...");
-			var pipeServer = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
-			var handle = "pipe:" + pipeServer.GetClientHandleAsString();
 
 			var byteReaderThread = new Thread(() => {
 				var buffer = new byte[BytesPerChunk];
