@@ -186,7 +186,7 @@ namespace TS3AudioBot.Web {
 			return response.Value;
 		}
 
-		public R<T, LocalStr> Request<T>(Func<Task<T>> requestFunction) {
+		public R<T, LocalStr> Request<T>(Func<Task<T>> requestFunction) where T : new() {
 			var task = requestFunction();
 
 			// Retry in case the first task only failed because the access token expired.
@@ -207,6 +207,11 @@ namespace TS3AudioBot.Web {
 
 			if (task.IsFaulted) {
 				return new LocalStr("Failed request to spotify API.");
+			}
+
+			if (task.Result == null) {
+				// return default T instead because returning null for Success is not allowed.
+				return new T();
 			}
 
 			return task.Result;

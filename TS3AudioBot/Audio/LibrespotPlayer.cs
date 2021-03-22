@@ -114,7 +114,7 @@ namespace TS3AudioBot.Audio {
 			state = State.Idle;
 		}
 
-		public R<(string, TimeSpan?), LocalStr> StreamSongToPipeHandle(string spotifyTrackUri) {
+		public R<(string, Thread, TimeSpan?), LocalStr> StreamSongToPipeHandle(string spotifyTrackUri) {
 			var trackId = SpotifyApi.UriToTrackId(spotifyTrackUri);
 			if (!trackId.Ok) {
 				return new LocalStr("Cannot stream this URI from spotify.");
@@ -162,28 +162,35 @@ namespace TS3AudioBot.Audio {
 			}
 
 			var byteReaderThread = new Thread(() => {
+				var bytesRead = -1;
 				var buffer = new byte[BytesPerChunk];
 				while (true) {
 					try {
-						var bytesRead = process.StandardOutput.BaseStream.Read(buffer, 0, BytesPerChunk);
-						if (bytesRead == 0) {
-							// Librespot exited, no more data coming.
-							Exit("All spotify streaming data sent to ffmpeg.");
-							return;
-						}
+						bytesRead = process.StandardOutput.BaseStream.Read(buffer, 0, BytesPerChunk);
+					} catch (IOException e) {
+						Exit($"Reading from Librespot failed: {e}.");
+						return;
+					}
 
+					if (bytesRead == 0) {
+						// Librespot exited, no more data coming.
+						Exit("All spotify streaming data sent to ffmpeg.");
+						return;
+					}
+
+					try {
 						pipeServer.Write(buffer, 0, bytesRead);
-
-						if (totalBytesSent == 0) {
-							// Necessary to dispose the handle after ffmpeg connected to receive notice when ffmpeg exits.
-							pipeServer.DisposeLocalCopyOfClientHandle();
-						}
-
-						totalBytesSent += bytesRead;
 					} catch (IOException) {
 						Exit("Ffmpeg went away before all spotify stream data was sent.");
 						return;
 					}
+
+					if (totalBytesSent == 0) {
+						// Necessary to dispose the handle after ffmpeg connected to receive notice when ffmpeg exits.
+						pipeServer.DisposeLocalCopyOfClientHandle();
+					}
+
+					totalBytesSent += bytesRead;
 				}
 			}) {
 				IsBackground = true
@@ -220,6 +227,7 @@ namespace TS3AudioBot.Audio {
 				}
 
 				var checkResult = api.Request(() => api.Client.Player.GetCurrentPlayback());
+				Log.Trace($"Result of currently playing check: {checkResult.Ok}");
 				if (!checkResult.Ok) {
 					Exit(checkResult.Error.ToString(), false);
 					return checkResult.Error;
@@ -240,19 +248,13 @@ namespace TS3AudioBot.Audio {
 				) {
 					stopwatch.Stop();
 					duration = TimeSpan.FromMilliseconds(track.DurationMs);
+					state = State.StreamRunning;
 					Log.Trace("Song is playing now. Continuing.");
 					break;
 				}
-
-				Log.Trace($"Song not playing yet. IsPlaying: {currentlyPlaying.IsPlaying}, DeviceId: {currentlyPlaying.Device.Id} (should be {deviceId}), TrackId: {track.Id} (should be {trackId.Value}).");
 			}
 
-			Log.Debug($"Checked if the song started already {checkCount} times.");
-
-			byteReaderThread.Start();
-			state = State.StreamRunning;
-
-			return (handle, duration);
+			return (handle, byteReaderThread, duration);
 		}
 
 		private E<LocalStr> LaunchLibrespot() {

@@ -339,15 +339,15 @@ namespace TS3AudioBot.Audio
 			}
 
 			// Prepare librespot if necessary and working.
+			Thread pipeThread = null;
 			TimeSpan? duration = null;
-
 			if (SpotifyApi.UriToTrackId(url).Ok) {
 				var pipeHandleOption = librespot.StreamSongToPipeHandle(url);
 				if (!pipeHandleOption.Ok) {
 					return pipeHandleOption.Error.ToString();
 				}
 
-				(url, duration) = pipeHandleOption.Value;
+				(url, pipeThread, duration) = pipeHandleOption.Value;
 			}
 
 			string arguments;
@@ -377,7 +377,13 @@ namespace TS3AudioBot.Audio
 				newInstance.OnSongLengthSet = InvokeOnSongLengthParsed;
 			}
 
-			return StartFfmpegProcessInternal(newInstance, arguments);
+			// Start Ffmpeg.
+			var result = StartFfmpegProcessInternal(newInstance, arguments);
+
+			// Start spotify pipe thread if given.
+			pipeThread?.Start();
+
+			return result;
 		}
 
 		private R<FfmpegInstance, string> StartFfmpegProcessIcy(string url)
