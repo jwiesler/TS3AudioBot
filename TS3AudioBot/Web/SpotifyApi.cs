@@ -110,7 +110,11 @@ namespace TS3AudioBot.Web {
 			}
 
 			// Reshaper is lying, it is null if the user-read-private permission is missing.
+			// ReSharper disable once ConditionIsAlwaysTrueOrFalse
+			// ReSharper disable once HeuristicUnreachableCode
 			if (userData.Value.Country == null) {
+				// ReSharper disable once HeuristicUnreachableCode
+
 				Log.Error("Failed to setup spotify API: Country of the spotify user is invalid.");
 
 				// Reset access and refresh token as they are using the wrong permissions.
