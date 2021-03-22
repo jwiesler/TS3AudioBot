@@ -178,10 +178,38 @@ namespace TS3AudioBot.Web {
 				return response.Error;
 			}
 
-			// Check if it is available on the bots market.
-			if (!response.Value.AvailableMarkets.Contains(market)) {
+			var availableMarkets = response.Value.AvailableMarkets;
+			var restrictions = response.Value.Restrictions;
+
+
+
+			// Check if the track was not relinked but is not available on the bots market.
+			// ReSharper disable once ConditionIsAlwaysTrueOrFalse - reshaper is lying because the C# spotify api implementation is weird.
+			if (availableMarkets != null && !response.Value.AvailableMarkets.Contains(market)) {
 				Log.Trace($"Markets ({market}): " + string.Join(", ", response.Value.AvailableMarkets));
-				return new LocalStr("This track is not available for the registered spotify account.");
+				return new LocalStr("The track is not available on the market of the bots spotify account.");
+			}
+
+			// Check if the track could not be relinked.
+			// ReSharper disable once ConditionIsAlwaysTrueOrFalse - reshaper is lying because the C# spotify api implementation is weird.
+			if (restrictions != null && restrictions.Count != 0) {
+				if (restrictions.ContainsKey("reason")) {
+					switch (restrictions["reason"]) {
+						case "market":
+							return new LocalStr("The track is not available on the market of the bots spotify account.");
+						case "product":
+							return new LocalStr("The track cannot be played by the bots spotify subscription.");
+						case "explicit":
+							return new LocalStr("The track is marked explicit and the bots spotify account is set to not play explicit content.");
+						default:
+							return new LocalStr($"The track could not be relinked because of '{restrictions["reason"]}'.");
+					}
+				}
+
+				var restrictionString = string.Join(", ", restrictions.Select(
+					kv => $"{kv.Key} - {kv.Value}"
+				));
+				return new LocalStr("The track could not be relinked: " + restrictionString);
 			}
 
 			return response.Value;
