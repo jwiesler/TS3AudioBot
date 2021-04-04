@@ -222,25 +222,33 @@ namespace TS3AudioBot.Web {
 
 		public R<T, LocalStr> Request<T>(Func<Task<T>> requestFunction) where T : new() {
 			var task = requestFunction();
+			var refreshed = false;
+			var ratelimitHonored = false;
 
 			// Retry in case the first task only failed because the access token expired.
-			for (var i = 0; i < 2; i++) {
-				var result = ResolveRequestTask(task, i == 0);
+			while (true) {
+				var result = ResolveRequestTask(task, refreshed);
 				if (result.Ok) {
 					break;
 				}
 
 				if (result.Error.Item1 != TimeSpan.Zero) {
+					// Ratelimit was already honored once, don't do that again.
+					if (ratelimitHonored) {
+						return result.Error.Item2;
+					}
+
 					// Retry after given time period, don't advance the retry counter.
-					Log.Warn($"Rate limit exceeded, retrying in {result.Error.Item1:\\hh:\\mm:\\ss}.");
+					Log.Warn($"Rate limit exceeded, retrying in {result.Error.Item1}.");
 					Thread.Sleep(result.Error.Item1);
-					i--;
+					ratelimitHonored = true;
 				}
 
-				// Retry already done.
-				if (i != 0) {
+				if (refreshed) {
+					// Refreshing was already tried.
 					return result.Error.Item2;
 				}
+				refreshed = true;
 
 				// Retry the request.
 				task = requestFunction();
