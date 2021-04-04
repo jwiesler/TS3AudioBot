@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using NLog;
+using NLog.Fluent;
 using TS3AudioBot.Localization;
 
 namespace TS3AudioBot.Search
@@ -58,7 +59,7 @@ namespace TS3AudioBot.Search
 
 		[DllImport(StrSearchLibrary, CallingConvention = CallingConvention.Cdecl)]
 		private static extern unsafe Result FindUniqueItemsKeywords(IntPtr instance, char *patternBegin, ulong count, int *output, ulong outputCount, KeywordsMatch matching, uint offset, ref FindUniqueItemsResult itemsResult, ref FindUniqueItemsKeywordsTimings timings);
-		
+
 		private static void LogCallback(string msg) { Log.Info("strsearch: " + msg); }
 
 		public static unsafe IntPtr CreateSearchInstanceFromText(char[] characters, LogCallbackFunction callback) {
@@ -103,10 +104,10 @@ namespace TS3AudioBot.Search
 
 		private readonly LogCallbackFunction log;
 		private readonly IntPtr instance;
-		
+
 		public StrSearch(char[] characters) {
 			log = LogCallback;
-			instance = CreateSearchInstanceFromText(characters, log); 
+			instance = CreateSearchInstanceFromText(characters, log);
 		}
 
 		public R<(int[] items, FindUniqueItemsResult result), LocalStr> FindUniqueItems(char[] pattern, int count, uint offset) {
@@ -131,6 +132,8 @@ namespace TS3AudioBot.Search
 	}
 
 	public class StrSearchWrapper : IDisposable {
+		private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
 		public int CharacterCount { get; }
 		public char[] Characters { get; }
 
@@ -138,18 +141,21 @@ namespace TS3AudioBot.Search
 
 		public StrSearchWrapper(ICollection<string> strings) {
 			CharacterCount = strings.Sum(w => w.Length + 1);
-			Characters = new char[CharacterCount];
-			{
-				int offset = 0;
-				foreach (var str in strings) {
-					foreach (var c in str) {
-						Characters[offset++] = c;
-					}
 
-					++offset;
+			Log.Trace($"Creating character array with {CharacterCount} characters...");
+			Characters = new char[CharacterCount];
+
+			Log.Trace("Filling character array...");
+			int offset = 0;
+			foreach (var str in strings) {
+				foreach (var c in str) {
+					Characters[offset++] = c;
 				}
+
+				++offset;
 			}
 
+			Log.Trace("Creating StrSearch object...");
 			instance = new StrSearch(Characters);
 		}
 
