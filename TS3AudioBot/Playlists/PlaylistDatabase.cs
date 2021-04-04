@@ -472,9 +472,6 @@ namespace TS3AudioBot.Playlists {
 
 		private void RemovePlaylistItemsInternal(DatabasePlaylist list) {
 			foreach (var info in list.InfoItems) {
-				if(!info.RemoveList(list))
-					Log.Warn("Failed to remove song from database");
-
 				resourcesDatabase.RemoveListFromItem(list, info);
 			}
 		}
