@@ -242,13 +242,13 @@ namespace TS3AudioBot.Web {
 					Log.Warn($"Rate limit exceeded, retrying in {result.Error.Item1}.");
 					Thread.Sleep(result.Error.Item1);
 					ratelimitHonored = true;
+				} else {
+					if (refreshed) {
+						// Refreshing was already tried.
+						return result.Error.Item2;
+					}
+					refreshed = true;
 				}
-
-				if (refreshed) {
-					// Refreshing was already tried.
-					return result.Error.Item2;
-				}
-				refreshed = true;
 
 				// Retry the request.
 				task = requestFunction();
