@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using SpotifyAPI.Web;
 using TS3AudioBot.Config;
@@ -229,9 +230,16 @@ namespace TS3AudioBot.Web {
 					break;
 				}
 
+				if (result.Error.Item1 != TimeSpan.Zero) {
+					// Retry after given time period, don't advance the retry counter.
+					Log.Warn($"Rate limit exceeded, retrying in {result.Error.Item1:\\hh:\\mm:\\ss}.");
+					Thread.Sleep(result.Error.Item1);
+					i--;
+				}
+
 				// Retry already done.
 				if (i != 0) {
-					return result.Error;
+					return result.Error.Item2;
 				}
 
 				// Retry the request.
@@ -250,38 +258,41 @@ namespace TS3AudioBot.Web {
 			return task.Result;
 		}
 
-		public E<LocalStr> ResolveRequestTask(Task task, bool refresh = true) {
+		public E<(TimeSpan, LocalStr)> ResolveRequestTask(Task task, bool refresh = true) {
 			try {
 				task.Wait();
 			} catch (AggregateException ae) {
+				var retryIn = TimeSpan.Zero;
 				var messages = new List<string>();
 
 				foreach (var e in ae.InnerExceptions) {
-					if (!(e is APIUnauthorizedException) || !refresh) {
+					if (e is APITooManyRequestsException tooManyRequestsException) {
+						retryIn = tooManyRequestsException.RetryAfter;
+						messages.Add("Rate limit exceeded, please try again after the given timespan.");
+					} else if (e is APIUnauthorizedException && refresh) {
+						// Refresh access token.
+						var tokenRefreshTask = new OAuthClient().RequestToken(
+							new AuthorizationCodeRefreshRequest(
+								config.SpotifyAPIClientId,
+								config.SpotifyAPIClientSecret,
+								config.SpotifyRefreshToken
+							)
+						);
+
+						var result = ResolveRequestTask(tokenRefreshTask, false);
+						if (result.Ok && !tokenRefreshTask.IsFaulted) {
+							Client = new SpotifyClient(tokenRefreshTask.Result.AccessToken);
+							config.SpotifyAccessToken.Value = tokenRefreshTask.Result.AccessToken;
+							rootConfig.Save();
+						}
+
+						messages.Add("Spotify access token was expired, try again.");
+					} else {
 						messages.Add(e.ToString());
-						continue;
 					}
-
-					// Refresh access token.
-					var tokenRefreshTask = new OAuthClient().RequestToken(
-						new AuthorizationCodeRefreshRequest(
-							config.SpotifyAPIClientId,
-							config.SpotifyAPIClientSecret,
-							config.SpotifyRefreshToken
-						)
-					);
-
-					var result = ResolveRequestTask(tokenRefreshTask, false);
-					if (result.Ok && !tokenRefreshTask.IsFaulted) {
-						Client = new SpotifyClient(tokenRefreshTask.Result.AccessToken);
-						config.SpotifyAccessToken.Value = tokenRefreshTask.Result.AccessToken;
-						rootConfig.Save();
-					}
-
-					return new LocalStr("Spotify access token was expired, try again.");
 				}
 
-				return new LocalStr($"Failed request to spotify API: {string.Join(", ", messages)}");
+				return (retryIn, new LocalStr($"Failed request to spotify API: {string.Join(", ", messages)}"));
 			}
 
 			return R.Ok;

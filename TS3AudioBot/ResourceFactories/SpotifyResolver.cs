@@ -102,7 +102,7 @@ namespace TS3AudioBot.ResourceFactories {
 
 			var pagesTaskResolveResult = api.ResolveRequestTask(pagesTask);
 			if (!pagesTaskResolveResult.Ok) {
-				return pagesTaskResolveResult.Error;
+				return pagesTaskResolveResult.Error.Item2;
 			}
 
 			var result = new List<AudioResource>();
