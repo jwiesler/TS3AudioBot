@@ -232,8 +232,10 @@ namespace TS3AudioBot.Web {
 					break;
 				}
 
+				Log.Warn($"Spotify request is fucked: {result.Error.Item1} {result.Error.Item2}");
+
 				if (result.Error.Item1 != TimeSpan.Zero) {
-					// Ratelimit was already honored three times, don't do that again.
+					// Rate limit was already honored three times, don't do that again.
 					if (ratelimitHonored >= 3) {
 						return result.Error.Item2;
 					}
