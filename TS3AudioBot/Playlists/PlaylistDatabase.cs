@@ -527,10 +527,7 @@ namespace TS3AudioBot.Playlists {
 		public IEnumerable<IReadonlyUniqueResourceInfo> UniqueResources {
 			get {
 				lock (Lock) {
-					Log.Trace("Acquired lock, returning 'clone' (potential bug).");
-					var result = resourcesDatabase.UniqueResources;
-					Log.Trace("'clone' created.");
-					return result;
+					return resourcesDatabase.UniqueResources;
 				}
 			}
 		}

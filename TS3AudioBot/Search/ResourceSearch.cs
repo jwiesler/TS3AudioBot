@@ -25,11 +25,8 @@ namespace TS3AudioBot.Search {
 		}
 
 		public ResourceSearchInstance(IEnumerable<IReadonlyUniqueResourceInfo> uniqueItems) {
-			Log.Trace("Converting Resource Infos to SearchItem Infos...");
 			items = uniqueItems.Select(Convert).ToList();
-			Log.Trace("Lowercasing titles...");
 			var lowerCased = items.Select(i => i.ResourceTitle.ToLowerInvariant()).ToList();
-			Log.Trace("Creating str search wrapper");
 			sa = new StrSearchWrapper(lowerCased);
 		}
 
@@ -93,15 +90,12 @@ namespace TS3AudioBot.Search {
 		}
 
 		private static ResourceSearchInstance Build(PlaylistDatabase database) {
-			Stopwatch timer = new Stopwatch();
-			Log.Trace("Loading playlists...");
+			Log.Debug("Building suffix array...");
+			var timer = new Stopwatch();
 			timer.Start();
-			var items = database.UniqueResources.ToList();
 			var loadMs = timer.ElapsedMilliseconds;
 			timer.Restart();
-			Log.Trace($"Loaded {items.Count} items.");
-			Log.Trace("Building search instance...");
-			var inst = new ResourceSearchInstance(items);
+			var inst = new ResourceSearchInstance(database.UniqueResources);
 			Log.Info($"Built suffix array (loading playlists {loadMs}ms, build {timer.ElapsedMilliseconds}ms)");
 			return inst;
 		}
@@ -136,13 +130,12 @@ namespace TS3AudioBot.Search {
 					lock (this) {
 						if (version < Version) {
 							// Rebuild was called in the background, rebuild
-							Log.Trace("Built version got invalidated, rebuilding...");
+							Log.Debug("Built version got invalidated, rebuilding...");
 							inst.Dispose();
 							version = Version;
 							continue;
 						}
 
-						Log.Trace("Exchanging search instance...");
 						Exchange(inst);
 						CurrentUpdateTask = null;
 						return;
@@ -158,7 +151,7 @@ namespace TS3AudioBot.Search {
 					CurrentUpdateTask = StartRebuildTask(Version);
 				} else {
 					// Already running => announce version change
-					Log.Trace("Rebuild is already running, mark the one that is currently being build as out of date to initiate another rebuild.");
+					Log.Debug("Rebuild is already running, mark the one that is currently being build as out of date to initiate another rebuild.");
 					++Version;
 				}
 			}

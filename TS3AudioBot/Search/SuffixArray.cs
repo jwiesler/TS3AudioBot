@@ -141,11 +141,8 @@ namespace TS3AudioBot.Search
 
 		public StrSearchWrapper(ICollection<string> strings) {
 			CharacterCount = strings.Sum(w => w.Length + 1);
-
-			Log.Trace($"Creating character array with {CharacterCount} characters...");
 			Characters = new char[CharacterCount];
 
-			Log.Trace("Filling character array...");
 			int offset = 0;
 			foreach (var str in strings) {
 				foreach (var c in str) {
@@ -155,7 +152,6 @@ namespace TS3AudioBot.Search
 				++offset;
 			}
 
-			Log.Trace("Creating StrSearch object...");
 			instance = new StrSearch(Characters);
 		}
 
