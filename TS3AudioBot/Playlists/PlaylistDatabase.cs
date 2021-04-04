@@ -104,7 +104,7 @@ namespace TS3AudioBot.Playlists {
 		private readonly Dictionary<AudioResource, UniqueResourceInfo> uniqueSongs =
 			new Dictionary<AudioResource, UniqueResourceInfo>();
 
-		public IEnumerable<IReadonlyUniqueResourceInfo> UniqueResources => uniqueSongs.Values.Select(v => (IReadonlyUniqueResourceInfo) v);
+		public IEnumerable<IReadonlyUniqueResourceInfo> UniqueResources => uniqueSongs.Values.Select(v => (IReadonlyUniqueResourceInfo) v).ToList();
 
 		public bool TryGetUniqueResourceInfo(AudioResource resource, out IReadonlyUniqueResourceInfo info) {
 			if (uniqueSongs.TryGetValue(resource, out var v)) {
