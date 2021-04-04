@@ -38,7 +38,7 @@ namespace TS3AudioBot.ResourceFactories {
 				uri = uriOrUrl;
 			}
 
-			var trackOption = api.UriToTrackIfAvailable(uri);
+			var trackOption = api.UriToTrack(uri);
 			if (!trackOption.Ok) {
 				return trackOption.Error;
 			}
@@ -49,7 +49,7 @@ namespace TS3AudioBot.ResourceFactories {
 
 		public R<PlayResource, LocalStr> GetResourceById(ResolveContext ctx, AudioResource resource) {
 			// Check if the track is available on the market of the bots spotify account.
-			var trackOption = api.UriToTrackIfAvailable(resource.ResourceId);
+			var trackOption = api.UriToTrack(resource.ResourceId);
 			if (!trackOption.Ok) {
 				return trackOption.Error;
 			}
