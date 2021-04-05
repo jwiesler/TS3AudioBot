@@ -101,12 +101,13 @@ namespace TS3AudioBot.Web {
 			}
 
 			// Create spotify client.
-			var client = new SpotifyClient(config.SpotifyAccessToken);
+			Client = new SpotifyClient(config.SpotifyAccessToken);
 
 			// Get the market of the bot.
-			var userData = Request(() => client.UserProfile.Current());
+			var userData = Request(() => Client.UserProfile.Current());
 			if (!userData.Ok) {
 				Log.Error($"Failed to setup spotify API: Could not get user data ({userData.Error}).");
+				Client = null;
 				return;
 			}
 
@@ -123,10 +124,10 @@ namespace TS3AudioBot.Web {
 				config.SpotifyRefreshToken.Value = "";
 				rootConfig.Save();
 
+				Client = null;
 				return;
 			}
 
-			Client = client;
 			market = userData.Value.Country;
 		}
 
@@ -227,7 +228,7 @@ namespace TS3AudioBot.Web {
 
 			// Retry in case the first task only failed because the access token expired.
 			while (true) {
-				var result = ResolveRequestTask(task, refreshed);
+				var result = ResolveRequestTask(task, !refreshed);
 				if (result.Ok) {
 					break;
 				}
