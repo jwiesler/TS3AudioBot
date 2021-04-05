@@ -16,7 +16,6 @@ namespace TS3AudioBot.Web.Model
 		public string Link { get; set; }
 		public string Title { get; set; }
 		public string AudioType { get; set; }
-		// Link
-		// AlbumCover
+		public string ResourceId { get; set; }
 	}
 }

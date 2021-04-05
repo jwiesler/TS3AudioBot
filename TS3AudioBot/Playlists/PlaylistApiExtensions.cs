@@ -22,6 +22,7 @@ namespace TS3AudioBot.Playlists
 				Link = resourceFactory.RestoreLink(resource).OkOr(null),
 				Title = resource.ResourceTitle,
 				AudioType = resource.AudioType,
+				ResourceId = resource.ResourceId
 			};
 		}
 	}
