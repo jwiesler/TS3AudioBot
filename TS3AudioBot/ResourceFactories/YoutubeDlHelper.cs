@@ -51,7 +51,7 @@ namespace TS3AudioBot.ResourceFactories
 			return RunYoutubeDl<JsonYtdlPlaylistDump>(ytdlPath.Value.ytdlpath, param);
 		}
 
-		public static R<JsonYtdlPlaylistDump, LocalStr> GetSearch(string text)
+		public static R<JsonYtdlPlaylistDump, LocalStr> GetSearch(string text, bool retry = false)
 		{
 			var ytdlPath = FindYoutubeDl();
 			if (ytdlPath is null)
@@ -61,7 +61,17 @@ namespace TS3AudioBot.ResourceFactories
 			text = text.Replace("\"", "");
 
 			var param = $"{ytdlPath.Value.param}{ParamGetSearch}\"{text}\"";
-			return RunYoutubeDl<JsonYtdlPlaylistDump>(ytdlPath.Value.ytdlpath, param);
+			var result =  RunYoutubeDl<JsonYtdlPlaylistDump>(ytdlPath.Value.ytdlpath, param);
+			if (!result.Ok) {
+				return result.Error;
+			}
+
+			if (result.Value.entries.Length == 0 && !retry) {
+				Log.Info("Got empty search result, trying again because the ytdl search sometimes randomly returns nothing.");
+				return GetSearch(text, true);
+			}
+
+			return result;
 		}
 
 		public static (string ytdlpath, string param)? FindYoutubeDl()
